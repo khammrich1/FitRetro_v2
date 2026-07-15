@@ -8,7 +8,9 @@ import {
   upsertGoals,
   getRemainingMacrosForDay,
   suggestFoodsForRemainingMacros,
+  estimateMacrosFromDescription,
   type FoodSuggestion,
+  type MacroEstimate,
 } from "@/features/nutrition";
 import { mealTypeEnum } from "@/db/schema";
 
@@ -101,5 +103,22 @@ export async function getSuggestionsAction(): Promise<SuggestionsState> {
     return { suggestions };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Failed to get suggestions." };
+  }
+}
+
+export type EstimateMacrosState = { estimate: MacroEstimate } | { error: string } | undefined;
+
+export async function estimateMacrosAction(description: string): Promise<EstimateMacrosState> {
+  await verifySession();
+
+  if (!description.trim()) {
+    return { error: "Describe what you ate first." };
+  }
+
+  try {
+    const estimate = await estimateMacrosFromDescription(description);
+    return { estimate };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Failed to estimate macros." };
   }
 }
