@@ -1,0 +1,70 @@
+import { pgTable, uuid, text, timestamp, integer, real, pgEnum } from "drizzle-orm/pg-core";
+import { users } from "./users";
+
+export const muscleGroupEnum = pgEnum("muscle_group", [
+  "chest",
+  "back",
+  "shoulders",
+  "biceps",
+  "triceps",
+  "legs",
+  "core",
+  "full_body",
+  "cardio",
+]);
+
+/** Catalog of known exercises, shared across all users. */
+export const exercises = pgTable("exercises", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  muscleGroup: muscleGroupEnum("muscle_group").notNull(),
+  equipment: text("equipment"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** A single workout session logged by a user. */
+export const workouts = pgTable("workouts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** An exercise performed within a workout, in a given order. */
+export const workoutExercises = pgTable("workout_exercises", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  workoutId: uuid("workout_id")
+    .references(() => workouts.id, { onDelete: "cascade" })
+    .notNull(),
+  exerciseId: uuid("exercise_id")
+    .references(() => exercises.id, { onDelete: "restrict" })
+    .notNull(),
+  order: integer("order").notNull(),
+});
+
+/** A single set (reps/weight/duration) within a workout exercise. */
+export const workoutSets = pgTable("workout_sets", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  workoutExerciseId: uuid("workout_exercise_id")
+    .references(() => workoutExercises.id, { onDelete: "cascade" })
+    .notNull(),
+  setNumber: integer("set_number").notNull(),
+  reps: integer("reps"),
+  weightKg: real("weight_kg"),
+  durationSeconds: integer("duration_seconds"),
+  rpe: real("rpe"),
+});
+
+export type Exercise = typeof exercises.$inferSelect;
+export type NewExercise = typeof exercises.$inferInsert;
+export type Workout = typeof workouts.$inferSelect;
+export type NewWorkout = typeof workouts.$inferInsert;
+export type WorkoutExercise = typeof workoutExercises.$inferSelect;
+export type NewWorkoutExercise = typeof workoutExercises.$inferInsert;
+export type WorkoutSet = typeof workoutSets.$inferSelect;
+export type NewWorkoutSet = typeof workoutSets.$inferInsert;
