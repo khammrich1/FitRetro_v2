@@ -21,3 +21,20 @@ export const nutritionEntries = pgTable("nutrition_entries", {
 
 export type NutritionEntry = typeof nutritionEntries.$inferSelect;
 export type NewNutritionEntry = typeof nutritionEntries.$inferInsert;
+
+/** A user's daily calorie/macro targets, one row per user. */
+export const nutritionGoals = pgTable("nutrition_goals", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull()
+    .unique(),
+  dailyCalories: integer("daily_calories").notNull(),
+  dailyProteinGrams: real("daily_protein_grams").notNull(),
+  dailyCarbsGrams: real("daily_carbs_grams").notNull(),
+  dailyFatGrams: real("daily_fat_grams").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type NutritionGoal = typeof nutritionGoals.$inferSelect;
+export type NewNutritionGoal = typeof nutritionGoals.$inferInsert;

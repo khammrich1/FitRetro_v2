@@ -37,13 +37,16 @@ src/
     schema/             One file per domain (users, workouts, measurements, nutrition,
                          recipes, habits), re-exported via schema/index.ts
   features/            One folder per product feature, each with its own data-access layer:
+    auth/               Signup/login/logout, password hashing, session verification (DAL)
     workouts/           Workout sessions, exercises, sets
     progress/           Analytics/trends derived from workouts + measurements
     measurements/       Body measurements (weight, height, body fat, etc.)
-    nutrition/          Food/meal logging and macro tracking
+    nutrition/          Food/meal logging, macro tracking, LLM-powered food suggestions
     recipes/            Recipe storage, including LLM-generated recipes
     habits/             Habit tracking with streaks and points (gamification)
-  lib/                 Cross-cutting utilities
+  lib/                 Cross-cutting utilities (e.g. session cookie signing)
+  proxy.ts             Route protection (this Next.js version renames middleware.ts to
+                       proxy.ts — see AGENTS.md and node_modules/next/dist/docs)
 ```
 
 Each feature module owns its own queries/data-access functions and only touches the database
@@ -71,3 +74,17 @@ npm run db:studio          # browse the database with Drizzle Studio
 Copy `.env.example` to `.env` and set `DATABASE_URL` to a running Postgres instance before
 running any `db:*` script or the app itself. Schema lives in `src/db/schema/*.ts`; run
 `npm run db:generate` after changing it to produce a migration under `drizzle/`.
+
+## Auth
+
+Email/password auth using stateless JWT sessions (`jose`) in an httpOnly cookie — see
+`src/lib/session.ts` and `src/features/auth/`. `SESSION_SECRET` in `.env` signs the cookie.
+Route protection is optimistic (`src/proxy.ts`, cookie-only check); the real authorization
+boundary is `verifySession()` from `@/features/auth`, called in every protected page/action.
+
+## LLM-assisted features
+
+Food suggestions (and future LLM-generated recipes) call the Claude API via `@anthropic-ai/sdk`.
+Set `ANTHROPIC_API_KEY` in `.env` to enable them — everything else works without it. Default to
+`claude-haiku-4-5` for simple, low-stakes generation tasks like this to keep cost negligible;
+reach for a larger model only if a task actually needs deeper reasoning.

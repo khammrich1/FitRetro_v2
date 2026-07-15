@@ -1,6 +1,11 @@
 import { and, eq, gte, lt } from "drizzle-orm";
 import { db } from "@/db/client";
-import { nutritionEntries, type NewNutritionEntry } from "@/db/schema";
+import {
+  nutritionEntries,
+  nutritionGoals,
+  type NewNutritionEntry,
+  type NewNutritionGoal,
+} from "@/db/schema";
 
 export async function logNutritionEntry(input: NewNutritionEntry) {
   const [entry] = await db.insert(nutritionEntries).values(input).returning();
@@ -24,6 +29,55 @@ export async function getEntriesForDay(userId: string, day: Date) {
         lt(nutritionEntries.loggedAt, startOfNextDay),
       ),
     );
+}
+
+export async function getGoals(userId: string) {
+  const [goal] = await db.select().from(nutritionGoals).where(eq(nutritionGoals.userId, userId));
+  return goal ?? null;
+}
+
+export async function upsertGoals(input: NewNutritionGoal) {
+  const [goal] = await db
+    .insert(nutritionGoals)
+    .values(input)
+    .onConflictDoUpdate({
+      target: nutritionGoals.userId,
+      set: {
+        dailyCalories: input.dailyCalories,
+        dailyProteinGrams: input.dailyProteinGrams,
+        dailyCarbsGrams: input.dailyCarbsGrams,
+        dailyFatGrams: input.dailyFatGrams,
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
+  return goal;
+}
+
+export type RemainingMacros = {
+  calories: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+};
+
+/** Daily goals minus what's already been logged today; negative values mean the goal was exceeded. */
+export async function getRemainingMacrosForDay(
+  userId: string,
+  day: Date,
+): Promise<RemainingMacros | null> {
+  const goal = await getGoals(userId);
+  if (!goal) return null;
+
+  const entries = await getEntriesForDay(userId, day);
+  const consumed = summarizeMacros(entries);
+
+  return {
+    calories: goal.dailyCalories - consumed.calories,
+    proteinGrams: goal.dailyProteinGrams - consumed.proteinGrams,
+    carbsGrams: goal.dailyCarbsGrams - consumed.carbsGrams,
+    fatGrams: goal.dailyFatGrams - consumed.fatGrams,
+  };
 }
 
 export function summarizeMacros(
