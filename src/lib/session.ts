@@ -47,7 +47,10 @@ export async function createSession(userId: string) {
 
   cookieStore.set(SESSION_COOKIE_NAME, session, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // Secure by default in production, but overridable: a Secure cookie is silently
+    // dropped by the browser on plain HTTP, which would break sessions entirely on a
+    // deployment with no TLS yet. Set COOKIE_SECURE=false until HTTPS is in front of it.
+    secure: process.env.NODE_ENV === "production" && process.env.COOKIE_SECURE !== "false",
     expires: expiresAt,
     sameSite: "lax",
     path: "/",
