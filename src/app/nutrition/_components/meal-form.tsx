@@ -54,16 +54,16 @@ export function MealForm() {
   return (
     <form
       action={action}
-      className="flex flex-col gap-3 rounded-lg border border-black/10 p-4 dark:border-white/10"
+      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
     >
-      <h2 className="font-semibold">Log a meal</h2>
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Log a meal</h2>
 
       <label className="flex flex-col gap-1 text-sm">
         Meal type
         <select
           name="mealType"
           defaultValue="breakfast"
-          className="rounded-md border border-black/10 px-2 py-1 dark:border-white/20 dark:bg-zinc-900"
+          className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
         >
           {mealTypeEnum.enumValues.map((type) => (
             <option key={type} value={type}>
@@ -81,7 +81,7 @@ export function MealForm() {
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             placeholder="40g chicken breast, 10g mixed vegetables"
-            className="flex-1 rounded-md border border-black/10 px-2 py-1 dark:border-white/20 dark:bg-zinc-900"
+            className="flex-1 rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           {micSupported && (
             <button
@@ -90,7 +90,9 @@ export function MealForm() {
               aria-pressed={isListening}
               title={isListening ? "Stop listening" : "Describe by voice"}
               className={`rounded-md border px-3 py-1 text-sm ${
-                isListening ? "border-red-600 text-red-600" : "border-black/10 dark:border-white/20"
+                isListening
+                  ? "border-danger text-danger"
+                  : "border-border hover:border-accent hover:text-accent"
               }`}
             >
               {isListening ? "● Listening" : "🎤"}
@@ -98,7 +100,7 @@ export function MealForm() {
           )}
         </div>
         {state?.errors?.description && (
-          <span className="text-red-600">{state.errors.description[0]}</span>
+          <span className="text-danger">{state.errors.description[0]}</span>
         )}
       </label>
 
@@ -106,17 +108,17 @@ export function MealForm() {
         type="button"
         onClick={handleEstimate}
         disabled={estimating || !description.trim()}
-        className="self-start rounded-full border border-black/10 px-4 py-1.5 text-sm disabled:opacity-50 dark:border-white/20"
+        className="self-start rounded-full border border-border px-4 py-1.5 text-sm hover:border-accent hover:text-accent disabled:opacity-50"
       >
         {estimating ? "Estimating macros..." : "Estimate macros"}
       </button>
 
       {estimateResult && "error" in estimateResult && (
-        <p className="text-sm text-red-600">{estimateResult.error}</p>
+        <p className="text-sm text-danger">{estimateResult.error}</p>
       )}
 
       {estimateResult && "estimate" in estimateResult && (
-        <ul className="text-sm text-zinc-600 dark:text-zinc-400">
+        <ul className="text-sm text-muted-foreground">
           {estimateResult.estimate.items.map((item) => (
             <li key={item.name}>
               {item.quantity} {item.name} — {item.calories} kcal
@@ -134,7 +136,7 @@ export function MealForm() {
             min={0}
             value={macros.calories}
             onChange={(event) => setMacros({ ...macros, calories: event.target.value })}
-            className="rounded-md border border-black/10 px-2 py-1 dark:border-white/20 dark:bg-zinc-900"
+            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </label>
 
@@ -144,10 +146,10 @@ export function MealForm() {
             name="proteinGrams"
             type="number"
             min={0}
-            step="0.1"
+            step="any"
             value={macros.proteinGrams}
             onChange={(event) => setMacros({ ...macros, proteinGrams: event.target.value })}
-            className="rounded-md border border-black/10 px-2 py-1 dark:border-white/20 dark:bg-zinc-900"
+            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </label>
 
@@ -157,10 +159,10 @@ export function MealForm() {
             name="carbsGrams"
             type="number"
             min={0}
-            step="0.1"
+            step="any"
             value={macros.carbsGrams}
             onChange={(event) => setMacros({ ...macros, carbsGrams: event.target.value })}
-            className="rounded-md border border-black/10 px-2 py-1 dark:border-white/20 dark:bg-zinc-900"
+            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </label>
 
@@ -170,14 +172,14 @@ export function MealForm() {
             name="fatGrams"
             type="number"
             min={0}
-            step="0.1"
+            step="any"
             value={macros.fatGrams}
             onChange={(event) => setMacros({ ...macros, fatGrams: event.target.value })}
-            className="rounded-md border border-black/10 px-2 py-1 dark:border-white/20 dark:bg-zinc-900"
+            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </label>
       </div>
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-muted-foreground">
         Macros above are editable — adjust them if the estimate looks off, or skip estimating and
         enter them yourself.
       </p>
@@ -185,7 +187,7 @@ export function MealForm() {
       <button
         disabled={pending}
         type="submit"
-        className="self-start rounded-full bg-foreground px-4 py-1.5 text-sm text-background disabled:opacity-50"
+        className="retro-glow self-start rounded-full bg-primary px-4 py-1.5 text-sm text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
       >
         {pending ? "Logging..." : "Log meal"}
       </button>

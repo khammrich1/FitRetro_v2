@@ -5,29 +5,35 @@ export async function NavBar() {
   const user = await getCurrentUser();
 
   return (
-    <nav className="flex items-center justify-between border-b border-black/10 px-6 py-4 dark:border-white/10">
-      <Link href="/" className="font-semibold text-black dark:text-zinc-50">
+    <nav className="flex items-center justify-between border-b border-border px-6 py-4">
+      <Link href="/" className="retro-heading text-sm font-bold text-primary">
         FitRetro
       </Link>
       <div className="flex items-center gap-4 text-sm">
         {user ? (
           <>
-            <Link href="/nutrition" className="font-medium">
+            <Link href="/nutrition" className="font-medium text-accent">
               Nutrition
             </Link>
-            <span className="text-zinc-500">{user.displayName}</span>
+            <span className="text-muted-foreground">{user.displayName}</span>
             <form action={logout}>
-              <button type="submit" className="font-medium underline">
+              <button
+                type="submit"
+                className="font-medium text-foreground underline hover:text-primary"
+              >
                 Log out
               </button>
             </form>
           </>
         ) : (
           <>
-            <Link href="/login" className="font-medium">
+            <Link href="/login" className="font-medium text-foreground hover:text-primary">
               Log in
             </Link>
-            <Link href="/signup" className="font-medium underline">
+            <Link
+              href="/signup"
+              className="font-medium text-primary underline hover:text-primary-hover"
+            >
               Sign up
             </Link>
           </>

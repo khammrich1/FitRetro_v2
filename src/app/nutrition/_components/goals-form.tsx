@@ -10,9 +10,11 @@ export function GoalsForm({ goal }: { goal: NutritionGoal | null }) {
   return (
     <form
       action={action}
-      className="flex flex-col gap-3 rounded-lg border border-black/10 p-4 dark:border-white/10"
+      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
     >
-      <h2 className="font-semibold">Daily macro targets</h2>
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">
+        Daily macro targets
+      </h2>
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1 text-sm">
@@ -22,7 +24,7 @@ export function GoalsForm({ goal }: { goal: NutritionGoal | null }) {
             type="number"
             min={0}
             defaultValue={goal?.dailyCalories}
-            className="rounded-md border border-black/10 px-2 py-1 dark:border-white/20 dark:bg-zinc-900"
+            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </label>
 
@@ -32,9 +34,9 @@ export function GoalsForm({ goal }: { goal: NutritionGoal | null }) {
             name="dailyProteinGrams"
             type="number"
             min={0}
-            step="0.1"
+            step="any"
             defaultValue={goal?.dailyProteinGrams}
-            className="rounded-md border border-black/10 px-2 py-1 dark:border-white/20 dark:bg-zinc-900"
+            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </label>
 
@@ -44,9 +46,9 @@ export function GoalsForm({ goal }: { goal: NutritionGoal | null }) {
             name="dailyCarbsGrams"
             type="number"
             min={0}
-            step="0.1"
+            step="any"
             defaultValue={goal?.dailyCarbsGrams}
-            className="rounded-md border border-black/10 px-2 py-1 dark:border-white/20 dark:bg-zinc-900"
+            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </label>
 
@@ -56,21 +58,21 @@ export function GoalsForm({ goal }: { goal: NutritionGoal | null }) {
             name="dailyFatGrams"
             type="number"
             min={0}
-            step="0.1"
+            step="any"
             defaultValue={goal?.dailyFatGrams}
-            className="rounded-md border border-black/10 px-2 py-1 dark:border-white/20 dark:bg-zinc-900"
+            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </label>
       </div>
 
       {state?.errors && (
-        <p className="text-sm text-red-600">Check the values above and try again.</p>
+        <p className="text-sm text-danger">Check the values above and try again.</p>
       )}
 
       <button
         disabled={pending}
         type="submit"
-        className="self-start rounded-full bg-foreground px-4 py-1.5 text-sm text-background disabled:opacity-50"
+        className="retro-glow self-start rounded-full bg-primary px-4 py-1.5 text-sm text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
       >
         {pending ? "Saving..." : "Save targets"}
       </button>
