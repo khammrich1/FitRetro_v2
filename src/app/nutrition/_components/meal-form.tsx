@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useActionState } from "react";
 import { mealTypeEnum } from "@/db/schema";
-import { logMealAction, estimateMacrosAction, type EstimateMacrosState } from "../actions";
+import {
+  logMealAction,
+  estimateMacrosAction,
+  estimateMacrosFromImageAction,
+  type EstimateMacrosState,
+} from "../actions";
 import { useSpeechToText } from "./use-speech-to-text";
 
 export function MealForm() {
@@ -17,6 +22,9 @@ export function MealForm() {
   });
   const [estimateResult, setEstimateResult] = useState<EstimateMacrosState>(undefined);
   const [estimating, startEstimating] = useTransition();
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const {
     isListening,
@@ -32,12 +40,53 @@ export function MealForm() {
       setDescription("");
       setMacros({ calories: "", proteinGrams: "", carbsGrams: "", fatGrams: "" });
       setEstimateResult(undefined);
+      clearPhoto();
     }
     wasPending.current = pending;
   }, [pending, state]);
 
+  function clearPhoto() {
+    setPhoto(null);
+    setPhotoPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }
+
+  function handlePhotoSelected(file: File | undefined) {
+    if (!file) return;
+    setPhoto(file);
+    setPhotoPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
+    });
+  }
+
   function handleEstimate() {
     startEstimating(async () => {
+      if (photo) {
+        const formData = new FormData();
+        formData.append("image", photo);
+        formData.append("note", description);
+        const result = await estimateMacrosFromImageAction(formData);
+        setEstimateResult(result);
+        if (result && "estimate" in result) {
+          if (!description.trim()) {
+            setDescription(
+              result.estimate.items.map((item) => `${item.quantity} ${item.name}`).join(", "),
+            );
+          }
+          setMacros({
+            calories: String(result.estimate.totalCalories),
+            proteinGrams: String(result.estimate.totalProteinGrams),
+            carbsGrams: String(result.estimate.totalCarbsGrams),
+            fatGrams: String(result.estimate.totalFatGrams),
+          });
+        }
+        return;
+      }
+
       const result = await estimateMacrosAction(description);
       setEstimateResult(result);
       if (result && "estimate" in result) {
@@ -98,16 +147,49 @@ export function MealForm() {
               {isListening ? "● Listening" : "🎤"}
             </button>
           )}
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={(event) => handlePhotoSelected(event.target.files?.[0])}
+          />
+          <button
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            title="Add a photo of your meal"
+            className="rounded-md border border-border px-3 py-1 text-sm hover:border-accent hover:text-accent"
+          >
+            📷
+          </button>
         </div>
         {state?.errors?.description && (
           <span className="text-danger">{state.errors.description[0]}</span>
         )}
       </label>
 
+      {photoPreviewUrl && (
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photoPreviewUrl}
+            alt="Selected meal"
+            className="h-20 w-20 rounded-md border border-border object-cover"
+          />
+          <button
+            type="button"
+            onClick={clearPhoto}
+            className="text-sm text-muted-foreground hover:text-danger"
+          >
+            Remove photo
+          </button>
+        </div>
+      )}
+
       <button
         type="button"
         onClick={handleEstimate}
-        disabled={estimating || !description.trim()}
+        disabled={estimating || (!description.trim() && !photo)}
         className="self-start rounded-full border border-border px-4 py-1.5 text-sm hover:border-accent hover:text-accent disabled:opacity-50"
       >
         {estimating ? "Estimating macros..." : "Estimate macros"}

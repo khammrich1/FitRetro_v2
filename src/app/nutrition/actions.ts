@@ -9,6 +9,9 @@ import {
   getRemainingMacrosForDay,
   suggestFoodsForRemainingMacros,
   estimateMacrosFromDescription,
+  estimateMacrosFromImage,
+  SUPPORTED_IMAGE_MEDIA_TYPES,
+  type SupportedImageMediaType,
   type FoodSuggestion,
   type MacroEstimate,
 } from "@/features/nutrition";
@@ -120,5 +123,42 @@ export async function estimateMacrosAction(description: string): Promise<Estimat
     return { estimate };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Failed to estimate macros." };
+  }
+}
+
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+
+function isSupportedImageMediaType(value: string): value is SupportedImageMediaType {
+  return (SUPPORTED_IMAGE_MEDIA_TYPES as readonly string[]).includes(value);
+}
+
+export async function estimateMacrosFromImageAction(
+  formData: FormData,
+): Promise<EstimateMacrosState> {
+  await verifySession();
+
+  const image = formData.get("image");
+  if (!(image instanceof File) || image.size === 0) {
+    return { error: "Attach a photo first." };
+  }
+
+  if (image.size > MAX_IMAGE_BYTES) {
+    return { error: "Photo is too large — please use one under 8MB." };
+  }
+
+  if (!isSupportedImageMediaType(image.type)) {
+    return { error: "Unsupported image type — use JPEG, PNG, WebP, or GIF." };
+  }
+
+  const note = formData.get("note")?.toString().trim() || undefined;
+
+  try {
+    const buffer = Buffer.from(await image.arrayBuffer());
+    const estimate = await estimateMacrosFromImage(buffer.toString("base64"), image.type, note);
+    return { estimate };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to estimate macros from photo.",
+    };
   }
 }

@@ -84,7 +84,11 @@ boundary is `verifySession()` from `@/features/auth`, called in every protected 
 
 ## LLM-assisted features
 
-Food suggestions (and future LLM-generated recipes) call the Claude API via `@anthropic-ai/sdk`.
-Set `ANTHROPIC_API_KEY` in `.env` to enable them — everything else works without it. Default to
-`claude-haiku-4-5` for simple, low-stakes generation tasks like this to keep cost negligible;
-reach for a larger model only if a task actually needs deeper reasoning.
+Food suggestions, macro estimation, and (future) LLM-generated recipes call the Claude API via
+`@anthropic-ai/sdk`. Set `ANTHROPIC_API_KEY` in `.env` to enable them — everything else works
+without it. Default to `claude-haiku-4-5` for simple, low-stakes generation tasks (text macro
+estimation, suggestions) to keep cost negligible; reach for a larger model only when a task
+needs deeper reasoning — e.g. `claude-sonnet-5` for photo-based macro estimation, since
+identifying foods and portion sizes from an image is harder than parsing an exact text
+description. Server Actions default to a 1MB body limit; `next.config.ts` raises it to `10mb`
+to fit meal photos (capped at 8MB in the action itself).
