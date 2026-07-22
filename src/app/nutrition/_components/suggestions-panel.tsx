@@ -28,6 +28,9 @@ export function SuggestionsPanel() {
           {pending ? "Thinking..." : "Suggest foods"}
         </button>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Based on whatever&apos;s left of your daily macro targets, not the full targets themselves.
+      </p>
 
       {state && "error" in state && <p className="text-sm text-danger">{state.error}</p>}
 

@@ -1,5 +1,6 @@
 function ProgressBar({ label, consumed, goal }: { label: string; consumed: number; goal: number }) {
   const percent = goal > 0 ? Math.min(100, Math.round((consumed / goal) * 100)) : 0;
+  const remaining = Math.round(goal - consumed);
 
   return (
     <div className="flex flex-col gap-1">
@@ -12,6 +13,9 @@ function ProgressBar({ label, consumed, goal }: { label: string; consumed: numbe
       <div className="h-2 rounded-full bg-border">
         <div className="h-2 rounded-full bg-accent" style={{ width: `${percent}%` }} />
       </div>
+      <span className="text-xs text-muted-foreground">
+        {remaining >= 0 ? `${remaining} left` : `${Math.abs(remaining)} over`}
+      </span>
     </div>
   );
 }
