@@ -2,29 +2,33 @@
 
 import { usePathname, useRouter } from "next/navigation";
 
-function toIsoDate(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+/** Parses/formats "YYYY-MM-DD" using UTC-anchored arithmetic only, so day math never depends on
+ * the server's or browser's local timezone (which previously caused off-by-one navigation). */
+function parseIsoDate(iso: string): Date {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function toIsoDate(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
-export function DayNav({ date }: { date: Date }) {
+export function DayNav({ dayIso, todayIso }: { dayIso: string; todayIso: string }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  function goTo(target: Date) {
-    router.push(`${pathname}?date=${toIsoDate(target)}`);
+  function goTo(iso: string) {
+    router.push(`${pathname}?date=${iso}`);
   }
 
   function goToOffset(days: number) {
-    const target = new Date(date);
-    target.setDate(target.getDate() + days);
-    goTo(target);
+    const target = parseIsoDate(dayIso);
+    target.setUTCDate(target.getUTCDate() + days);
+    goTo(toIsoDate(target));
   }
-
-  const iso = toIsoDate(date);
-  const isToday = iso === toIsoDate(new Date());
 
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
@@ -39,16 +43,16 @@ export function DayNav({ date }: { date: Date }) {
       <div className="flex items-center gap-2">
         <input
           type="date"
-          value={iso}
+          value={dayIso}
           onChange={(event) => {
-            if (event.target.value) goTo(new Date(`${event.target.value}T00:00:00`));
+            if (event.target.value) goTo(event.target.value);
           }}
           className="rounded-md border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
-        {!isToday && (
+        {dayIso !== todayIso && (
           <button
             type="button"
-            onClick={() => goTo(new Date())}
+            onClick={() => goTo(todayIso)}
             className="text-xs text-accent underline"
           >
             Today

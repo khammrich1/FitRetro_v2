@@ -32,12 +32,13 @@ export default async function NutritionPage({
 
   const [goal, entries] = await Promise.all([getGoals(userId), getEntriesForDay(userId, day)]);
   const consumed = summarizeMacros(entries);
+  const todayIso = toIsoDate(new Date());
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10">
       <h1 className="retro-heading text-2xl font-bold text-foreground">Nutrition</h1>
 
-      <DayNav date={day} />
+      <DayNav dayIso={dayIso} todayIso={todayIso} />
 
       <MacroProgress consumed={consumed} goal={goal} />
 
