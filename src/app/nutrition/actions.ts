@@ -19,6 +19,7 @@ import {
   type MacroEstimate,
 } from "@/features/nutrition";
 import { listPantryItems } from "@/features/pantry";
+import { generateRecipe, type GeneratedRecipe } from "@/features/recipes";
 import { mealTypeEnum } from "@/db/schema";
 
 /** Parses a "YYYY-MM-DD" search-param date, falling back to today for missing/invalid input. */
@@ -243,5 +244,64 @@ export async function estimateMacrosFromImageAction(
     return {
       error: error instanceof Error ? error.message : "Failed to estimate macros from photo.",
     };
+  }
+}
+
+const logSuggestionSchema = z.object({
+  mealType: z.enum(mealTypeEnum.enumValues),
+  name: z.string().trim().min(1),
+  description: z.string().trim(),
+  calories: z.coerce.number().int().min(0),
+  proteinGrams: z.coerce.number().min(0),
+  carbsGrams: z.coerce.number().min(0),
+  fatGrams: z.coerce.number().min(0),
+});
+
+export type LogSuggestionInput = z.infer<typeof logSuggestionSchema> & { dayIso: string };
+
+/** Logs a food suggestion directly as a one-item meal entry, no form interaction needed. */
+export async function logSuggestionAction(input: LogSuggestionInput): Promise<{ error?: string }> {
+  const { userId } = await verifySession();
+
+  const validatedFields = logSuggestionSchema.safeParse(input);
+  if (!validatedFields.success) {
+    return { error: "Couldn't log that suggestion — invalid data." };
+  }
+
+  const { mealType, name, description, calories, proteinGrams, carbsGrams, fatGrams } =
+    validatedFields.data;
+
+  await logNutritionEntry(
+    {
+      userId,
+      loggedAt: combineDayWithCurrentTime(input.dayIso),
+      mealType,
+      description: name,
+      calories,
+      proteinGrams,
+      carbsGrams,
+      fatGrams,
+    },
+    [{ name, quantity: description, calories, proteinGrams, carbsGrams, fatGrams }],
+  );
+
+  revalidatePath("/nutrition");
+  return {};
+}
+
+export type RecipeState = { recipe: GeneratedRecipe } | { error: string } | undefined;
+
+export async function getRecipeAction(
+  name: string,
+  description: string,
+  macros: { calories: number; proteinGrams: number; carbsGrams: number; fatGrams: number },
+): Promise<RecipeState> {
+  await verifySession();
+
+  try {
+    const recipe = await generateRecipe(name, description, macros);
+    return { recipe };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Failed to generate a recipe." };
   }
 }

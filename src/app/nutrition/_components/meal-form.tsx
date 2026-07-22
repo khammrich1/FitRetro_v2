@@ -29,7 +29,34 @@ const blankItem: EditableItem = {
   fatGrams: "",
 };
 
-export function MealForm({ dayIso }: { dayIso: string }) {
+export type PrefillItem = {
+  name: string;
+  quantity: string;
+  calories: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+};
+
+function isBlankItem(item: EditableItem) {
+  return (
+    item.name.trim() === "" &&
+    item.calories.trim() === "" &&
+    item.proteinGrams.trim() === "" &&
+    item.carbsGrams.trim() === "" &&
+    item.fatGrams.trim() === ""
+  );
+}
+
+export function MealForm({
+  dayIso,
+  prefillItem,
+  onPrefillConsumed,
+}: {
+  dayIso: string;
+  prefillItem?: PrefillItem | null;
+  onPrefillConsumed?: () => void;
+}) {
   const [state, action, pending] = useActionState(logMealAction, undefined);
   const [description, setDescription] = useState("");
   const [items, setItems] = useState<EditableItem[]>([{ ...blankItem }]);
@@ -37,7 +64,37 @@ export function MealForm({ dayIso }: { dayIso: string }) {
   const [estimating, startEstimating] = useTransition();
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [handledPrefillItem, setHandledPrefillItem] = useState<PrefillItem | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Adjust local state in response to a new prefillItem during render (React's recommended
+  // pattern for this), rather than in an effect — avoids an extra render pass just to copy props
+  // into state.
+  if (prefillItem && prefillItem !== handledPrefillItem) {
+    setHandledPrefillItem(prefillItem);
+    const newItem: EditableItem = {
+      name: prefillItem.name,
+      quantity: prefillItem.quantity,
+      calories: String(prefillItem.calories),
+      proteinGrams: String(prefillItem.proteinGrams),
+      carbsGrams: String(prefillItem.carbsGrams),
+      fatGrams: String(prefillItem.fatGrams),
+    };
+    setItems((current) =>
+      current.length === 1 && isBlankItem(current[0]) ? [newItem] : [...current, newItem],
+    );
+    setDescription((current) => current || prefillItem.name);
+  }
+
+  // Side effects (notifying the parent, scrolling) can't happen during render, so they land in
+  // an effect keyed off the item we just handled above.
+  useEffect(() => {
+    if (!handledPrefillItem) return;
+    onPrefillConsumed?.();
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handledPrefillItem]);
 
   const {
     isListening,
@@ -148,6 +205,7 @@ export function MealForm({ dayIso }: { dayIso: string }) {
 
   return (
     <form
+      ref={formRef}
       action={action}
       className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
     >

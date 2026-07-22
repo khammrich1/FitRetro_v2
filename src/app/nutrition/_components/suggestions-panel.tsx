@@ -2,9 +2,159 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { getSuggestionsAction, type SuggestionsState } from "../actions";
+import { mealTypeEnum } from "@/db/schema";
+import type { FoodSuggestion } from "@/features/nutrition";
+import {
+  getSuggestionsAction,
+  logSuggestionAction,
+  getRecipeAction,
+  type SuggestionsState,
+  type RecipeState,
+} from "../actions";
+import type { PrefillItem } from "./meal-form";
 
-export function SuggestionsPanel({ dayIso }: { dayIso: string }) {
+function inferMealType(): (typeof mealTypeEnum.enumValues)[number] {
+  const hour = new Date().getHours();
+  if (hour < 11) return "breakfast";
+  if (hour < 16) return "lunch";
+  if (hour < 21) return "dinner";
+  return "snack";
+}
+
+function SuggestionCard({
+  suggestion,
+  dayIso,
+  onAdjustAndLog,
+}: {
+  suggestion: FoodSuggestion;
+  dayIso: string;
+  onAdjustAndLog: (item: PrefillItem) => void;
+}) {
+  const [logged, setLogged] = useState(false);
+  const [logging, startLogging] = useTransition();
+  const [recipeState, setRecipeState] = useState<RecipeState>(undefined);
+  const [loadingRecipe, startLoadingRecipe] = useTransition();
+  const [showRecipe, setShowRecipe] = useState(false);
+
+  function handleLogAsIs() {
+    startLogging(async () => {
+      const result = await logSuggestionAction({
+        mealType: inferMealType(),
+        dayIso,
+        name: suggestion.name,
+        description: suggestion.description,
+        calories: suggestion.calories,
+        proteinGrams: suggestion.proteinGrams,
+        carbsGrams: suggestion.carbsGrams,
+        fatGrams: suggestion.fatGrams,
+      });
+      if (!result.error) setLogged(true);
+    });
+  }
+
+  function handleAdjustAndLog() {
+    onAdjustAndLog({
+      name: suggestion.name,
+      quantity: suggestion.description,
+      calories: suggestion.calories,
+      proteinGrams: suggestion.proteinGrams,
+      carbsGrams: suggestion.carbsGrams,
+      fatGrams: suggestion.fatGrams,
+    });
+  }
+
+  function handleGetRecipe() {
+    if (recipeState && "recipe" in recipeState) {
+      setShowRecipe((current) => !current);
+      return;
+    }
+    startLoadingRecipe(async () => {
+      const result = await getRecipeAction(suggestion.name, suggestion.description, {
+        calories: suggestion.calories,
+        proteinGrams: suggestion.proteinGrams,
+        carbsGrams: suggestion.carbsGrams,
+        fatGrams: suggestion.fatGrams,
+      });
+      setRecipeState(result);
+      setShowRecipe(true);
+    });
+  }
+
+  return (
+    <li className="rounded-md border border-border bg-background p-3 text-sm">
+      <p className="font-medium">{suggestion.name}</p>
+      <p className="text-muted-foreground">{suggestion.description}</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {suggestion.calories} kcal · {suggestion.proteinGrams}g protein · {suggestion.carbsGrams}g
+        carbs · {suggestion.fatGrams}g fat
+      </p>
+      <p className="mt-1 text-xs text-accent">{suggestion.reason}</p>
+
+      <div className="mt-2 flex flex-wrap gap-3 text-xs">
+        {logged ? (
+          <span className="text-accent">Logged ✓</span>
+        ) : (
+          <button
+            type="button"
+            onClick={handleLogAsIs}
+            disabled={logging}
+            className="text-muted-foreground hover:text-accent disabled:opacity-50"
+          >
+            {logging ? "Logging..." : "Log as-is"}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={handleAdjustAndLog}
+          className="text-muted-foreground hover:text-accent"
+        >
+          Adjust &amp; log
+        </button>
+        <button
+          type="button"
+          onClick={handleGetRecipe}
+          disabled={loadingRecipe}
+          className="text-muted-foreground hover:text-accent disabled:opacity-50"
+        >
+          {loadingRecipe ? "Loading recipe..." : showRecipe ? "Hide recipe" : "Get recipe"}
+        </button>
+      </div>
+
+      {showRecipe && recipeState && "error" in recipeState && (
+        <p className="mt-2 text-xs text-danger">{recipeState.error}</p>
+      )}
+
+      {showRecipe && recipeState && "recipe" in recipeState && (
+        <div className="mt-2 flex flex-col gap-2 border-t border-border pt-2 text-xs text-muted-foreground">
+          <div>
+            <p className="font-medium text-foreground">Ingredients</p>
+            <ul className="list-disc pl-4">
+              {recipeState.recipe.ingredients.map((ingredient, index) => (
+                <li key={index}>{ingredient}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="font-medium text-foreground">Instructions</p>
+            <ol className="list-decimal pl-4">
+              {recipeState.recipe.instructions.map((step, index) => (
+                <li key={index}>{step}</li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      )}
+    </li>
+  );
+}
+
+export function SuggestionsPanel({
+  dayIso,
+  onAdjustAndLog,
+}: {
+  dayIso: string;
+  onAdjustAndLog: (item: PrefillItem) => void;
+}) {
   const [state, setState] = useState<SuggestionsState>(undefined);
   const [preference, setPreference] = useState("");
   const [pending, startTransition] = useTransition();
@@ -53,19 +203,13 @@ export function SuggestionsPanel({ dayIso }: { dayIso: string }) {
 
       {state && "suggestions" in state && (
         <ul className="flex flex-col gap-2">
-          {state.suggestions.map((suggestion) => (
-            <li
-              key={suggestion.name}
-              className="rounded-md border border-border bg-background p-3 text-sm"
-            >
-              <p className="font-medium">{suggestion.name}</p>
-              <p className="text-muted-foreground">{suggestion.description}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {suggestion.calories} kcal · {suggestion.proteinGrams}g protein ·{" "}
-                {suggestion.carbsGrams}g carbs · {suggestion.fatGrams}g fat
-              </p>
-              <p className="mt-1 text-xs text-accent">{suggestion.reason}</p>
-            </li>
+          {state.suggestions.map((suggestion, index) => (
+            <SuggestionCard
+              key={index}
+              suggestion={suggestion}
+              dayIso={dayIso}
+              onAdjustAndLog={onAdjustAndLog}
+            />
           ))}
         </ul>
       )}

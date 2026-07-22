@@ -1,9 +1,8 @@
 import { verifySession } from "@/features/auth";
 import { getEntriesForDay, getGoals, summarizeMacros } from "@/features/nutrition";
-import { MealForm } from "./_components/meal-form";
 import { GoalsForm } from "./_components/goals-form";
 import { MacroProgress } from "./_components/macro-progress";
-import { SuggestionsPanel } from "./_components/suggestions-panel";
+import { MealLogging } from "./_components/meal-logging";
 import { DayNav } from "./_components/day-nav";
 import { MealList } from "./_components/meal-list";
 
@@ -47,8 +46,7 @@ export default async function NutritionPage({
         <MealList entries={entries} />
       </div>
 
-      <MealForm dayIso={dayIso} />
-      <SuggestionsPanel dayIso={dayIso} />
+      <MealLogging dayIso={dayIso} />
       <GoalsForm goal={goal} />
     </div>
   );
