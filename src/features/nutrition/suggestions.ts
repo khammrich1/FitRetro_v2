@@ -26,21 +26,6 @@ const foodSuggestionsSchema = z.object({
         proteinGrams: z.number(),
         carbsGrams: z.number(),
         fatGrams: z.number(),
-        items: z
-          .array(
-            z.object({
-              name: z.string(),
-              quantity: z.string(),
-              calories: z.number().int(),
-              proteinGrams: z.number(),
-              carbsGrams: z.number(),
-              fatGrams: z.number(),
-            }),
-          )
-          .min(1)
-          .describe(
-            "Breakdown of this suggestion into its individual food items/ingredients, with quantities and per-item macros that sum to the totals above.",
-          ),
         reason: z
           .string()
           .describe(
@@ -107,11 +92,6 @@ a small margin): ${JSON.stringify(remaining)}. A positive number means that much
 available; a zero or negative number means the user has already met or exceeded that target for
 the day. If a target is already at or below zero, suggest very light, low-calorie options that add
 as little more of that macro as possible instead of pretending there's room left.
-
-For each suggestion, also break it down into its individual food items/ingredients (2-5 items is
-typical), each with a quantity and its own calorie/macro values, such that the items' macros sum
-to the suggestion's totals above — the same breakdown you'd give if estimating macros from a
-written-out description of that meal.
 
 For each suggestion, give a short one-sentence reason explaining why it fits. Be precise about
 which targets are already exceeded versus which still have room — never say something "stays

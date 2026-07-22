@@ -8,6 +8,7 @@ import {
   getSuggestionsAction,
   logSuggestionAction,
   getRecipeAction,
+  estimateMacrosAction,
   type SuggestionsState,
   type RecipeState,
 } from "../actions";
@@ -35,6 +36,8 @@ function SuggestionCard({
   const [recipeState, setRecipeState] = useState<RecipeState>(undefined);
   const [loadingRecipe, startLoadingRecipe] = useTransition();
   const [showRecipe, setShowRecipe] = useState(false);
+  const [adjustError, setAdjustError] = useState<string | null>(null);
+  const [adjusting, startAdjusting] = useTransition();
 
   function handleLogAsIs() {
     startLogging(async () => {
@@ -42,20 +45,43 @@ function SuggestionCard({
         mealType: inferMealType(),
         dayIso,
         name: suggestion.name,
+        description: suggestion.description,
         calories: suggestion.calories,
         proteinGrams: suggestion.proteinGrams,
         carbsGrams: suggestion.carbsGrams,
         fatGrams: suggestion.fatGrams,
-        items: suggestion.items,
       });
       if (!result.error) setLogged(true);
     });
   }
 
   function handleAdjustAndLog() {
-    onAdjustAndLog({
-      description: suggestion.name,
-      items: suggestion.items,
+    setAdjustError(null);
+    startAdjusting(async () => {
+      // Itemize on demand — only when the user actually wants to edit it, rather than every
+      // suggestion paying for a breakdown that's usually never opened.
+      const result = await estimateMacrosAction(`${suggestion.name} — ${suggestion.description}`);
+      if (result && "estimate" in result) {
+        onAdjustAndLog({ description: suggestion.name, items: result.estimate.items });
+        return;
+      }
+      // Fall back to a single lumped item rather than blocking the user entirely.
+      setAdjustError(
+        result?.error ?? "Couldn't break this into items — added as one item instead.",
+      );
+      onAdjustAndLog({
+        description: suggestion.name,
+        items: [
+          {
+            name: suggestion.name,
+            quantity: suggestion.description,
+            calories: suggestion.calories,
+            proteinGrams: suggestion.proteinGrams,
+            carbsGrams: suggestion.carbsGrams,
+            fatGrams: suggestion.fatGrams,
+          },
+        ],
+      });
     });
   }
 
@@ -102,9 +128,10 @@ function SuggestionCard({
         <button
           type="button"
           onClick={handleAdjustAndLog}
-          className="text-muted-foreground hover:text-accent"
+          disabled={adjusting}
+          className="text-muted-foreground hover:text-accent disabled:opacity-50"
         >
-          Adjust &amp; log
+          {adjusting ? "Breaking down..." : "Adjust & log"}
         </button>
         <button
           type="button"
@@ -115,6 +142,8 @@ function SuggestionCard({
           {loadingRecipe ? "Loading recipe..." : showRecipe ? "Hide recipe" : "Get recipe"}
         </button>
       </div>
+
+      {adjustError && <p className="mt-1 text-xs text-danger">{adjustError}</p>}
 
       {showRecipe && recipeState && "error" in recipeState && (
         <p className="mt-2 text-xs text-danger">{recipeState.error}</p>
