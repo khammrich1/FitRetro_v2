@@ -12,6 +12,25 @@ export async function logNutritionEntry(input: NewNutritionEntry) {
   return entry;
 }
 
+export async function updateNutritionEntry(
+  id: string,
+  userId: string,
+  input: Omit<NewNutritionEntry, "id" | "userId" | "loggedAt">,
+) {
+  const [entry] = await db
+    .update(nutritionEntries)
+    .set(input)
+    .where(and(eq(nutritionEntries.id, id), eq(nutritionEntries.userId, userId)))
+    .returning();
+  return entry ?? null;
+}
+
+export async function deleteNutritionEntry(id: string, userId: string) {
+  await db
+    .delete(nutritionEntries)
+    .where(and(eq(nutritionEntries.id, id), eq(nutritionEntries.userId, userId)));
+}
+
 /** Returns all entries logged for the given user on the calendar day of `day`. */
 export async function getEntriesForDay(userId: string, day: Date) {
   const startOfDay = new Date(day);

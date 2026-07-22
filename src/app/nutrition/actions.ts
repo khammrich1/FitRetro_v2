@@ -5,6 +5,8 @@ import { z } from "zod";
 import { verifySession } from "@/features/auth";
 import {
   logNutritionEntry,
+  updateNutritionEntry,
+  deleteNutritionEntry,
   upsertGoals,
   getRemainingMacrosForDay,
   suggestFoodsForRemainingMacros,
@@ -17,6 +19,22 @@ import {
 } from "@/features/nutrition";
 import { listPantryItems } from "@/features/pantry";
 import { mealTypeEnum } from "@/db/schema";
+
+/** Parses a "YYYY-MM-DD" search-param date, falling back to today for missing/invalid input. */
+function parseDayParam(dayIso: string | null | undefined): Date {
+  if (!dayIso) return new Date();
+  const parsed = new Date(`${dayIso}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+/** Combines a calendar day with the current time of day, so meals logged for a non-today day
+ * (e.g. backfilling yesterday) still get a sensible timestamp rather than midnight. */
+function combineDayWithCurrentTime(dayIso: string | null): Date {
+  const now = new Date();
+  const day = parseDayParam(dayIso);
+  day.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+  return day;
+}
 
 const logMealSchema = z.object({
   mealType: z.enum(mealTypeEnum.enumValues),
@@ -54,10 +72,34 @@ export async function logMealAction(
 
   await logNutritionEntry({
     userId,
-    loggedAt: new Date(),
+    loggedAt: combineDayWithCurrentTime(formData.get("day")?.toString() ?? null),
     ...validatedFields.data,
   });
 
+  revalidatePath("/nutrition");
+}
+
+export async function updateMealAction(id: string, formData: FormData): Promise<void> {
+  const { userId } = await verifySession();
+
+  const validatedFields = logMealSchema.safeParse({
+    mealType: formData.get("mealType"),
+    description: formData.get("description"),
+    calories: formData.get("calories"),
+    proteinGrams: formData.get("proteinGrams"),
+    carbsGrams: formData.get("carbsGrams"),
+    fatGrams: formData.get("fatGrams"),
+  });
+
+  if (!validatedFields.success) return;
+
+  await updateNutritionEntry(id, userId, validatedFields.data);
+  revalidatePath("/nutrition");
+}
+
+export async function deleteMealAction(id: string): Promise<void> {
+  const { userId } = await verifySession();
+  await deleteNutritionEntry(id, userId);
   revalidatePath("/nutrition");
 }
 
@@ -94,10 +136,10 @@ export async function setGoalsAction(_state: GoalsState, formData: FormData): Pr
 
 export type SuggestionsState = { suggestions: FoodSuggestion[] } | { error: string } | undefined;
 
-export async function getSuggestionsAction(): Promise<SuggestionsState> {
+export async function getSuggestionsAction(dayIso?: string): Promise<SuggestionsState> {
   const { userId } = await verifySession();
 
-  const remaining = await getRemainingMacrosForDay(userId, new Date());
+  const remaining = await getRemainingMacrosForDay(userId, parseDayParam(dayIso));
   if (!remaining) {
     return { error: "Set your daily macro goals first to get suggestions." };
   }

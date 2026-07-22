@@ -11,7 +11,7 @@ import {
 } from "../actions";
 import { useSpeechToText } from "./use-speech-to-text";
 
-export function MealForm() {
+export function MealForm({ dayIso }: { dayIso: string }) {
   const [state, action, pending] = useActionState(logMealAction, undefined);
   const [description, setDescription] = useState("");
   const [macros, setMacros] = useState({
@@ -107,6 +107,7 @@ export function MealForm() {
       className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
     >
       <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Log a meal</h2>
+      <input type="hidden" name="day" value={dayIso} />
 
       <label className="flex flex-col gap-1 text-sm">
         Meal type

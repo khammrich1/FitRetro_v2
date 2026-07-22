@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { getSuggestionsAction, type SuggestionsState } from "../actions";
 
-export function SuggestionsPanel() {
+export function SuggestionsPanel({ dayIso }: { dayIso: string }) {
   const [state, setState] = useState<SuggestionsState>(undefined);
   const [pending, startTransition] = useTransition();
 
   function handleSuggest() {
     startTransition(async () => {
-      const result = await getSuggestionsAction();
+      const result = await getSuggestionsAction(dayIso);
       setState(result);
     });
   }
