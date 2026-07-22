@@ -30,6 +30,7 @@ export function MealForm() {
     isListening,
     isSupported: micSupported,
     toggleListening,
+    error: micError,
   } = useSpeechToText((transcript) => {
     setDescription((current) => (current ? `${current} ${transcript}` : transcript));
   });
@@ -166,6 +167,7 @@ export function MealForm() {
         {state?.errors?.description && (
           <span className="text-danger">{state.errors.description[0]}</span>
         )}
+        {micError && <span className="text-danger">{micError}</span>}
       </label>
 
       {photoPreviewUrl && (
