@@ -1,20 +1,24 @@
 function ProgressBar({ label, consumed, goal }: { label: string; consumed: number; goal: number }) {
+  const isOver = consumed > goal;
   const percent = goal > 0 ? Math.min(100, Math.round((consumed / goal) * 100)) : 0;
-  const remaining = Math.round(goal - consumed);
+  const remaining = Math.round(Math.abs(goal - consumed));
 
   return (
     <div className="flex flex-col gap-1">
       <div className="flex justify-between text-sm">
         <span>{label}</span>
-        <span className="text-muted-foreground">
+        <span className={isOver ? "font-medium text-danger" : "text-muted-foreground"}>
           {Math.round(consumed)} / {Math.round(goal)}
         </span>
       </div>
       <div className="h-2 rounded-full bg-border">
-        <div className="h-2 rounded-full bg-accent" style={{ width: `${percent}%` }} />
+        <div
+          className={`h-2 rounded-full ${isOver ? "bg-danger" : "bg-accent"}`}
+          style={{ width: `${percent}%` }}
+        />
       </div>
-      <span className="text-xs text-muted-foreground">
-        {remaining >= 0 ? `${remaining} left` : `${Math.abs(remaining)} over`}
+      <span className={`text-xs ${isOver ? "font-medium text-danger" : "text-muted-foreground"}`}>
+        {isOver ? `${remaining} over` : `${remaining} left`}
       </span>
     </div>
   );
