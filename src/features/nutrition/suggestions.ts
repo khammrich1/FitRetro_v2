@@ -32,6 +32,7 @@ export type FoodSuggestion = z.infer<typeof foodSuggestionsSchema>["suggestions"
 export async function suggestFoodsForRemainingMacros(
   remaining: RemainingMacros,
   pantryItems: string[] = [],
+  preference?: string,
 ): Promise<FoodSuggestion[]> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error(
@@ -48,6 +49,14 @@ Prefer suggestions that use these items where it still fits the remaining macros
 to also suggest something that needs an item or two they don't have, but call that out in the
 reason.`
       : "";
+
+  const preferenceInstructions = preference?.trim()
+    ? `\n\nThe user also said: "${preference.trim()}". Most of the suggestions should fit this
+craving/constraint (e.g. a cuisine, an ingredient they want to use up, a mood) while still fitting
+the remaining macros. But also include one or two suggestions that ignore this request entirely,
+as good options outside of what they asked for — label those clearly in the reason (e.g. "outside
+what you asked for, but...").`
+    : "";
 
   const response = await client.messages.parse({
     model: SUGGESTIONS_MODEL,
@@ -67,7 +76,7 @@ For each suggestion, give a short one-sentence reason explaining why it fits. Be
 which targets are already exceeded versus which still have room — never say something "stays
 under" or "fits" a target that's zero or negative in the input; instead say it "adds only a little
 more" or "keeps the overage small" for any target already at or below zero, and only talk about
-"remaining" room for targets that are still positive.${pantryInstructions}`,
+"remaining" room for targets that are still positive.${pantryInstructions}${preferenceInstructions}`,
       },
     ],
   });

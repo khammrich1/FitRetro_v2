@@ -163,7 +163,10 @@ export async function setGoalsAction(_state: GoalsState, formData: FormData): Pr
 
 export type SuggestionsState = { suggestions: FoodSuggestion[] } | { error: string } | undefined;
 
-export async function getSuggestionsAction(dayIso?: string): Promise<SuggestionsState> {
+export async function getSuggestionsAction(
+  dayIso?: string,
+  preference?: string,
+): Promise<SuggestionsState> {
   const { userId } = await verifySession();
 
   const remaining = await getRemainingMacrosForDay(userId, parseDayParam(dayIso));
@@ -176,7 +179,11 @@ export async function getSuggestionsAction(dayIso?: string): Promise<Suggestions
     const pantryItemNames = pantryItems.map((item) =>
       item.quantity ? `${item.name} (${item.quantity})` : item.name,
     );
-    const suggestions = await suggestFoodsForRemainingMacros(remaining, pantryItemNames);
+    const suggestions = await suggestFoodsForRemainingMacros(
+      remaining,
+      pantryItemNames,
+      preference,
+    );
     return { suggestions };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Failed to get suggestions." };

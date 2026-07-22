@@ -6,11 +6,12 @@ import { getSuggestionsAction, type SuggestionsState } from "../actions";
 
 export function SuggestionsPanel({ dayIso }: { dayIso: string }) {
   const [state, setState] = useState<SuggestionsState>(undefined);
+  const [preference, setPreference] = useState("");
   const [pending, startTransition] = useTransition();
 
   function handleSuggest() {
     startTransition(async () => {
-      const result = await getSuggestionsAction(dayIso);
+      const result = await getSuggestionsAction(dayIso, preference);
       setState(result);
     });
   }
@@ -36,6 +37,16 @@ export function SuggestionsPanel({ dayIso }: { dayIso: string }) {
           pantry
         </Link>{" "}
         when they fit.
+      </p>
+
+      <input
+        value={preference}
+        onChange={(event) => setPreference(event.target.value)}
+        placeholder="Feeling like Mexican, have leftover chicken, craving something sweet..."
+        className="rounded-md border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+      />
+      <p className="text-xs text-muted-foreground">
+        Optional — most suggestions will lean toward this, plus a couple of options outside of it.
       </p>
 
       {state && "error" in state && <p className="text-sm text-danger">{state.error}</p>}
