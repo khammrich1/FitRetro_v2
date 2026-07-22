@@ -22,6 +22,23 @@ export const nutritionEntries = pgTable("nutrition_entries", {
 export type NutritionEntry = typeof nutritionEntries.$inferSelect;
 export type NewNutritionEntry = typeof nutritionEntries.$inferInsert;
 
+/** One food item that contributed to a logged entry's totals, for a detail breakdown. */
+export const nutritionEntryItems = pgTable("nutrition_entry_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  entryId: uuid("entry_id")
+    .references(() => nutritionEntries.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  quantity: text("quantity").notNull(),
+  calories: integer("calories").notNull(),
+  proteinGrams: real("protein_grams").notNull(),
+  carbsGrams: real("carbs_grams").notNull(),
+  fatGrams: real("fat_grams").notNull(),
+});
+
+export type NutritionEntryItem = typeof nutritionEntryItems.$inferSelect;
+export type NewNutritionEntryItem = typeof nutritionEntryItems.$inferInsert;
+
 /** A user's daily calorie/macro targets, one row per user. */
 export const nutritionGoals = pgTable("nutrition_goals", {
   id: uuid("id").defaultRandom().primaryKey(),

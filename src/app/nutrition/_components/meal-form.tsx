@@ -334,6 +334,11 @@ export function MealForm({ dayIso }: { dayIso: string }) {
       <input type="hidden" name="proteinGrams" value={totals.proteinGrams.toFixed(2)} />
       <input type="hidden" name="carbsGrams" value={totals.carbsGrams.toFixed(2)} />
       <input type="hidden" name="fatGrams" value={totals.fatGrams.toFixed(2)} />
+      <input
+        type="hidden"
+        name="items"
+        value={JSON.stringify(items.filter((item) => item.name.trim() !== ""))}
+      />
 
       <button
         disabled={pending}

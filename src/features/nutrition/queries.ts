@@ -1,28 +1,54 @@
-import { and, eq, gte, lt } from "drizzle-orm";
+import { and, eq, gte, inArray, lt } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   nutritionEntries,
+  nutritionEntryItems,
   nutritionGoals,
   type NewNutritionEntry,
+  type NewNutritionEntryItem,
+  type NutritionEntryItem,
   type NewNutritionGoal,
 } from "@/db/schema";
 
-export async function logNutritionEntry(input: NewNutritionEntry) {
-  const [entry] = await db.insert(nutritionEntries).values(input).returning();
-  return entry;
+export type LoggedItemInput = Omit<NewNutritionEntryItem, "id" | "entryId">;
+export type NutritionEntryWithItems = typeof nutritionEntries.$inferSelect & {
+  items: NutritionEntryItem[];
+};
+
+export async function logNutritionEntry(input: NewNutritionEntry, items: LoggedItemInput[] = []) {
+  return db.transaction(async (tx) => {
+    const [entry] = await tx.insert(nutritionEntries).values(input).returning();
+    if (items.length > 0) {
+      await tx
+        .insert(nutritionEntryItems)
+        .values(items.map((item) => ({ ...item, entryId: entry.id })));
+    }
+    return entry;
+  });
 }
 
 export async function updateNutritionEntry(
   id: string,
   userId: string,
   input: Omit<NewNutritionEntry, "id" | "userId" | "loggedAt">,
+  items: LoggedItemInput[] = [],
 ) {
-  const [entry] = await db
-    .update(nutritionEntries)
-    .set(input)
-    .where(and(eq(nutritionEntries.id, id), eq(nutritionEntries.userId, userId)))
-    .returning();
-  return entry ?? null;
+  return db.transaction(async (tx) => {
+    const [entry] = await tx
+      .update(nutritionEntries)
+      .set(input)
+      .where(and(eq(nutritionEntries.id, id), eq(nutritionEntries.userId, userId)))
+      .returning();
+
+    if (!entry) return null;
+
+    await tx.delete(nutritionEntryItems).where(eq(nutritionEntryItems.entryId, id));
+    if (items.length > 0) {
+      await tx.insert(nutritionEntryItems).values(items.map((item) => ({ ...item, entryId: id })));
+    }
+
+    return entry;
+  });
 }
 
 export async function deleteNutritionEntry(id: string, userId: string) {
@@ -31,14 +57,17 @@ export async function deleteNutritionEntry(id: string, userId: string) {
     .where(and(eq(nutritionEntries.id, id), eq(nutritionEntries.userId, userId)));
 }
 
-/** Returns all entries logged for the given user on the calendar day of `day`. */
-export async function getEntriesForDay(userId: string, day: Date) {
+/** Returns all entries logged for the given user on the calendar day of `day`, with their items. */
+export async function getEntriesForDay(
+  userId: string,
+  day: Date,
+): Promise<NutritionEntryWithItems[]> {
   const startOfDay = new Date(day);
   startOfDay.setHours(0, 0, 0, 0);
   const startOfNextDay = new Date(startOfDay);
   startOfNextDay.setDate(startOfNextDay.getDate() + 1);
 
-  return db
+  const entries = await db
     .select()
     .from(nutritionEntries)
     .where(
@@ -48,6 +77,27 @@ export async function getEntriesForDay(userId: string, day: Date) {
         lt(nutritionEntries.loggedAt, startOfNextDay),
       ),
     );
+
+  if (entries.length === 0) return [];
+
+  const items = await db
+    .select()
+    .from(nutritionEntryItems)
+    .where(
+      inArray(
+        nutritionEntryItems.entryId,
+        entries.map((entry) => entry.id),
+      ),
+    );
+
+  const itemsByEntryId = new Map<string, NutritionEntryItem[]>();
+  for (const item of items) {
+    const existing = itemsByEntryId.get(item.entryId);
+    if (existing) existing.push(item);
+    else itemsByEntryId.set(item.entryId, [item]);
+  }
+
+  return entries.map((entry) => ({ ...entry, items: itemsByEntryId.get(entry.id) ?? [] }));
 }
 
 export async function getGoals(userId: string) {

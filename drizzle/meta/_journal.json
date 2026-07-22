@@ -15,6 +15,13 @@
       "when": 1784713282417,
       "tag": "0001_bumpy_wiccan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784746080545,
+      "tag": "0002_elite_romulus",
+      "breakpoints": true
     }
   ]
 }

@@ -45,6 +45,28 @@ const logMealSchema = z.object({
   fatGrams: z.coerce.number().min(0),
 });
 
+const loggedItemSchema = z.object({
+  name: z.string().trim().min(1),
+  quantity: z.string().trim(),
+  calories: z.coerce.number().int().min(0),
+  proteinGrams: z.coerce.number().min(0),
+  carbsGrams: z.coerce.number().min(0),
+  fatGrams: z.coerce.number().min(0),
+});
+
+const loggedItemsSchema = z.array(loggedItemSchema);
+
+/** Parses the "items" JSON field; invalid/missing input just means no itemized breakdown. */
+function parseLoggedItems(raw: FormDataEntryValue | null): z.infer<typeof loggedItemsSchema> {
+  if (typeof raw !== "string") return [];
+  try {
+    const result = loggedItemsSchema.safeParse(JSON.parse(raw));
+    return result.success ? result.data : [];
+  } catch {
+    return [];
+  }
+}
+
 export type LogMealState =
   | {
       errors?: Record<string, string[]>;
@@ -70,11 +92,14 @@ export async function logMealAction(
     return { errors: validatedFields.error.flatten().fieldErrors };
   }
 
-  await logNutritionEntry({
-    userId,
-    loggedAt: combineDayWithCurrentTime(formData.get("day")?.toString() ?? null),
-    ...validatedFields.data,
-  });
+  await logNutritionEntry(
+    {
+      userId,
+      loggedAt: combineDayWithCurrentTime(formData.get("day")?.toString() ?? null),
+      ...validatedFields.data,
+    },
+    parseLoggedItems(formData.get("items")),
+  );
 
   revalidatePath("/nutrition");
 }
@@ -93,7 +118,9 @@ export async function updateMealAction(id: string, formData: FormData): Promise<
 
   if (!validatedFields.success) return;
 
-  await updateNutritionEntry(id, userId, validatedFields.data);
+  // Editing here overrides whatever produced the original totals, so the item
+  // breakdown (if any) no longer matches — clear it rather than leave it stale.
+  await updateNutritionEntry(id, userId, validatedFields.data, []);
   revalidatePath("/nutrition");
 }
 
