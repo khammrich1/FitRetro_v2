@@ -10,8 +10,12 @@ import {
   deleteSplitDay,
   estimateWorkoutFromDescription,
   suggestExercisesForMuscleGroups,
+  saveTemplate,
+  deleteTemplate,
+  estimateTemplateFromDescription,
   type WorkoutEstimate,
   type ExerciseSuggestion,
+  type TemplateEstimate,
 } from "@/features/workouts";
 import { muscleGroupEnum } from "@/db/schema";
 
@@ -155,5 +159,75 @@ export async function getExerciseSuggestionsAction(
     return {
       error: error instanceof Error ? error.message : "Failed to get exercise suggestions.",
     };
+  }
+}
+
+const templateExerciseSchema = z.object({
+  name: z.string().trim().min(1),
+  muscleGroup: z.enum(muscleGroupEnum.enumValues),
+  targetSetsReps: z.string().trim().min(1),
+});
+
+const templateExercisesSchema = z.array(templateExerciseSchema).min(1);
+
+function parseTemplateExercises(
+  raw: FormDataEntryValue | null,
+): z.infer<typeof templateExercisesSchema> {
+  if (typeof raw !== "string") return [];
+  try {
+    const result = templateExercisesSchema.safeParse(JSON.parse(raw));
+    return result.success ? result.data : [];
+  } catch {
+    return [];
+  }
+}
+
+const saveTemplateSchema = z.object({
+  name: z.string().trim().min(1, "Name is required."),
+});
+
+export type SaveTemplateState = { errors?: Record<string, string[]> } | undefined;
+
+export async function saveTemplateAction(
+  templateId: string | undefined,
+  _state: SaveTemplateState,
+  formData: FormData,
+): Promise<SaveTemplateState> {
+  const { userId } = await verifySession();
+
+  const validatedFields = saveTemplateSchema.safeParse({ name: formData.get("name") });
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors };
+  }
+
+  const exercises = parseTemplateExercises(formData.get("exercises"));
+  if (exercises.length === 0) {
+    return { errors: { exercises: ["Add at least one exercise."] } };
+  }
+
+  await saveTemplate(userId, { templateId, name: validatedFields.data.name, exercises });
+  revalidatePath("/workouts");
+}
+
+export async function deleteTemplateAction(id: string): Promise<void> {
+  const { userId } = await verifySession();
+  await deleteTemplate(id, userId);
+  revalidatePath("/workouts");
+}
+
+export type EstimateTemplateState = { estimate: TemplateEstimate } | { error: string } | undefined;
+
+export async function estimateTemplateAction(description: string): Promise<EstimateTemplateState> {
+  await verifySession();
+
+  if (!description.trim()) {
+    return { error: "Describe your routine first." };
+  }
+
+  try {
+    const estimate = await estimateTemplateFromDescription(description);
+    return { estimate };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Failed to parse the routine." };
   }
 }

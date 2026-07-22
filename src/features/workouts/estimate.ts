@@ -64,3 +64,56 @@ something like a plank), leave that field null rather than guessing a number. Wo
 
   return response.parsed_output;
 }
+
+const templateEstimateSchema = z.object({
+  exercises: z
+    .array(
+      z.object({
+        name: z.string(),
+        muscleGroup: z.enum(muscleGroupEnum.enumValues),
+        targetSetsReps: z
+          .string()
+          .describe('Target sets x reps for this routine, e.g. "3x10" or "4x8-12".'),
+      }),
+    )
+    .min(1),
+});
+
+export type TemplateEstimate = z.infer<typeof templateEstimateSchema>;
+
+/** Parses a description of a standing routine (e.g. "incline bench 3x10, dips 3x12...") into a template. */
+export async function estimateTemplateFromDescription(
+  description: string,
+): Promise<TemplateEstimate> {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error(
+      "ANTHROPIC_API_KEY is not configured. Set it in .env to enable routine parsing, or add exercises manually below.",
+    );
+  }
+
+  const client = new Anthropic();
+
+  const response = await client.messages.parse({
+    model: ESTIMATION_MODEL,
+    max_tokens: 1024,
+    output_config: { format: zodOutputFormat(templateEstimateSchema) },
+    messages: [
+      {
+        role: "user",
+        content: `Parse this description of a standing workout routine into an ordered list of
+exercises with a target sets x reps scheme — this is a reusable template, not a specific day's
+logged performance, so don't invent actual weights lifted. For each exercise, identify its name,
+its primary muscle group (one of: ${muscleGroupEnum.enumValues.join(", ")}), and its target sets x
+reps scheme as a short string like "3x10" or "4x8-12" (default to a reasonable scheme like "3x10"
+if the description doesn't specify one for a given exercise). Routine description:
+"${description}"`,
+      },
+    ],
+  });
+
+  if (!response.parsed_output) {
+    throw new Error("Failed to parse the routine from the description.");
+  }
+
+  return response.parsed_output;
+}

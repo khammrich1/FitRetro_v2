@@ -86,6 +86,28 @@ export const workoutSplitDays = pgTable(
   (table) => [uniqueIndex("workout_split_days_user_day_idx").on(table.userId, table.dayOfWeek)],
 );
 
+/** A reusable, user-defined workout routine (e.g. "Chest & Tris") built from a fixed exercise list. */
+export const workoutTemplates = pgTable("workout_templates", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** One exercise slot within a workout template, with a target sets x reps scheme (e.g. "3x10"). */
+export const workoutTemplateExercises = pgTable("workout_template_exercises", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  templateId: uuid("template_id")
+    .references(() => workoutTemplates.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  muscleGroup: muscleGroupEnum("muscle_group").notNull(),
+  targetSetsReps: text("target_sets_reps").notNull(),
+  sortOrder: integer("sort_order").notNull(),
+});
+
 export type Exercise = typeof exercises.$inferSelect;
 export type NewExercise = typeof exercises.$inferInsert;
 export type Workout = typeof workouts.$inferSelect;
@@ -96,3 +118,7 @@ export type WorkoutSet = typeof workoutSets.$inferSelect;
 export type NewWorkoutSet = typeof workoutSets.$inferInsert;
 export type WorkoutSplitDay = typeof workoutSplitDays.$inferSelect;
 export type NewWorkoutSplitDay = typeof workoutSplitDays.$inferInsert;
+export type WorkoutTemplate = typeof workoutTemplates.$inferSelect;
+export type NewWorkoutTemplate = typeof workoutTemplates.$inferInsert;
+export type WorkoutTemplateExercise = typeof workoutTemplateExercises.$inferSelect;
+export type NewWorkoutTemplateExercise = typeof workoutTemplateExercises.$inferInsert;

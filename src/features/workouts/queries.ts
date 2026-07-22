@@ -6,10 +6,18 @@ import {
   workoutSets,
   exercises,
   workoutSplitDays,
+  workoutTemplates,
+  workoutTemplateExercises,
   type NewWorkout,
   type MuscleGroup,
+  type WorkoutTemplate,
+  type WorkoutTemplateExercise,
 } from "@/db/schema";
 import { lbsToKg } from "./units";
+
+export type WorkoutTemplateWithExercises = WorkoutTemplate & {
+  exercises: WorkoutTemplateExercise[];
+};
 
 export async function createWorkout(input: NewWorkout) {
   const [workout] = await db.insert(workouts).values(input).returning();
@@ -164,6 +172,81 @@ export async function getSplitDayForDate(userId: string, day: Date) {
     .from(workoutSplitDays)
     .where(and(eq(workoutSplitDays.userId, userId), eq(workoutSplitDays.dayOfWeek, day.getDay())));
   return splitDay ?? null;
+}
+
+export type TemplateExerciseInput = {
+  name: string;
+  muscleGroup: MuscleGroup;
+  targetSetsReps: string;
+};
+
+/** Creates a new template, or (when `templateId` is given) replaces an existing one's exercises. */
+export async function saveTemplate(
+  userId: string,
+  input: { templateId?: string; name: string; exercises: TemplateExerciseInput[] },
+) {
+  return db.transaction(async (tx) => {
+    let templateId = input.templateId;
+
+    if (templateId) {
+      const [updated] = await tx
+        .update(workoutTemplates)
+        .set({ name: input.name })
+        .where(and(eq(workoutTemplates.id, templateId), eq(workoutTemplates.userId, userId)))
+        .returning();
+      if (!updated) throw new Error("Template not found.");
+      await tx
+        .delete(workoutTemplateExercises)
+        .where(eq(workoutTemplateExercises.templateId, templateId));
+    } else {
+      const [created] = await tx
+        .insert(workoutTemplates)
+        .values({ userId, name: input.name })
+        .returning();
+      templateId = created.id;
+    }
+
+    if (input.exercises.length > 0) {
+      await tx.insert(workoutTemplateExercises).values(
+        input.exercises.map((exercise, sortOrder) => ({
+          templateId: templateId!,
+          name: exercise.name,
+          muscleGroup: exercise.muscleGroup,
+          targetSetsReps: exercise.targetSetsReps,
+          sortOrder,
+        })),
+      );
+    }
+
+    return templateId;
+  });
+}
+
+export async function deleteTemplate(id: string, userId: string) {
+  await db
+    .delete(workoutTemplates)
+    .where(and(eq(workoutTemplates.id, id), eq(workoutTemplates.userId, userId)));
+}
+
+/** All of a user's saved templates, each with its ordered exercise list. */
+export async function getTemplatesForUser(userId: string) {
+  const templates = await db
+    .select()
+    .from(workoutTemplates)
+    .where(eq(workoutTemplates.userId, userId))
+    .orderBy(asc(workoutTemplates.createdAt));
+
+  const exercisesByTemplate = await Promise.all(
+    templates.map((template) =>
+      db
+        .select()
+        .from(workoutTemplateExercises)
+        .where(eq(workoutTemplateExercises.templateId, template.id))
+        .orderBy(asc(workoutTemplateExercises.sortOrder)),
+    ),
+  );
+
+  return templates.map((template, i) => ({ ...template, exercises: exercisesByTemplate[i] }));
 }
 
 export async function getWorkoutDetail(workoutId: string) {

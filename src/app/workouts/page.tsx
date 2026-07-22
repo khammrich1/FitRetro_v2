@@ -1,17 +1,24 @@
 import { verifySession } from "@/features/auth";
-import { getSplitForUser, getSplitDayForDate, getWorkoutsForDay } from "@/features/workouts";
+import {
+  getSplitForUser,
+  getSplitDayForDate,
+  getWorkoutsForDay,
+  getTemplatesForUser,
+} from "@/features/workouts";
 import { SplitSchedule } from "./_components/split-schedule";
 import { WorkoutLogging } from "./_components/workout-logging";
 import { WorkoutList } from "./_components/workout-list";
+import { TemplatesSection } from "./_components/templates-section";
 
 export default async function WorkoutsPage() {
   const { userId } = await verifySession();
   const today = new Date();
 
-  const [splitDays, todaySplitDay, workoutDetails] = await Promise.all([
+  const [splitDays, todaySplitDay, workoutDetails, templates] = await Promise.all([
     getSplitForUser(userId),
     getSplitDayForDate(userId, today),
     getWorkoutsForDay(userId, today),
+    getTemplatesForUser(userId),
   ]);
 
   const details = workoutDetails.filter((detail) => detail !== null);
@@ -44,7 +51,9 @@ export default async function WorkoutsPage() {
         <WorkoutList details={details} />
       </div>
 
-      <WorkoutLogging targetMuscleGroups={targetMuscleGroups} />
+      <WorkoutLogging targetMuscleGroups={targetMuscleGroups} templates={templates} />
+
+      <TemplatesSection templates={templates} />
 
       <SplitSchedule splitDays={splitDays} />
     </div>

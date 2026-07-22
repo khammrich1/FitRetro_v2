@@ -4,7 +4,13 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useActionState } from "react";
 import { muscleGroupEnum, type MuscleGroup } from "@/db/schema";
 import { useSpeechToText } from "@/lib/hooks/use-speech-to-text";
-import { logWorkoutAction, estimateWorkoutAction, type EstimateWorkoutState } from "../actions";
+import {
+  logWorkoutAction,
+  estimateWorkoutAction,
+  getExerciseSuggestionsAction,
+  type EstimateWorkoutState,
+  type SuggestionsState,
+} from "../actions";
 
 type EditableSet = {
   reps: string;
@@ -31,6 +37,11 @@ export type ExercisePrefill = {
   setsAndReps?: string;
 };
 
+export type TemplateToLoad = {
+  name: string;
+  exercises: ExercisePrefill[];
+};
+
 function parseSetsAndReps(setsAndReps: string | undefined): EditableSet[] {
   const match = setsAndReps?.match(/(\d+)\s*x\s*(\d+)/i);
   if (!match) return [{ ...blankSet }];
@@ -55,9 +66,13 @@ function isBlankExercise(exercise: EditableExercise) {
 export function WorkoutLogForm({
   prefill,
   onPrefillConsumed,
+  templateToLoad,
+  onTemplateLoaded,
 }: {
   prefill?: ExercisePrefill | null;
   onPrefillConsumed?: () => void;
+  templateToLoad?: TemplateToLoad | null;
+  onTemplateLoaded?: () => void;
 }) {
   const [state, action, pending] = useActionState(logWorkoutAction, undefined);
   const [name, setName] = useState("");
@@ -66,6 +81,11 @@ export function WorkoutLogForm({
   const [estimateResult, setEstimateResult] = useState<EstimateWorkoutState>(undefined);
   const [estimating, startEstimating] = useTransition();
   const [handledPrefill, setHandledPrefill] = useState<ExercisePrefill | null>(null);
+  const [handledTemplate, setHandledTemplate] = useState<TemplateToLoad | null>(null);
+  const [substituteIndex, setSubstituteIndex] = useState<number | null>(null);
+  const [substituteNotes, setSubstituteNotes] = useState("");
+  const [substituteResult, setSubstituteResult] = useState<SuggestionsState>(undefined);
+  const [substituting, startSubstituting] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
 
   const {
@@ -75,6 +95,15 @@ export function WorkoutLogForm({
     error: micError,
   } = useSpeechToText((transcript) => {
     setDescription((current) => (current ? `${current} ${transcript}` : transcript));
+  });
+
+  const {
+    isListening: isSubstituteListening,
+    isSupported: substituteMicSupported,
+    toggleListening: toggleSubstituteListening,
+    error: substituteMicError,
+  } = useSpeechToText((transcript) => {
+    setSubstituteNotes((current) => (current ? `${current} ${transcript}` : transcript));
   });
 
   // Adjust local state in response to a new prefill during render (React's recommended pattern),
@@ -93,12 +122,34 @@ export function WorkoutLogForm({
     );
   }
 
+  // Loading a template fully replaces the exercise list and pre-fills the workout name.
+  if (templateToLoad && templateToLoad !== handledTemplate) {
+    setHandledTemplate(templateToLoad);
+    setName(templateToLoad.name);
+    setExercises(
+      templateToLoad.exercises.length > 0
+        ? templateToLoad.exercises.map((exercise) => ({
+            name: exercise.name,
+            muscleGroup: exercise.muscleGroup,
+            sets: parseSetsAndReps(exercise.setsAndReps),
+          }))
+        : [blankExercise()],
+    );
+  }
+
   useEffect(() => {
     if (!handledPrefill) return;
     onPrefillConsumed?.();
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handledPrefill]);
+
+  useEffect(() => {
+    if (!handledTemplate) return;
+    onTemplateLoaded?.();
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handledTemplate]);
 
   const wasPending = useRef(false);
   useEffect(() => {
@@ -107,6 +158,7 @@ export function WorkoutLogForm({
       setDescription("");
       setExercises([blankExercise()]);
       setEstimateResult(undefined);
+      closeSubstitute();
     }
     wasPending.current = pending;
   }, [pending, state]);
@@ -117,6 +169,7 @@ export function WorkoutLogForm({
     setDescription("");
     setExercises([blankExercise()]);
     setEstimateResult(undefined);
+    closeSubstitute();
   }
 
   function handleEstimate() {
@@ -174,6 +227,51 @@ export function WorkoutLogForm({
     setExercises((current) =>
       current.length > 1 ? current.filter((_, i) => i !== index) : current,
     );
+    if (substituteIndex === index) closeSubstitute();
+  }
+
+  function openSubstitute(index: number) {
+    setSubstituteIndex(index);
+    setSubstituteNotes("");
+    setSubstituteResult(undefined);
+  }
+
+  function closeSubstitute() {
+    setSubstituteIndex(null);
+    setSubstituteNotes("");
+    setSubstituteResult(undefined);
+  }
+
+  function handleGetSubstitutes() {
+    if (substituteIndex === null) return;
+    const target = exercises[substituteIndex];
+    const notes =
+      substituteNotes.trim() ||
+      (target.name.trim() ? `A different exercise instead of ${target.name}.` : undefined);
+    startSubstituting(async () => {
+      const result = await getExerciseSuggestionsAction([target.muscleGroup], notes);
+      setSubstituteResult(result);
+    });
+  }
+
+  function applySubstitute(suggestion: {
+    name: string;
+    muscleGroup: MuscleGroup;
+    setsAndReps: string;
+  }) {
+    if (substituteIndex === null) return;
+    setExercises((current) =>
+      current.map((exercise, i) =>
+        i === substituteIndex
+          ? {
+              name: suggestion.name,
+              muscleGroup: suggestion.muscleGroup,
+              sets: parseSetsAndReps(suggestion.setsAndReps),
+            }
+          : exercise,
+      ),
+    );
+    closeSubstitute();
   }
 
   function addSet(exerciseIndex: number) {
@@ -308,6 +406,17 @@ export function WorkoutLogForm({
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() =>
+                  substituteIndex === exerciseIndex
+                    ? closeSubstitute()
+                    : openSubstitute(exerciseIndex)
+                }
+                className="text-xs text-muted-foreground hover:text-accent"
+              >
+                Substitute
+              </button>
               {exercises.length > 1 && (
                 <button
                   type="button"
@@ -318,6 +427,80 @@ export function WorkoutLogForm({
                 </button>
               )}
             </div>
+
+            {substituteIndex === exerciseIndex && (
+              <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-2">
+                <div className="flex gap-2">
+                  <input
+                    value={substituteNotes}
+                    onChange={(event) => setSubstituteNotes(event.target.value)}
+                    placeholder={`e.g. a different ${exercise.muscleGroup.replace("_", " ")} exercise, no cables today`}
+                    className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  {substituteMicSupported && (
+                    <button
+                      type="button"
+                      onClick={toggleSubstituteListening}
+                      aria-pressed={isSubstituteListening}
+                      title={isSubstituteListening ? "Stop listening" : "Describe by voice"}
+                      className={`rounded-md border px-3 py-1 text-sm ${
+                        isSubstituteListening
+                          ? "border-danger text-danger"
+                          : "border-border hover:border-accent hover:text-accent"
+                      }`}
+                    >
+                      {isSubstituteListening ? "● Listening" : "🎤"}
+                    </button>
+                  )}
+                </div>
+                {substituteMicError && (
+                  <span className="text-xs text-danger">{substituteMicError}</span>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGetSubstitutes}
+                    disabled={substituting}
+                    className="retro-glow rounded-full bg-primary px-3 py-1 text-xs text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+                  >
+                    {substituting ? "Thinking..." : "Get suggestions"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeSubstitute}
+                    className="rounded-full border border-border px-3 py-1 text-xs hover:border-danger hover:text-danger"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {substituteResult && "error" in substituteResult && (
+                  <p className="text-xs text-danger">{substituteResult.error}</p>
+                )}
+                {substituteResult && "suggestions" in substituteResult && (
+                  <ul className="flex flex-col gap-2">
+                    {substituteResult.suggestions.map((suggestion, i) => (
+                      <li
+                        key={i}
+                        className="rounded-md border border-border bg-background p-2 text-xs"
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-foreground">{suggestion.name}</p>
+                          <span className="text-muted-foreground">{suggestion.setsAndReps}</span>
+                        </div>
+                        <p className="mt-1 text-accent">{suggestion.reason}</p>
+                        <button
+                          type="button"
+                          onClick={() => applySubstitute(suggestion)}
+                          className="mt-1 text-muted-foreground hover:text-accent"
+                        >
+                          Use this
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
 
             <div className="grid grid-cols-4 gap-2 px-2 text-xs text-muted-foreground">
               <span>Reps</span>
