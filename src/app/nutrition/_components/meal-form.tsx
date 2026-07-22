@@ -248,6 +248,14 @@ export function MealForm({ dayIso }: { dayIso: string }) {
       )}
 
       <div className="flex flex-col gap-2">
+        {items.length > 0 && (
+          <div className="grid grid-cols-4 gap-2 px-2 text-xs text-muted-foreground">
+            <span>Calories</span>
+            <span>Protein (g)</span>
+            <span>Carbs (g)</span>
+            <span>Fat (g)</span>
+          </div>
+        )}
         {items.map((item, index) => (
           <div
             key={index}
