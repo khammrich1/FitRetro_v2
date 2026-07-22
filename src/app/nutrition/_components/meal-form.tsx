@@ -11,15 +11,28 @@ import {
 } from "../actions";
 import { useSpeechToText } from "./use-speech-to-text";
 
+type EditableItem = {
+  name: string;
+  quantity: string;
+  calories: string;
+  proteinGrams: string;
+  carbsGrams: string;
+  fatGrams: string;
+};
+
+const blankItem: EditableItem = {
+  name: "",
+  quantity: "",
+  calories: "",
+  proteinGrams: "",
+  carbsGrams: "",
+  fatGrams: "",
+};
+
 export function MealForm({ dayIso }: { dayIso: string }) {
   const [state, action, pending] = useActionState(logMealAction, undefined);
   const [description, setDescription] = useState("");
-  const [macros, setMacros] = useState({
-    calories: "",
-    proteinGrams: "",
-    carbsGrams: "",
-    fatGrams: "",
-  });
+  const [items, setItems] = useState<EditableItem[]>([{ ...blankItem }]);
   const [estimateResult, setEstimateResult] = useState<EstimateMacrosState>(undefined);
   const [estimating, startEstimating] = useTransition();
   const [photo, setPhoto] = useState<File | null>(null);
@@ -39,7 +52,7 @@ export function MealForm({ dayIso }: { dayIso: string }) {
   useEffect(() => {
     if (wasPending.current && !pending && !state?.errors) {
       setDescription("");
-      setMacros({ calories: "", proteinGrams: "", carbsGrams: "", fatGrams: "" });
+      setItems([{ ...blankItem }]);
       setEstimateResult(undefined);
       clearPhoto();
     }
@@ -64,6 +77,20 @@ export function MealForm({ dayIso }: { dayIso: string }) {
     });
   }
 
+  function updateItem(index: number, field: keyof EditableItem, value: string) {
+    setItems((current) =>
+      current.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
+    );
+  }
+
+  function addItem() {
+    setItems((current) => [...current, { ...blankItem }]);
+  }
+
+  function removeItem(index: number) {
+    setItems((current) => (current.length > 1 ? current.filter((_, i) => i !== index) : current));
+  }
+
   function handleEstimate() {
     startEstimating(async () => {
       if (photo) {
@@ -78,12 +105,16 @@ export function MealForm({ dayIso }: { dayIso: string }) {
               result.estimate.items.map((item) => `${item.quantity} ${item.name}`).join(", "),
             );
           }
-          setMacros({
-            calories: String(result.estimate.totalCalories),
-            proteinGrams: String(result.estimate.totalProteinGrams),
-            carbsGrams: String(result.estimate.totalCarbsGrams),
-            fatGrams: String(result.estimate.totalFatGrams),
-          });
+          setItems(
+            result.estimate.items.map((item) => ({
+              name: item.name,
+              quantity: item.quantity,
+              calories: String(item.calories),
+              proteinGrams: String(item.proteinGrams),
+              carbsGrams: String(item.carbsGrams),
+              fatGrams: String(item.fatGrams),
+            })),
+          );
         }
         return;
       }
@@ -91,15 +122,29 @@ export function MealForm({ dayIso }: { dayIso: string }) {
       const result = await estimateMacrosAction(description);
       setEstimateResult(result);
       if (result && "estimate" in result) {
-        setMacros({
-          calories: String(result.estimate.totalCalories),
-          proteinGrams: String(result.estimate.totalProteinGrams),
-          carbsGrams: String(result.estimate.totalCarbsGrams),
-          fatGrams: String(result.estimate.totalFatGrams),
-        });
+        setItems(
+          result.estimate.items.map((item) => ({
+            name: item.name,
+            quantity: item.quantity,
+            calories: String(item.calories),
+            proteinGrams: String(item.proteinGrams),
+            carbsGrams: String(item.carbsGrams),
+            fatGrams: String(item.fatGrams),
+          })),
+        );
       }
     });
   }
+
+  const totals = items.reduce(
+    (acc, item) => ({
+      calories: acc.calories + (Number(item.calories) || 0),
+      proteinGrams: acc.proteinGrams + (Number(item.proteinGrams) || 0),
+      carbsGrams: acc.carbsGrams + (Number(item.carbsGrams) || 0),
+      fatGrams: acc.fatGrams + (Number(item.fatGrams) || 0),
+    }),
+    { calories: 0, proteinGrams: 0, carbsGrams: 0, fatGrams: 0 },
+  );
 
   return (
     <form
@@ -202,72 +247,93 @@ export function MealForm({ dayIso }: { dayIso: string }) {
         <p className="text-sm text-danger">{estimateResult.error}</p>
       )}
 
-      {estimateResult && "estimate" in estimateResult && (
-        <ul className="text-sm text-muted-foreground">
-          {estimateResult.estimate.items.map((item) => (
-            <li key={item.name}>
-              {item.quantity} {item.name} — {item.calories} kcal
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="flex flex-col gap-2">
+        {items.map((item, index) => (
+          <div
+            key={index}
+            className="flex flex-col gap-2 rounded-md border border-border bg-background p-2"
+          >
+            <div className="flex gap-2">
+              <input
+                value={item.name}
+                onChange={(event) => updateItem(index, "name", event.target.value)}
+                placeholder="Item name"
+                className="flex-1 rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              {items.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeItem(index)}
+                  className="text-xs text-muted-foreground hover:text-danger"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <input
+                type="number"
+                min={0}
+                value={item.calories}
+                onChange={(event) => updateItem(index, "calories", event.target.value)}
+                placeholder="kcal"
+                className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={item.proteinGrams}
+                onChange={(event) => updateItem(index, "proteinGrams", event.target.value)}
+                placeholder="protein"
+                className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={item.carbsGrams}
+                onChange={(event) => updateItem(index, "carbsGrams", event.target.value)}
+                placeholder="carbs"
+                className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={item.fatGrams}
+                onChange={(event) => updateItem(index, "fatGrams", event.target.value)}
+                placeholder="fat"
+                className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={addItem}
+          className="self-start text-xs text-accent hover:underline"
+        >
+          + Add item
+        </button>
+      </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Calories
-          <input
-            name="calories"
-            type="number"
-            min={0}
-            value={macros.calories}
-            onChange={(event) => setMacros({ ...macros, calories: event.target.value })}
-            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm">
-          Protein (g)
-          <input
-            name="proteinGrams"
-            type="number"
-            min={0}
-            step="any"
-            value={macros.proteinGrams}
-            onChange={(event) => setMacros({ ...macros, proteinGrams: event.target.value })}
-            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm">
-          Carbs (g)
-          <input
-            name="carbsGrams"
-            type="number"
-            min={0}
-            step="any"
-            value={macros.carbsGrams}
-            onChange={(event) => setMacros({ ...macros, carbsGrams: event.target.value })}
-            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm">
-          Fat (g)
-          <input
-            name="fatGrams"
-            type="number"
-            min={0}
-            step="any"
-            value={macros.fatGrams}
-            onChange={(event) => setMacros({ ...macros, fatGrams: event.target.value })}
-            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </label>
+      <div className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-sm">
+        <span className="font-medium">Total</span>
+        <span className="text-muted-foreground">
+          {Math.round(totals.calories)} kcal · {totals.proteinGrams.toFixed(1)}g protein ·{" "}
+          {totals.carbsGrams.toFixed(1)}g carbs · {totals.fatGrams.toFixed(1)}g fat
+        </span>
       </div>
       <p className="text-xs text-muted-foreground">
-        Macros above are editable — adjust them if the estimate looks off, or skip estimating and
-        enter them yourself.
+        Each item&apos;s macros are editable — adjust them if the estimate looks off, add/remove
+        items, or skip estimating and enter them yourself. The total above updates automatically.
       </p>
+
+      <input type="hidden" name="calories" value={Math.round(totals.calories)} />
+      <input type="hidden" name="proteinGrams" value={totals.proteinGrams.toFixed(2)} />
+      <input type="hidden" name="carbsGrams" value={totals.carbsGrams.toFixed(2)} />
+      <input type="hidden" name="fatGrams" value={totals.fatGrams.toFixed(2)} />
 
       <button
         disabled={pending}
