@@ -66,7 +66,11 @@ dressing).
 If the description names a specific branded or packaged product (e.g. a named protein shake,
 protein bar, or snack brand), search the web for that product's actual nutrition label instead of
 estimating from general knowledge — brand-specific values can differ substantially from a typical
-item of that type. Meal description: "${description}"`,
+item of that type. The same caution applies to specific cuts of meat or less-common whole
+foods — e.g. chicken tenderloin, breast, and thigh have meaningfully different fat/calorie
+profiles per pound even though they're all "chicken" — if you're not confident of precise
+reference values (like USDA FoodData Central) for the specific cut/type named, search to confirm
+rather than guessing from a generic average. Meal description: "${description}"`,
       },
     ],
   });
@@ -116,8 +120,12 @@ visible added fat like oil or dressing).
 
 If the photo shows a specific branded or packaged product (visible label, logo, or packaging),
 search the web for that product's actual nutrition label instead of estimating from general
-knowledge — brand-specific values can differ substantially from a typical item of that
-type.${note ? ` Additional context from the user: "${note}"` : ""}`,
+knowledge — brand-specific values can differ substantially from a typical item of that type. The
+same caution applies to specific cuts of meat or less-common whole foods — e.g. chicken
+tenderloin, breast, and thigh have meaningfully different fat/calorie profiles per pound even
+though they're all "chicken" — if you're not confident of precise reference values (like USDA
+FoodData Central) for the specific cut/type shown or named on any visible packaging/label, search
+to confirm rather than guessing from a generic average.${note ? ` Additional context from the user: "${note}"` : ""}`,
           },
         ],
       },
