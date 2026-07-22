@@ -250,16 +250,16 @@ export async function estimateMacrosFromImageAction(
 const logSuggestionSchema = z.object({
   mealType: z.enum(mealTypeEnum.enumValues),
   name: z.string().trim().min(1),
-  description: z.string().trim(),
   calories: z.coerce.number().int().min(0),
   proteinGrams: z.coerce.number().min(0),
   carbsGrams: z.coerce.number().min(0),
   fatGrams: z.coerce.number().min(0),
+  items: loggedItemsSchema.min(1),
 });
 
 export type LogSuggestionInput = z.infer<typeof logSuggestionSchema> & { dayIso: string };
 
-/** Logs a food suggestion directly as a one-item meal entry, no form interaction needed. */
+/** Logs a food suggestion directly, with its itemized breakdown, no form interaction needed. */
 export async function logSuggestionAction(input: LogSuggestionInput): Promise<{ error?: string }> {
   const { userId } = await verifySession();
 
@@ -268,7 +268,7 @@ export async function logSuggestionAction(input: LogSuggestionInput): Promise<{ 
     return { error: "Couldn't log that suggestion — invalid data." };
   }
 
-  const { mealType, name, description, calories, proteinGrams, carbsGrams, fatGrams } =
+  const { mealType, name, calories, proteinGrams, carbsGrams, fatGrams, items } =
     validatedFields.data;
 
   await logNutritionEntry(
@@ -282,7 +282,7 @@ export async function logSuggestionAction(input: LogSuggestionInput): Promise<{ 
       carbsGrams,
       fatGrams,
     },
-    [{ name, quantity: description, calories, proteinGrams, carbsGrams, fatGrams }],
+    items,
   );
 
   revalidatePath("/nutrition");

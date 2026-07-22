@@ -38,6 +38,12 @@ export type PrefillItem = {
   fatGrams: number;
 };
 
+/** A meal to prefill into the form — an overall description plus its itemized breakdown. */
+export type MealPrefill = {
+  description: string;
+  items: PrefillItem[];
+};
+
 function isBlankItem(item: EditableItem) {
   return (
     item.name.trim() === "" &&
@@ -50,11 +56,11 @@ function isBlankItem(item: EditableItem) {
 
 export function MealForm({
   dayIso,
-  prefillItem,
+  prefill,
   onPrefillConsumed,
 }: {
   dayIso: string;
-  prefillItem?: PrefillItem | null;
+  prefill?: MealPrefill | null;
   onPrefillConsumed?: () => void;
 }) {
   const [state, action, pending] = useActionState(logMealAction, undefined);
@@ -64,37 +70,37 @@ export function MealForm({
   const [estimating, startEstimating] = useTransition();
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
-  const [handledPrefillItem, setHandledPrefillItem] = useState<PrefillItem | null>(null);
+  const [handledPrefill, setHandledPrefill] = useState<MealPrefill | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Adjust local state in response to a new prefillItem during render (React's recommended
-  // pattern for this), rather than in an effect — avoids an extra render pass just to copy props
-  // into state.
-  if (prefillItem && prefillItem !== handledPrefillItem) {
-    setHandledPrefillItem(prefillItem);
-    const newItem: EditableItem = {
-      name: prefillItem.name,
-      quantity: prefillItem.quantity,
-      calories: String(prefillItem.calories),
-      proteinGrams: String(prefillItem.proteinGrams),
-      carbsGrams: String(prefillItem.carbsGrams),
-      fatGrams: String(prefillItem.fatGrams),
-    };
+  // Adjust local state in response to a new prefill during render (React's recommended pattern
+  // for this), rather than in an effect — avoids an extra render pass just to copy props into
+  // state.
+  if (prefill && prefill !== handledPrefill) {
+    setHandledPrefill(prefill);
+    const newItems: EditableItem[] = prefill.items.map((item) => ({
+      name: item.name,
+      quantity: item.quantity,
+      calories: String(item.calories),
+      proteinGrams: String(item.proteinGrams),
+      carbsGrams: String(item.carbsGrams),
+      fatGrams: String(item.fatGrams),
+    }));
     setItems((current) =>
-      current.length === 1 && isBlankItem(current[0]) ? [newItem] : [...current, newItem],
+      current.length === 1 && isBlankItem(current[0]) ? newItems : [...current, ...newItems],
     );
-    setDescription((current) => current || prefillItem.name);
+    setDescription((current) => current || prefill.description);
   }
 
   // Side effects (notifying the parent, scrolling) can't happen during render, so they land in
-  // an effect keyed off the item we just handled above.
+  // an effect keyed off the prefill we just handled above.
   useEffect(() => {
-    if (!handledPrefillItem) return;
+    if (!handledPrefill) return;
     onPrefillConsumed?.();
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handledPrefillItem]);
+  }, [handledPrefill]);
 
   const {
     isListening,

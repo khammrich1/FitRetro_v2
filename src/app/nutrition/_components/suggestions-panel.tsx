@@ -11,7 +11,7 @@ import {
   type SuggestionsState,
   type RecipeState,
 } from "../actions";
-import type { PrefillItem } from "./meal-form";
+import type { MealPrefill } from "./meal-form";
 
 function inferMealType(): (typeof mealTypeEnum.enumValues)[number] {
   const hour = new Date().getHours();
@@ -28,7 +28,7 @@ function SuggestionCard({
 }: {
   suggestion: FoodSuggestion;
   dayIso: string;
-  onAdjustAndLog: (item: PrefillItem) => void;
+  onAdjustAndLog: (prefill: MealPrefill) => void;
 }) {
   const [logged, setLogged] = useState(false);
   const [logging, startLogging] = useTransition();
@@ -42,11 +42,11 @@ function SuggestionCard({
         mealType: inferMealType(),
         dayIso,
         name: suggestion.name,
-        description: suggestion.description,
         calories: suggestion.calories,
         proteinGrams: suggestion.proteinGrams,
         carbsGrams: suggestion.carbsGrams,
         fatGrams: suggestion.fatGrams,
+        items: suggestion.items,
       });
       if (!result.error) setLogged(true);
     });
@@ -54,12 +54,8 @@ function SuggestionCard({
 
   function handleAdjustAndLog() {
     onAdjustAndLog({
-      name: suggestion.name,
-      quantity: suggestion.description,
-      calories: suggestion.calories,
-      proteinGrams: suggestion.proteinGrams,
-      carbsGrams: suggestion.carbsGrams,
-      fatGrams: suggestion.fatGrams,
+      description: suggestion.name,
+      items: suggestion.items,
     });
   }
 
@@ -153,7 +149,7 @@ export function SuggestionsPanel({
   onAdjustAndLog,
 }: {
   dayIso: string;
-  onAdjustAndLog: (item: PrefillItem) => void;
+  onAdjustAndLog: (prefill: MealPrefill) => void;
 }) {
   const [state, setState] = useState<SuggestionsState>(undefined);
   const [preference, setPreference] = useState("");
