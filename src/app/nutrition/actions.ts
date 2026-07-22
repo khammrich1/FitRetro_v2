@@ -15,6 +15,7 @@ import {
   type FoodSuggestion,
   type MacroEstimate,
 } from "@/features/nutrition";
+import { listPantryItems } from "@/features/pantry";
 import { mealTypeEnum } from "@/db/schema";
 
 const logMealSchema = z.object({
@@ -102,7 +103,11 @@ export async function getSuggestionsAction(): Promise<SuggestionsState> {
   }
 
   try {
-    const suggestions = await suggestFoodsForRemainingMacros(remaining);
+    const pantryItems = await listPantryItems(userId);
+    const pantryItemNames = pantryItems.map((item) =>
+      item.quantity ? `${item.name} (${item.quantity})` : item.name,
+    );
+    const suggestions = await suggestFoodsForRemainingMacros(remaining, pantryItemNames);
     return { suggestions };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Failed to get suggestions." };

@@ -4,3 +4,4 @@ export * from "./measurements";
 export * from "./nutrition";
 export * from "./recipes";
 export * from "./habits";
+export * from "./pantry";

@@ -15,6 +15,9 @@ export async function NavBar() {
             <Link href="/nutrition" className="font-medium text-accent">
               Nutrition
             </Link>
+            <Link href="/pantry" className="font-medium text-accent">
+              Pantry
+            </Link>
             <span className="text-muted-foreground">{user.displayName}</span>
             <form action={logout}>
               <button

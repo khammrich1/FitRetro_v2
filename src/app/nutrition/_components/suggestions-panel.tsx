@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { getSuggestionsAction, type SuggestionsState } from "../actions";
 
@@ -29,7 +30,12 @@ export function SuggestionsPanel() {
         </button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Based on whatever&apos;s left of your daily macro targets, not the full targets themselves.
+        Based on whatever&apos;s left of your daily macro targets (not the full targets), and
+        prioritizes items in your{" "}
+        <Link href="/pantry" className="underline hover:text-accent">
+          pantry
+        </Link>{" "}
+        when they fit.
       </p>
 
       {state && "error" in state && <p className="text-sm text-danger">{state.error}</p>}
@@ -47,6 +53,7 @@ export function SuggestionsPanel() {
                 {suggestion.calories} kcal · {suggestion.proteinGrams}g protein ·{" "}
                 {suggestion.carbsGrams}g carbs · {suggestion.fatGrams}g fat
               </p>
+              <p className="mt-1 text-xs text-accent">{suggestion.reason}</p>
             </li>
           ))}
         </ul>
