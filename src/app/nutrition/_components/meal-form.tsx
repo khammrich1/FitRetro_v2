@@ -9,7 +9,7 @@ import {
   estimateMacrosFromImageAction,
   type EstimateMacrosState,
 } from "../actions";
-import { useSpeechToText } from "./use-speech-to-text";
+import { useSpeechToText } from "@/lib/hooks/use-speech-to-text";
 
 type EditableItem = {
   name: string;

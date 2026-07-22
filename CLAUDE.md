@@ -47,6 +47,7 @@ src/
     routines/            User-built daily routines (e.g. morning/evening) with ordered,
                          completable steps and per-step notes
   lib/                 Cross-cutting utilities (e.g. session cookie signing)
+    hooks/               Shared React hooks (e.g. speech-to-text) reused across features
   proxy.ts             Route protection (this Next.js version renames middleware.ts to
                        proxy.ts — see AGENTS.md and node_modules/next/dist/docs)
 ```

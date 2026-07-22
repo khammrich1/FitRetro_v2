@@ -12,6 +12,9 @@ export async function NavBar() {
       <div className="flex items-center gap-4 text-sm">
         {user ? (
           <>
+            <Link href="/workouts" className="font-medium text-accent">
+              Workouts
+            </Link>
             <Link href="/nutrition" className="font-medium text-accent">
               Nutrition
             </Link>

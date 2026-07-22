@@ -1,4 +1,13 @@
-import { pgTable, uuid, text, timestamp, integer, real, pgEnum } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  uuid,
+  text,
+  timestamp,
+  integer,
+  real,
+  pgEnum,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 export const muscleGroupEnum = pgEnum("muscle_group", [
@@ -12,6 +21,8 @@ export const muscleGroupEnum = pgEnum("muscle_group", [
   "full_body",
   "cardio",
 ]);
+
+export type MuscleGroup = (typeof muscleGroupEnum.enumValues)[number];
 
 /** Catalog of known exercises, shared across all users. */
 export const exercises = pgTable("exercises", {
@@ -60,6 +71,21 @@ export const workoutSets = pgTable("workout_sets", {
   rpe: real("rpe"),
 });
 
+/** The user's target muscle group(s) for a given day of the week (0 = Sunday ... 6 = Saturday). */
+export const workoutSplitDays = pgTable(
+  "workout_split_days",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    dayOfWeek: integer("day_of_week").notNull(),
+    label: text("label").notNull(),
+    muscleGroups: muscleGroupEnum("muscle_groups").array().notNull(),
+  },
+  (table) => [uniqueIndex("workout_split_days_user_day_idx").on(table.userId, table.dayOfWeek)],
+);
+
 export type Exercise = typeof exercises.$inferSelect;
 export type NewExercise = typeof exercises.$inferInsert;
 export type Workout = typeof workouts.$inferSelect;
@@ -68,3 +94,5 @@ export type WorkoutExercise = typeof workoutExercises.$inferSelect;
 export type NewWorkoutExercise = typeof workoutExercises.$inferInsert;
 export type WorkoutSet = typeof workoutSets.$inferSelect;
 export type NewWorkoutSet = typeof workoutSets.$inferInsert;
+export type WorkoutSplitDay = typeof workoutSplitDays.$inferSelect;
+export type NewWorkoutSplitDay = typeof workoutSplitDays.$inferInsert;
