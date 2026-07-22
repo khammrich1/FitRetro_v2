@@ -4,6 +4,16 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { RemainingMacros } from "./queries";
 
+export type DailyMacroGoal = {
+  dailyCalories: number;
+  dailyProteinGrams: number;
+  dailyCarbsGrams: number;
+  dailyFatGrams: number;
+};
+
+/** Fraction of the daily goal a single meal should roughly target, absent other constraints. */
+const SINGLE_MEAL_SHARE = 1 / 3;
+
 const SUGGESTIONS_MODEL = "claude-haiku-4-5";
 
 const foodSuggestionsSchema = z.object({
@@ -33,6 +43,7 @@ export async function suggestFoodsForRemainingMacros(
   remaining: RemainingMacros,
   pantryItems: string[] = [],
   preference?: string,
+  dailyGoal?: DailyMacroGoal,
 ): Promise<FoodSuggestion[]> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error(
@@ -41,6 +52,16 @@ export async function suggestFoodsForRemainingMacros(
   }
 
   const client = new Anthropic();
+
+  const portionInstructions = dailyGoal
+    ? `\n\nThese are suggestions for a single meal or sitting — not an attempt to consume everything
+remaining today in one go. As a rough target, aim for around ${Math.round(dailyGoal.dailyCalories * SINGLE_MEAL_SHARE)}
+kcal for this single meal (about a third of the daily ${dailyGoal.dailyCalories} kcal goal),
+scaling protein/carbs/fat proportionally, unless the remaining budget below is already smaller
+than that — in which case fit within whatever's actually left instead. Never suggest a single meal
+that would eat up most or all of the remaining budget unless the remaining budget is already
+meal-sized or smaller.`
+    : "";
 
   const pantryInstructions =
     pantryItems.length > 0
@@ -76,7 +97,7 @@ For each suggestion, give a short one-sentence reason explaining why it fits. Be
 which targets are already exceeded versus which still have room — never say something "stays
 under" or "fits" a target that's zero or negative in the input; instead say it "adds only a little
 more" or "keeps the overage small" for any target already at or below zero, and only talk about
-"remaining" room for targets that are still positive.${pantryInstructions}${preferenceInstructions}`,
+"remaining" room for targets that are still positive.${portionInstructions}${pantryInstructions}${preferenceInstructions}`,
       },
     ],
   });

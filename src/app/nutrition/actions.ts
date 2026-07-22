@@ -8,6 +8,7 @@ import {
   updateNutritionEntry,
   deleteNutritionEntry,
   upsertGoals,
+  getGoals,
   getRemainingMacrosForDay,
   suggestFoodsForRemainingMacros,
   estimateMacrosFromDescription,
@@ -175,7 +176,7 @@ export async function getSuggestionsAction(
   }
 
   try {
-    const pantryItems = await listPantryItems(userId);
+    const [pantryItems, goal] = await Promise.all([listPantryItems(userId), getGoals(userId)]);
     const pantryItemNames = pantryItems.map((item) =>
       item.quantity ? `${item.name} (${item.quantity})` : item.name,
     );
@@ -183,6 +184,7 @@ export async function getSuggestionsAction(
       remaining,
       pantryItemNames,
       preference,
+      goal ?? undefined,
     );
     return { suggestions };
   } catch (error) {
