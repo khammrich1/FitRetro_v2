@@ -116,6 +116,14 @@ export function MealForm({
     wasPending.current = pending;
   }, [pending, state]);
 
+  function handleClear() {
+    formRef.current?.reset();
+    setDescription("");
+    setItems([{ ...blankItem }]);
+    setEstimateResult(undefined);
+    clearPhoto();
+  }
+
   function clearPhoto() {
     setPhoto(null);
     setPhotoPreviewUrl((current) => {
@@ -406,13 +414,23 @@ export function MealForm({
         value={JSON.stringify(items.filter((item) => item.name.trim() !== ""))}
       />
 
-      <button
-        disabled={pending}
-        type="submit"
-        className="retro-glow self-start rounded-full bg-primary px-4 py-1.5 text-sm text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
-      >
-        {pending ? "Logging..." : "Log meal"}
-      </button>
+      <div className="flex gap-3">
+        <button
+          disabled={pending}
+          type="submit"
+          className="retro-glow self-start rounded-full bg-primary px-4 py-1.5 text-sm text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+        >
+          {pending ? "Logging..." : "Log meal"}
+        </button>
+        <button
+          type="button"
+          onClick={handleClear}
+          disabled={pending}
+          className="self-start rounded-full border border-border px-4 py-1.5 text-sm hover:border-danger hover:text-danger disabled:opacity-50"
+        >
+          Clear
+        </button>
+      </div>
     </form>
   );
 }
