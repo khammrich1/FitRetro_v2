@@ -5,3 +5,4 @@ export * from "./nutrition";
 export * from "./recipes";
 export * from "./habits";
 export * from "./pantry";
+export * from "./routines";

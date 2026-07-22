@@ -22,6 +22,13 @@
       "when": 1784746080545,
       "tag": "0002_elite_romulus",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784761009240,
+      "tag": "0003_black_bedlam",
+      "breakpoints": true
     }
   ]
 }
