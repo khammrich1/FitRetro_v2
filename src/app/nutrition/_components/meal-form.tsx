@@ -11,7 +11,7 @@ import {
 } from "../actions";
 import { useSpeechToText } from "@/lib/hooks/use-speech-to-text";
 
-type EditableItem = {
+export type EditableItem = {
   name: string;
   quantity: string;
   calories: string;
@@ -20,7 +20,7 @@ type EditableItem = {
   fatGrams: string;
 };
 
-const blankItem: EditableItem = {
+export const blankItem: EditableItem = {
   name: "",
   quantity: "",
   calories: "",

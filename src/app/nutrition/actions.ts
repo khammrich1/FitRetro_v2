@@ -120,9 +120,12 @@ export async function updateMealAction(id: string, formData: FormData): Promise<
 
   if (!validatedFields.success) return;
 
-  // Editing here overrides whatever produced the original totals, so the item
-  // breakdown (if any) no longer matches — clear it rather than leave it stale.
-  await updateNutritionEntry(id, userId, validatedFields.data, []);
+  await updateNutritionEntry(
+    id,
+    userId,
+    validatedFields.data,
+    parseLoggedItems(formData.get("items")),
+  );
   revalidatePath("/nutrition");
 }
 
