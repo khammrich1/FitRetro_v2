@@ -63,6 +63,13 @@ common foods and typical preparation methods when the description doesn't specif
 cooked weight unless raw is stated, and a light/moderate amount of any added fat like oil or
 dressing).
 
+This description may come from voice-to-text and can contain transcription errors, especially in
+unit words (e.g. "oz" misheard as "on", "ounce" dropped, "grams" garbled). If a quantity's unit
+looks garbled or nonstandard, infer the most likely intended unit from context — oz, cups, grams,
+and pounds are the common units for food serving sizes — rather than treating the quantity as
+unspecified or ignoring it. A small wording glitch like this should not change the answer;
+prioritize the numeric quantities stated over the exact spelling of their units.
+
 If the description names a specific branded or packaged product (e.g. a named protein shake,
 protein bar, or snack brand), search the web for that product's actual nutrition label instead of
 estimating from general knowledge — brand-specific values can differ substantially from a typical
@@ -147,7 +154,13 @@ this photo's portion represents, don't report the whole batch as the meal. Inste
 the nutrition for every ingredient in the full batch; (2) estimate the total cooked weight of the
 batch, accounting for water absorbed by dry ingredients like pasta/rice and moisture lost from
 cooking meat; (3) scale the batch totals down proportionally to the portion shown/described, and
-report items/totals for that eaten portion only — not the full batch.${note ? ` Additional context from the user: "${note}"` : ""}`,
+report items/totals for that eaten portion only — not the full batch.${
+              note
+                ? ` Additional context from the user (may be voice-to-text and contain minor
+transcription errors, especially in unit words like "oz" — infer the most likely intended unit
+from context rather than treating a garbled quantity as unspecified): "${note}"`
+                : ""
+            }`,
           },
         ],
       },
