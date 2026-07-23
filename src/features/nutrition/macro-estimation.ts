@@ -70,7 +70,18 @@ item of that type. The same caution applies to specific cuts of meat or less-com
 foods — e.g. chicken tenderloin, breast, and thigh have meaningfully different fat/calorie
 profiles per pound even though they're all "chicken" — if you're not confident of precise
 reference values (like USDA FoodData Central) for the specific cut/type named, search to confirm
-rather than guessing from a generic average. Meal description: "${description}"`,
+rather than guessing from a generic average.
+
+Some descriptions list the ingredients used to cook a whole batch of a shared dish (with
+label/quantity info for each ingredient, e.g. "20oz jar of sauce, 40 cal/serving, 9.5 servings" or
+"1 lb of ground beef") and then separately state how much of the finished dish was actually
+eaten (e.g. "I had a 10oz bowl", "I ate about half of it"). When that pattern appears, don't
+report the whole batch as the meal. Instead: (1) find/total the nutrition for every ingredient in
+the full batch, using given label info directly and searching the web for branded or specific
+items per the guidance above; (2) estimate the total cooked weight of the batch, accounting for
+water absorbed by dry ingredients like pasta/rice and moisture lost from cooking meat; (3) scale
+the batch totals down proportionally to the portion actually consumed, and report items/totals
+for that eaten portion only — not the full batch. Meal description: "${description}"`,
       },
     ],
   });
@@ -125,7 +136,15 @@ same caution applies to specific cuts of meat or less-common whole foods — e.g
 tenderloin, breast, and thigh have meaningfully different fat/calorie profiles per pound even
 though they're all "chicken" — if you're not confident of precise reference values (like USDA
 FoodData Central) for the specific cut/type shown or named on any visible packaging/label, search
-to confirm rather than guessing from a generic average.${note ? ` Additional context from the user: "${note}"` : ""}`,
+to confirm rather than guessing from a generic average.
+
+If the user's context below describes the ingredients used to cook a whole batch of a shared dish
+(with label/quantity info for each ingredient) and separately states how much of the finished dish
+this photo's portion represents, don't report the whole batch as the meal. Instead: (1) find/total
+the nutrition for every ingredient in the full batch; (2) estimate the total cooked weight of the
+batch, accounting for water absorbed by dry ingredients like pasta/rice and moisture lost from
+cooking meat; (3) scale the batch totals down proportionally to the portion shown/described, and
+report items/totals for that eaten portion only — not the full batch.${note ? ` Additional context from the user: "${note}"` : ""}`,
           },
         ],
       },
