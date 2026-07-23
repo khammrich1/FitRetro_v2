@@ -74,14 +74,17 @@ rather than guessing from a generic average.
 
 Some descriptions list the ingredients used to cook a whole batch of a shared dish (with
 label/quantity info for each ingredient, e.g. "20oz jar of sauce, 40 cal/serving, 9.5 servings" or
-"1 lb of ground beef") and then separately state how much of the finished dish was actually
-eaten (e.g. "I had a 10oz bowl", "I ate about half of it"). When that pattern appears, don't
-report the whole batch as the meal. Instead: (1) find/total the nutrition for every ingredient in
+"1 lb of ground beef") rather than a single-serving meal. When that pattern appears, never report
+the whole batch as the meal eaten. Instead: (1) find/total the nutrition for every ingredient in
 the full batch, using given label info directly and searching the web for branded or specific
 items per the guidance above; (2) estimate the total cooked weight of the batch, accounting for
 water absorbed by dry ingredients like pasta/rice and moisture lost from cooking meat; (3) scale
-the batch totals down proportionally to the portion actually consumed, and report items/totals
-for that eaten portion only — not the full batch. Meal description: "${description}"`,
+the batch totals down to a single serving and report items/totals for that serving only — not the
+full batch. If the description states how much was actually eaten (e.g. "I had a 10oz bowl", "I
+ate about half of it"), scale to that exact amount; if it doesn't say, assume a typical single-adult
+serving size for that kind of dish (roughly 12-16oz for a hearty pasta-and-meat-sauce style meal,
+adjusting for the dish type) rather than defaulting to the whole batch. Meal description:
+"${description}"`,
       },
     ],
   });
