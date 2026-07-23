@@ -132,21 +132,33 @@ export async function estimateMacrosFromImage(
           },
           {
             type: "text",
-            text: `Identify the food(s) in this photo and estimate the nutrition facts. Break it
-down into individual food items with your best-guess quantity for each based on visual portion
-size, then give calorie and macro totals (protein, carbs, fat in grams) summed across all items.
-Use standard nutrition data for common foods and typical preparation methods when the photo
-doesn't make something clear (e.g. assume cooked weight, and a light/moderate amount of any
-visible added fat like oil or dressing).
+            text: `This photo is either (a) a plate/bowl of food, or (b) a nutrition facts label —
+handle whichever it is.
 
-If the photo shows a specific branded or packaged product (visible label, logo, or packaging),
-search the web for that product's actual nutrition label instead of estimating from general
-knowledge — brand-specific values can differ substantially from a typical item of that type. The
-same caution applies to specific cuts of meat or less-common whole foods — e.g. chicken
-tenderloin, breast, and thigh have meaningfully different fat/calorie profiles per pound even
-though they're all "chicken" — if you're not confident of precise reference values (like USDA
-FoodData Central) for the specific cut/type shown or named on any visible packaging/label, search
-to confirm rather than guessing from a generic average.
+(a) If it shows actual food, identify the item(s) and estimate the nutrition facts. Break it down
+into individual food items with your best-guess quantity for each based on visual portion size,
+then give calorie and macro totals (protein, carbs, fat in grams) summed across all items. Use
+standard nutrition data for common foods and typical preparation methods when the photo doesn't
+make something clear (e.g. assume cooked weight, and a light/moderate amount of any visible added
+fat like oil or dressing).
+
+(b) If it shows a nutrition facts label/panel (e.g. a photo of a box or package, not the food
+itself), don't try to visually estimate a portion — instead read the calorie/macro values, serving
+size, and servings-per-container directly off the label. If the user's context below states how
+much of the product was actually used (e.g. "8oz", "half the box", "2 servings"), scale the
+label's per-serving values to that amount; if it doesn't say, use one label serving as the
+default quantity rather than guessing an unstated amount. Name the item after the product (read
+from the label/packaging if visible) and set its quantity to whatever amount you scaled to.
+
+If the photo shows a specific branded or packaged product (visible label, logo, or packaging) and
+its own nutrition facts aren't fully legible, search the web for that product's actual nutrition
+label instead of estimating from general knowledge — brand-specific values can differ
+substantially from a typical item of that type. The same caution applies to specific cuts of meat
+or less-common whole foods — e.g. chicken tenderloin, breast, and thigh have meaningfully
+different fat/calorie profiles per pound even though they're all "chicken" — if you're not
+confident of precise reference values (like USDA FoodData Central) for the specific cut/type
+shown or named on any visible packaging/label, search to confirm rather than guessing from a
+generic average.
 
 If the user's context below describes the ingredients used to cook a whole batch of a shared dish
 (with label/quantity info for each ingredient) and separately states how much of the finished dish
