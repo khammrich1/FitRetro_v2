@@ -46,13 +46,30 @@ src/
     habits/             Habit tracking with streaks and points (gamification)
     routines/            User-built daily routines (e.g. morning/evening) with ordered,
                          completable steps; each step has a static template note plus a
-                         separate per-day completion note. Templates are built at
-                         /settings/routines; /routine is the daily checklist.
+                         separate per-day completion note.
   lib/                 Cross-cutting utilities (e.g. session cookie signing)
+    date.ts              Shared "YYYY-MM-DD" day-param parsing/formatting, used by every
+                         day-scoped page/action (avoids each feature reinventing it)
     hooks/               Shared React hooks (e.g. speech-to-text) reused across features
   proxy.ts             Route protection (this Next.js version renames middleware.ts to
                        proxy.ts — see AGENTS.md and node_modules/next/dist/docs)
 ```
+
+### Route structure: `/today` vs `/settings/*`
+
+Day-to-day activity (meals, workouts logged, routine checklist) lives on one consolidated
+**`/today`** page, driven by a `?date=` search param via the shared `DayNav` component
+(`src/components/ui/day-nav.tsx`) — prev/next/date-picker, defaulting to today. Its
+`_components/` are grouped by domain (`nutrition/`, `routine/`, `workouts/`).
+
+Config that doesn't change day to day — nutrition goals, workout split schedule + exercise
+templates, routine templates — lives under **`/settings/*`** instead (each with its own
+`page.tsx` and `_components/`), one section per domain, linked from a `/settings` index.
+
+Server actions stay in their originating feature's route folder (`src/app/nutrition/actions.ts`,
+`src/app/routine/actions.ts`, `src/app/workouts/actions.ts`) even though those folders no longer
+have a `page.tsx` of their own — both `/today` and the relevant `/settings/*` page import from
+them, since a `"use server"` module isn't tied to any single route.
 
 Each feature module owns its own queries/data-access functions and only touches the database
 tables relevant to that feature. Route handlers and UI components should import from a

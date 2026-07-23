@@ -10,7 +10,7 @@ import {
   getExerciseSuggestionsAction,
   type EstimateWorkoutState,
   type SuggestionsState,
-} from "../actions";
+} from "@/app/workouts/actions";
 
 type EditableSet = {
   reps: string;
@@ -64,11 +64,13 @@ function isBlankExercise(exercise: EditableExercise) {
 }
 
 export function WorkoutLogForm({
+  dayIso,
   prefill,
   onPrefillConsumed,
   templateToLoad,
   onTemplateLoaded,
 }: {
+  dayIso: string;
   prefill?: ExercisePrefill | null;
   onPrefillConsumed?: () => void;
   templateToLoad?: TemplateToLoad | null;
@@ -326,6 +328,7 @@ export function WorkoutLogForm({
       className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
     >
       <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Log a workout</h2>
+      <input type="hidden" name="day" value={dayIso} />
 
       <label className="flex flex-col gap-1 text-sm">
         Workout name

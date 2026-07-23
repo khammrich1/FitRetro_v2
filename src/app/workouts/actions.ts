@@ -18,6 +18,21 @@ import {
   type TemplateEstimate,
 } from "@/features/workouts";
 import { muscleGroupEnum } from "@/db/schema";
+import { parseDayParam } from "@/lib/date";
+
+/** Combines a calendar day with the current time of day, so workouts logged for a non-today day
+ * (e.g. backfilling yesterday) still get a sensible timestamp rather than midnight. */
+function combineDayWithCurrentTime(dayIso: string | null): Date {
+  const now = new Date();
+  const day = parseDayParam(dayIso);
+  day.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+  return day;
+}
+
+function revalidateWorkoutPaths() {
+  revalidatePath("/today");
+  revalidatePath("/settings/workouts");
+}
 
 const setSchema = z.object({
   reps: z.coerce.number().int().min(0).nullable(),
@@ -79,18 +94,18 @@ export async function logWorkoutAction(
 
   await logWorkoutWithExercises(userId, {
     name: validatedFields.data.name,
-    startedAt: new Date(),
+    startedAt: combineDayWithCurrentTime(formData.get("day")?.toString() ?? null),
     notes: validatedFields.data.notes ?? null,
     exercises,
   });
 
-  revalidatePath("/workouts");
+  revalidatePath("/today");
 }
 
 export async function deleteWorkoutAction(id: string): Promise<void> {
   const { userId } = await verifySession();
   await deleteWorkout(id, userId);
-  revalidatePath("/workouts");
+  revalidatePath("/today");
 }
 
 export type EstimateWorkoutState = { estimate: WorkoutEstimate } | { error: string } | undefined;
@@ -130,13 +145,13 @@ export async function upsertSplitDayAction(dayOfWeek: number, formData: FormData
     validatedFields.data.label,
     validatedFields.data.muscleGroups,
   );
-  revalidatePath("/workouts");
+  revalidateWorkoutPaths();
 }
 
 export async function deleteSplitDayAction(dayOfWeek: number): Promise<void> {
   const { userId } = await verifySession();
   await deleteSplitDay(userId, dayOfWeek);
-  revalidatePath("/workouts");
+  revalidateWorkoutPaths();
 }
 
 export type SuggestionsState =
@@ -206,13 +221,13 @@ export async function saveTemplateAction(
   }
 
   await saveTemplate(userId, { templateId, name: validatedFields.data.name, exercises });
-  revalidatePath("/workouts");
+  revalidateWorkoutPaths();
 }
 
 export async function deleteTemplateAction(id: string): Promise<void> {
   const { userId } = await verifySession();
   await deleteTemplate(id, userId);
-  revalidatePath("/workouts");
+  revalidateWorkoutPaths();
 }
 
 export type EstimateTemplateState = { estimate: TemplateEstimate } | { error: string } | undefined;

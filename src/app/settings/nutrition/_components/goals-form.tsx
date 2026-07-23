@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { setGoalsAction } from "../actions";
+import { setGoalsAction } from "@/app/nutrition/actions";
 import type { NutritionGoal } from "@/db/schema";
 
 export function GoalsForm({ goal }: { goal: NutritionGoal | null }) {

@@ -3,7 +3,11 @@
 import { useState, useTransition } from "react";
 import { muscleGroupEnum, type MuscleGroup } from "@/db/schema";
 import { useSpeechToText } from "@/lib/hooks/use-speech-to-text";
-import { saveTemplateAction, estimateTemplateAction, type EstimateTemplateState } from "../actions";
+import {
+  saveTemplateAction,
+  estimateTemplateAction,
+  type EstimateTemplateState,
+} from "@/app/workouts/actions";
 import type { WorkoutTemplateWithExercises } from "@/features/workouts";
 
 type EditableTemplateExercise = {

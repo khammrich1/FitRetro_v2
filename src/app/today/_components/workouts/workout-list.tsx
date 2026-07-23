@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { kgToLbs } from "@/features/workouts/units";
 import type { Exercise, Workout, WorkoutExercise, WorkoutSet } from "@/db/schema";
-import { deleteWorkoutAction } from "../actions";
+import { deleteWorkoutAction } from "@/app/workouts/actions";
 
 type WorkoutDetail = {
   workout: Workout;
@@ -58,7 +58,7 @@ function WorkoutCard({ detail }: { detail: WorkoutDetail }) {
 
 export function WorkoutList({ details }: { details: WorkoutDetail[] }) {
   if (details.length === 0) {
-    return <p className="text-sm text-muted-foreground">No workouts logged yet today.</p>;
+    return <p className="text-sm text-muted-foreground">No workouts logged for this day.</p>;
   }
 
   return (

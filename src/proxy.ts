@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifySessionToken } from "@/lib/session";
 
-const protectedRoutes = ["/nutrition", "/pantry", "/routine", "/workouts", "/settings"];
+const protectedRoutes = ["/today", "/pantry", "/settings"];
 const authRoutes = ["/login", "/signup"];
 
 export async function proxy(request: NextRequest) {
@@ -18,7 +18,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthRoute && session?.userId) {
-    return NextResponse.redirect(new URL("/nutrition", request.nextUrl));
+    return NextResponse.redirect(new URL("/today", request.nextUrl));
   }
 
   return NextResponse.next();

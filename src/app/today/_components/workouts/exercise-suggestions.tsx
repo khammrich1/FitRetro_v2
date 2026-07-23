@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { MuscleGroup } from "@/db/schema";
-import { getExerciseSuggestionsAction, type SuggestionsState } from "../actions";
+import { getExerciseSuggestionsAction, type SuggestionsState } from "@/app/workouts/actions";
 import type { ExercisePrefill } from "./workout-log-form";
 
 export function ExerciseSuggestions({
@@ -40,11 +40,11 @@ export function ExerciseSuggestions({
 
       {targetMuscleGroups.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          Set today&apos;s target muscle groups in the split schedule below to get suggestions.
+          Set this day&apos;s target muscle groups in Settings to get suggestions.
         </p>
       ) : (
         <p className="text-xs text-muted-foreground">
-          Based on today&apos;s target: {targetMuscleGroups.join(", ")}.
+          Based on this day&apos;s target: {targetMuscleGroups.join(", ")}.
         </p>
       )}
 

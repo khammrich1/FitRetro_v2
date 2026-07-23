@@ -11,7 +11,7 @@ import {
   estimateMacrosAction,
   type SuggestionsState,
   type RecipeState,
-} from "../actions";
+} from "@/app/nutrition/actions";
 import type { MealPrefill } from "./meal-form";
 
 function inferMealType(): (typeof mealTypeEnum.enumValues)[number] {

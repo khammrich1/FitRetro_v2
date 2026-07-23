@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { deleteTemplateAction } from "../actions";
+import { deleteTemplateAction } from "@/app/workouts/actions";
 import { TemplateForm } from "./template-form";
 import type { WorkoutTemplateWithExercises } from "@/features/workouts";
 
@@ -67,8 +67,8 @@ export function TemplatesSection({ templates }: { templates: WorkoutTemplateWith
         )}
       </div>
       <p className="text-xs text-muted-foreground">
-        Build your standing routines here (e.g. Chest &amp; Tris, warm-up), then load one into
-        today&apos;s log below and swap anything you need for that day.
+        Build your standing routines here (e.g. Chest &amp; Tris, warm-up), then load one into a
+        day&apos;s log on the Today page and swap anything you need for that day.
       </p>
 
       {editingId === "new" && <TemplateForm onClose={() => setEditingId(null)} />}

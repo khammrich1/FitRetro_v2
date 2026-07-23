@@ -13,9 +13,10 @@ import {
   toggleRoutineItemCompletion,
   updateRoutineCompletionNotes,
 } from "@/features/routines";
+import { parseDayParam } from "@/lib/date";
 
 function revalidateRoutinePaths() {
-  revalidatePath("/routine");
+  revalidatePath("/today");
   revalidatePath("/settings/routines");
 }
 
@@ -116,14 +117,18 @@ export async function moveRoutineItemAction(id: string, direction: "up" | "down"
   revalidateRoutinePaths();
 }
 
-export async function toggleRoutineItemCompletionAction(id: string): Promise<void> {
+export async function toggleRoutineItemCompletionAction(id: string, dayIso: string): Promise<void> {
   const { userId } = await verifySession();
-  await toggleRoutineItemCompletion(id, userId, new Date());
+  await toggleRoutineItemCompletion(id, userId, parseDayParam(dayIso));
   revalidateRoutinePaths();
 }
 
-export async function updateRoutineCompletionNotesAction(id: string, notes: string): Promise<void> {
+export async function updateRoutineCompletionNotesAction(
+  id: string,
+  notes: string,
+  dayIso: string,
+): Promise<void> {
   const { userId } = await verifySession();
-  await updateRoutineCompletionNotes(id, userId, new Date(), notes.trim() || null);
+  await updateRoutineCompletionNotes(id, userId, parseDayParam(dayIso), notes.trim() || null);
   revalidateRoutinePaths();
 }

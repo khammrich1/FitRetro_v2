@@ -2,22 +2,25 @@
 
 import { useState, useTransition } from "react";
 import type { RoutineWithItems, RoutineItemWithCompletion } from "@/features/routines";
-import { toggleRoutineItemCompletionAction, updateRoutineCompletionNotesAction } from "../actions";
+import {
+  toggleRoutineItemCompletionAction,
+  updateRoutineCompletionNotesAction,
+} from "@/app/routine/actions";
 
-function ChecklistItemRow({ item }: { item: RoutineItemWithCompletion }) {
+function ChecklistItemRow({ item, dayIso }: { item: RoutineItemWithCompletion; dayIso: string }) {
   const [pending, startTransition] = useTransition();
   const [notes, setNotes] = useState(item.completionNotes ?? "");
   const [, startSavingNotes] = useTransition();
 
   function handleToggle() {
     startTransition(async () => {
-      await toggleRoutineItemCompletionAction(item.id);
+      await toggleRoutineItemCompletionAction(item.id, dayIso);
     });
   }
 
   function handleNotesBlur() {
     startSavingNotes(async () => {
-      await updateRoutineCompletionNotesAction(item.id, notes);
+      await updateRoutineCompletionNotesAction(item.id, notes, dayIso);
     });
   }
 
@@ -54,7 +57,13 @@ function ChecklistItemRow({ item }: { item: RoutineItemWithCompletion }) {
   );
 }
 
-export function RoutineChecklistCard({ routine }: { routine: RoutineWithItems }) {
+export function RoutineChecklistCard({
+  routine,
+  dayIso,
+}: {
+  routine: RoutineWithItems;
+  dayIso: string;
+}) {
   const completedCount = routine.items.filter((item) => item.completedToday).length;
 
   return (
@@ -80,7 +89,11 @@ export function RoutineChecklistCard({ routine }: { routine: RoutineWithItems })
             // Keying on completedToday remounts the row on toggle, so the notes textarea
             // re-initializes from the fresh (or cleared) completion note instead of keeping
             // stale local state from a previous day's completion.
-            <ChecklistItemRow key={`${item.id}-${item.completedToday}`} item={item} />
+            <ChecklistItemRow
+              key={`${item.id}-${item.completedToday}`}
+              item={item}
+              dayIso={dayIso}
+            />
           ))}
         </ul>
       )}

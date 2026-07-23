@@ -7,9 +7,11 @@ import { ExerciseSuggestions } from "./exercise-suggestions";
 import type { WorkoutTemplateWithExercises } from "@/features/workouts";
 
 export function WorkoutLogging({
+  dayIso,
   targetMuscleGroups,
   templates,
 }: {
+  dayIso: string;
   targetMuscleGroups: MuscleGroup[];
   templates: WorkoutTemplateWithExercises[];
 }) {
@@ -47,6 +49,7 @@ export function WorkoutLogging({
         </div>
       )}
       <WorkoutLogForm
+        dayIso={dayIso}
         prefill={prefill}
         onPrefillConsumed={() => setPrefill(null)}
         templateToLoad={templateToLoad}

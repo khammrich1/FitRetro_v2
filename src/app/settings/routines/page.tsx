@@ -14,8 +14,8 @@ export default async function RoutineSettingsPage() {
       <p className="text-sm text-muted-foreground">
         Build your daily routines here — name them, add steps, reorder, and add notes for detail
         (today&apos;s affirmation, what to read, etc). Head to the{" "}
-        <Link href="/routine" className="text-accent underline">
-          Routine
+        <Link href="/today" className="text-accent underline">
+          Today
         </Link>{" "}
         page to check things off day to day.
       </p>

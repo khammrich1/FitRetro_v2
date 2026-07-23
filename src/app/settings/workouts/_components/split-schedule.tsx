@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { muscleGroupEnum, type WorkoutSplitDay } from "@/db/schema";
-import { upsertSplitDayAction, deleteSplitDayAction } from "../actions";
+import { upsertSplitDayAction, deleteSplitDayAction } from "@/app/workouts/actions";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 

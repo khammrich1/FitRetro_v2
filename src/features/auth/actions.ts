@@ -41,7 +41,7 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
   const user = await createUser({ displayName, email, passwordHash });
 
   await createSession(user.id);
-  redirect("/nutrition");
+  redirect("/today");
 }
 
 export async function login(_state: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -67,7 +67,7 @@ export async function login(_state: AuthFormState, formData: FormData): Promise<
   }
 
   await createSession(user.id);
-  redirect("/nutrition");
+  redirect("/today");
 }
 
 export async function logout() {

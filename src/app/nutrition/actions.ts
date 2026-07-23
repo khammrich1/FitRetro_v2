@@ -21,13 +21,7 @@ import {
 import { listPantryItems } from "@/features/pantry";
 import { generateRecipe, type GeneratedRecipe } from "@/features/recipes";
 import { mealTypeEnum } from "@/db/schema";
-
-/** Parses a "YYYY-MM-DD" search-param date, falling back to today for missing/invalid input. */
-function parseDayParam(dayIso: string | null | undefined): Date {
-  if (!dayIso) return new Date();
-  const parsed = new Date(`${dayIso}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-}
+import { parseDayParam } from "@/lib/date";
 
 /** Combines a calendar day with the current time of day, so meals logged for a non-today day
  * (e.g. backfilling yesterday) still get a sensible timestamp rather than midnight. */
@@ -103,7 +97,7 @@ export async function logMealAction(
     parseLoggedItems(formData.get("items")),
   );
 
-  revalidatePath("/nutrition");
+  revalidatePath("/today");
 }
 
 export async function updateMealAction(id: string, formData: FormData): Promise<void> {
@@ -126,13 +120,13 @@ export async function updateMealAction(id: string, formData: FormData): Promise<
     validatedFields.data,
     parseLoggedItems(formData.get("items")),
   );
-  revalidatePath("/nutrition");
+  revalidatePath("/today");
 }
 
 export async function deleteMealAction(id: string): Promise<void> {
   const { userId } = await verifySession();
   await deleteNutritionEntry(id, userId);
-  revalidatePath("/nutrition");
+  revalidatePath("/today");
 }
 
 const goalsSchema = z.object({
@@ -163,7 +157,8 @@ export async function setGoalsAction(_state: GoalsState, formData: FormData): Pr
   }
 
   await upsertGoals({ userId, ...validatedFields.data });
-  revalidatePath("/nutrition");
+  revalidatePath("/settings/nutrition");
+  revalidatePath("/today");
 }
 
 export type SuggestionsState = { suggestions: FoodSuggestion[] } | { error: string } | undefined;
@@ -288,7 +283,7 @@ export async function logSuggestionAction(input: LogSuggestionInput): Promise<{ 
     [{ name, quantity: description, calories, proteinGrams, carbsGrams, fatGrams }],
   );
 
-  revalidatePath("/nutrition");
+  revalidatePath("/today");
   return {};
 }
 

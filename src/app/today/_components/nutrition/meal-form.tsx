@@ -8,7 +8,7 @@ import {
   estimateMacrosAction,
   estimateMacrosFromImageAction,
   type EstimateMacrosState,
-} from "../actions";
+} from "@/app/nutrition/actions";
 import { useSpeechToText } from "@/lib/hooks/use-speech-to-text";
 
 export type EditableItem = {

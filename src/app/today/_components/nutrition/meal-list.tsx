@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { mealTypeEnum } from "@/db/schema";
 import type { NutritionEntryWithItems } from "@/features/nutrition";
-import { updateMealAction, deleteMealAction } from "../actions";
+import { updateMealAction, deleteMealAction } from "@/app/nutrition/actions";
 import { blankItem, type EditableItem } from "./meal-form";
 
 function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
