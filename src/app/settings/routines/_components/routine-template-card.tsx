@@ -8,10 +8,9 @@ import {
   updateRoutineItemAction,
   deleteRoutineItemAction,
   moveRoutineItemAction,
-  toggleRoutineItemCompletionAction,
-} from "../actions";
+} from "@/app/routine/actions";
 
-function RoutineItemRow({
+function RoutineTemplateItemRow({
   item,
   isFirst,
   isLast,
@@ -23,14 +22,7 @@ function RoutineItemRow({
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.name);
   const [notes, setNotes] = useState(item.notes ?? "");
-  const [showNotes, setShowNotes] = useState(false);
   const [pending, startTransition] = useTransition();
-
-  function handleToggle() {
-    startTransition(async () => {
-      await toggleRoutineItemCompletionAction(item.id);
-    });
-  }
 
   function handleSave() {
     const formData = new FormData();
@@ -92,18 +84,7 @@ function RoutineItemRow({
   return (
     <li className="flex flex-col gap-1 rounded-md border border-border bg-background p-2 text-sm">
       <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={item.completedToday}
-          onChange={handleToggle}
-          disabled={pending}
-          className="h-4 w-4 accent-primary"
-        />
-        <span
-          className={item.completedToday ? "flex-1 text-muted-foreground line-through" : "flex-1"}
-        >
-          {item.name}
-        </span>
+        <span className="flex-1">{item.name}</span>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <button
             onClick={() => handleMove("up")}
@@ -121,14 +102,6 @@ function RoutineItemRow({
           >
             ↓
           </button>
-          {item.notes && (
-            <button
-              onClick={() => setShowNotes((current) => !current)}
-              className="hover:text-accent"
-            >
-              {showNotes ? "Hide notes" : "Notes"}
-            </button>
-          )}
           <button onClick={() => setEditing(true)} disabled={pending} className="hover:text-accent">
             Edit
           </button>
@@ -137,9 +110,7 @@ function RoutineItemRow({
           </button>
         </div>
       </div>
-      {showNotes && item.notes && (
-        <p className="pl-6 text-xs text-muted-foreground">{item.notes}</p>
-      )}
+      {item.notes && <p className="pl-6 text-xs text-muted-foreground">{item.notes}</p>}
     </li>
   );
 }
@@ -176,7 +147,7 @@ function AddItemForm({ routineId }: { routineId: string }) {
   );
 }
 
-export function RoutineCard({ routine }: { routine: RoutineWithItems }) {
+export function RoutineTemplateCard({ routine }: { routine: RoutineWithItems }) {
   const [pending, startTransition] = useTransition();
 
   function handleDeleteRoutine() {
@@ -185,24 +156,19 @@ export function RoutineCard({ routine }: { routine: RoutineWithItems }) {
     });
   }
 
-  const completedCount = routine.items.filter((item) => item.completedToday).length;
-
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">
           {routine.name}
         </h2>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          {routine.items.length > 0 && (
-            <span>
-              {completedCount}/{routine.items.length}
-            </span>
-          )}
-          <button onClick={handleDeleteRoutine} disabled={pending} className="hover:text-danger">
-            Delete routine
-          </button>
-        </div>
+        <button
+          onClick={handleDeleteRoutine}
+          disabled={pending}
+          className="text-xs text-muted-foreground hover:text-danger"
+        >
+          Delete routine
+        </button>
       </div>
 
       {routine.items.length === 0 ? (
@@ -210,7 +176,7 @@ export function RoutineCard({ routine }: { routine: RoutineWithItems }) {
       ) : (
         <ul className="flex flex-col gap-2">
           {routine.items.map((item, index) => (
-            <RoutineItemRow
+            <RoutineTemplateItemRow
               key={item.id}
               item={item}
               isFirst={index === 0}

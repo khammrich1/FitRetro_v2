@@ -1,0 +1,1 @@
+ALTER TABLE "routine_completions" ADD COLUMN "notes" text;

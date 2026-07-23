@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { createRoutineAction } from "../actions";
+import { createRoutineAction } from "@/app/routine/actions";
 
 export function NewRoutineForm() {
   const [state, action, pending] = useActionState(createRoutineAction, undefined);

@@ -11,7 +11,13 @@ import {
   deleteRoutineItem,
   moveRoutineItem,
   toggleRoutineItemCompletion,
+  updateRoutineCompletionNotes,
 } from "@/features/routines";
+
+function revalidateRoutinePaths() {
+  revalidatePath("/routine");
+  revalidatePath("/settings/routines");
+}
 
 export type CreateRoutineState =
   | {
@@ -35,13 +41,13 @@ export async function createRoutineAction(
   }
 
   await createRoutine(userId, validatedFields.data.name);
-  revalidatePath("/routine");
+  revalidateRoutinePaths();
 }
 
 export async function deleteRoutineAction(id: string): Promise<void> {
   const { userId } = await verifySession();
   await deleteRoutine(id, userId);
-  revalidatePath("/routine");
+  revalidateRoutinePaths();
 }
 
 const routineItemSchema = z.object({
@@ -79,7 +85,7 @@ export async function addRoutineItemAction(
     validatedFields.data.name,
     validatedFields.data.notes ?? null,
   );
-  revalidatePath("/routine");
+  revalidateRoutinePaths();
 }
 
 export async function updateRoutineItemAction(id: string, formData: FormData): Promise<void> {
@@ -95,23 +101,29 @@ export async function updateRoutineItemAction(id: string, formData: FormData): P
     name: validatedFields.data.name,
     notes: validatedFields.data.notes ?? null,
   });
-  revalidatePath("/routine");
+  revalidateRoutinePaths();
 }
 
 export async function deleteRoutineItemAction(id: string): Promise<void> {
   const { userId } = await verifySession();
   await deleteRoutineItem(id, userId);
-  revalidatePath("/routine");
+  revalidateRoutinePaths();
 }
 
 export async function moveRoutineItemAction(id: string, direction: "up" | "down"): Promise<void> {
   const { userId } = await verifySession();
   await moveRoutineItem(id, userId, direction);
-  revalidatePath("/routine");
+  revalidateRoutinePaths();
 }
 
 export async function toggleRoutineItemCompletionAction(id: string): Promise<void> {
   const { userId } = await verifySession();
   await toggleRoutineItemCompletion(id, userId, new Date());
-  revalidatePath("/routine");
+  revalidateRoutinePaths();
+}
+
+export async function updateRoutineCompletionNotesAction(id: string, notes: string): Promise<void> {
+  const { userId } = await verifySession();
+  await updateRoutineCompletionNotes(id, userId, new Date(), notes.trim() || null);
+  revalidateRoutinePaths();
 }

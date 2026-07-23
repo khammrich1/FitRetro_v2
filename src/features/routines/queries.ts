@@ -143,7 +143,37 @@ export async function toggleRoutineItemCompletion(
   return true;
 }
 
-export type RoutineItemWithCompletion = RoutineItem & { completedToday: boolean };
+/** Sets the note on today's (or `day`'s) completion row for an item, if one exists. */
+export async function updateRoutineCompletionNotes(
+  itemId: string,
+  userId: string,
+  day: Date,
+  notes: string | null,
+): Promise<void> {
+  const [item] = await db
+    .select()
+    .from(routineItems)
+    .where(
+      and(eq(routineItems.id, itemId), inArray(routineItems.routineId, ownedRoutineIds(userId))),
+    );
+  if (!item) return;
+
+  const completedOn = toDateOnly(day);
+  await db
+    .update(routineCompletions)
+    .set({ notes })
+    .where(
+      and(
+        eq(routineCompletions.routineItemId, itemId),
+        eq(routineCompletions.completedOn, completedOn),
+      ),
+    );
+}
+
+export type RoutineItemWithCompletion = RoutineItem & {
+  completedToday: boolean;
+  completionNotes: string | null;
+};
 export type RoutineWithItems = typeof routines.$inferSelect & {
   items: RoutineItemWithCompletion[];
 };
@@ -170,7 +200,10 @@ export async function getRoutinesForUser(userId: string, day: Date): Promise<Rou
   const completions =
     itemIds.length > 0
       ? await db
-          .select({ routineItemId: routineCompletions.routineItemId })
+          .select({
+            routineItemId: routineCompletions.routineItemId,
+            notes: routineCompletions.notes,
+          })
           .from(routineCompletions)
           .where(
             and(
@@ -179,11 +212,17 @@ export async function getRoutinesForUser(userId: string, day: Date): Promise<Rou
             ),
           )
       : [];
-  const completedItemIds = new Set(completions.map((completion) => completion.routineItemId));
+  const completionByItemId = new Map(
+    completions.map((completion) => [completion.routineItemId, completion.notes]),
+  );
 
   const itemsByRoutineId = new Map<string, RoutineItemWithCompletion[]>();
   for (const item of items) {
-    const withCompletion = { ...item, completedToday: completedItemIds.has(item.id) };
+    const withCompletion = {
+      ...item,
+      completedToday: completionByItemId.has(item.id),
+      completionNotes: completionByItemId.get(item.id) ?? null,
+    };
     const existing = itemsByRoutineId.get(item.routineId);
     if (existing) existing.push(withCompletion);
     else itemsByRoutineId.set(item.routineId, [withCompletion]);

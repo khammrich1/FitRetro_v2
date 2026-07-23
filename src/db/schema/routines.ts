@@ -31,6 +31,7 @@ export const routineCompletions = pgTable(
       .references(() => routineItems.id, { onDelete: "cascade" })
       .notNull(),
     completedOn: date("completed_on").notNull(),
+    notes: text("notes"),
   },
   (table) => [
     uniqueIndex("routine_completions_item_day_idx").on(table.routineItemId, table.completedOn),

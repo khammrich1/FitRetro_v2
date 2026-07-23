@@ -45,7 +45,9 @@ src/
     recipes/            Recipe storage, including LLM-generated recipes
     habits/             Habit tracking with streaks and points (gamification)
     routines/            User-built daily routines (e.g. morning/evening) with ordered,
-                         completable steps and per-step notes
+                         completable steps; each step has a static template note plus a
+                         separate per-day completion note. Templates are built at
+                         /settings/routines; /routine is the daily checklist.
   lib/                 Cross-cutting utilities (e.g. session cookie signing)
     hooks/               Shared React hooks (e.g. speech-to-text) reused across features
   proxy.ts             Route protection (this Next.js version renames middleware.ts to
