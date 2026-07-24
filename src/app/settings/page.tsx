@@ -16,6 +16,11 @@ const SETTINGS_SECTIONS = [
     title: "Routine templates",
     description: "Build your daily routines and their steps.",
   },
+  {
+    href: "/settings/peptides",
+    title: "Peptides",
+    description: "Peptides you take, their dose, and frequency.",
+  },
 ];
 
 export default function SettingsPage() {

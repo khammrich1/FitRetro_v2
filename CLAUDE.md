@@ -47,6 +47,8 @@ src/
     routines/            User-built daily routines (e.g. morning/evening) with ordered,
                          completable steps; each step has a static template note plus a
                          separate per-day completion note.
+    peptides/            User-defined peptides (name, dose, frequency) with per-day dose logs;
+                         no due-date/reminder logic — frequency is reference only
   lib/                 Cross-cutting utilities (e.g. session cookie signing)
     date.ts              Shared "YYYY-MM-DD" day-param parsing/formatting, used by every
                          day-scoped page/action (avoids each feature reinventing it)

@@ -4,12 +4,14 @@ import { DayNav } from "@/components/ui/day-nav";
 import { getGoals, getEntriesForDay, summarizeMacros } from "@/features/nutrition";
 import { getRoutinesForUser } from "@/features/routines";
 import { getSplitDayForDate, getWorkoutsForDay, getTemplatesForUser } from "@/features/workouts";
+import { getPeptideTemplatesForUser, getPeptideLogsForDay } from "@/features/peptides";
 import { MacroProgress } from "./_components/nutrition/macro-progress";
 import { MealList } from "./_components/nutrition/meal-list";
 import { MealLogging } from "./_components/nutrition/meal-logging";
 import { RoutineChecklistCard } from "./_components/routine/routine-checklist-card";
 import { WorkoutList } from "./_components/workouts/workout-list";
 import { WorkoutLogging } from "./_components/workouts/workout-logging";
+import { PeptideSection } from "./_components/peptides/peptide-section";
 
 export default async function TodayPage({
   searchParams,
@@ -22,13 +24,24 @@ export default async function TodayPage({
   const dayIso = toIsoDate(day);
   const todayIso = toIsoDate(new Date());
 
-  const [goal, entries, routines, todaySplitDay, workoutDetails, templates] = await Promise.all([
+  const [
+    goal,
+    entries,
+    routines,
+    todaySplitDay,
+    workoutDetails,
+    templates,
+    peptideTemplates,
+    peptideLogs,
+  ] = await Promise.all([
     getGoals(userId),
     getEntriesForDay(userId, day),
     getRoutinesForUser(userId, day),
     getSplitDayForDate(userId, day),
     getWorkoutsForDay(userId, day),
     getTemplatesForUser(userId),
+    getPeptideTemplatesForUser(userId),
+    getPeptideLogsForDay(userId, day),
   ]);
 
   const consumed = summarizeMacros(entries);
@@ -91,6 +104,11 @@ export default async function TodayPage({
           targetMuscleGroups={targetMuscleGroups}
           templates={templates}
         />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="retro-heading text-lg font-semibold text-primary">Peptides</h2>
+        <PeptideSection dayIso={dayIso} templates={peptideTemplates} logs={peptideLogs} />
       </section>
     </div>
   );
