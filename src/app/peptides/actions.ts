@@ -23,6 +23,13 @@ const peptideTemplateSchema = z.object({
   doseAmount: z.coerce.number().positive("Dose must be greater than 0."),
   doseUnit: z.enum(peptideDoseUnitEnum.enumValues),
   frequency: z.enum(peptideFrequencyEnum.enumValues),
+  preferredTime: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z
+      .string()
+      .regex(/^\d{2}:\d{2}$/, "Invalid time.")
+      .optional(),
+  ),
 });
 
 export type PeptideTemplateState =
@@ -42,12 +49,16 @@ export async function createPeptideTemplateAction(
     doseAmount: formData.get("doseAmount"),
     doseUnit: formData.get("doseUnit"),
     frequency: formData.get("frequency"),
+    preferredTime: formData.get("preferredTime"),
   });
   if (!validatedFields.success) {
     return { errors: validatedFields.error.flatten().fieldErrors };
   }
 
-  await createPeptideTemplate(userId, validatedFields.data);
+  await createPeptideTemplate(userId, {
+    ...validatedFields.data,
+    preferredTime: validatedFields.data.preferredTime ?? null,
+  });
   revalidatePeptidePaths();
 }
 
@@ -62,12 +73,16 @@ export async function updatePeptideTemplateAction(
     doseAmount: formData.get("doseAmount"),
     doseUnit: formData.get("doseUnit"),
     frequency: formData.get("frequency"),
+    preferredTime: formData.get("preferredTime"),
   });
   if (!validatedFields.success) {
     return { errors: validatedFields.error.flatten().fieldErrors };
   }
 
-  await updatePeptideTemplate(id, userId, validatedFields.data);
+  await updatePeptideTemplate(id, userId, {
+    ...validatedFields.data,
+    preferredTime: validatedFields.data.preferredTime ?? null,
+  });
   revalidatePeptidePaths();
 }
 

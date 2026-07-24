@@ -25,6 +25,9 @@ export const peptideTemplates = pgTable("peptide_templates", {
   doseAmount: real("dose_amount").notNull(),
   doseUnit: peptideDoseUnitEnum("dose_unit").notNull(),
   frequency: peptideFrequencyEnum("frequency").notNull(),
+  /** Preferred time of day to take it, stored as 24-hour "HH:MM" (from a native time input);
+   * reference/label only, same as frequency — not used for reminders. */
+  preferredTime: text("preferred_time"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

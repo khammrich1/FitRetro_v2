@@ -1,0 +1,1 @@
+ALTER TABLE "peptide_templates" ADD COLUMN "preferred_time" text;

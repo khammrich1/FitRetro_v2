@@ -54,6 +54,14 @@ export function NewPeptideForm() {
       {state?.errors?.doseAmount && (
         <span className="text-xs text-danger">{state.errors.doseAmount[0]}</span>
       )}
+      <label className="flex flex-col gap-1 text-sm">
+        Time of day (optional)
+        <input
+          name="preferredTime"
+          type="time"
+          className="w-40 rounded-md border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+      </label>
       <button
         disabled={pending}
         type="submit"

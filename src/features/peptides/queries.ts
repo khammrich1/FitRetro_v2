@@ -28,6 +28,7 @@ export type PeptideTemplateInput = {
   doseAmount: number;
   doseUnit: PeptideDoseUnit;
   frequency: PeptideFrequency;
+  preferredTime: string | null;
 };
 
 export async function createPeptideTemplate(userId: string, input: PeptideTemplateInput) {

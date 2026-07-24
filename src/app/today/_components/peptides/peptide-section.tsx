@@ -40,6 +40,15 @@ function formatDate(iso: string): string {
   });
 }
 
+/** Formats a 24-hour "HH:MM" string (from a native time input) as e.g. "8:00 AM". */
+function formatTime(time: string | null): string | null {
+  if (!time) return null;
+  const [hours, minutes] = time.split(":").map(Number);
+  const period = hours >= 12 ? "PM" : "AM";
+  const displayHours = hours % 12 === 0 ? 12 : hours % 12;
+  return `${displayHours}:${String(minutes).padStart(2, "0")} ${period}`;
+}
+
 /** Whether `template` is due on `dayIso`, given the last day (if any) it was logged. */
 function isDue(template: PeptideTemplate, lastLoggedIso: string | undefined, dayIso: string) {
   const intervalDays = FREQUENCY_INTERVAL_DAYS[template.frequency];
@@ -113,18 +122,22 @@ export function PeptideSection({
               <span className="text-xs uppercase tracking-wide text-muted-foreground">
                 Add a dose:
               </span>
-              {dueTemplates.map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  onClick={() => handleAdd(template.id)}
-                  disabled={pending}
-                  className="rounded-full border border-border px-3 py-1 text-xs hover:border-accent hover:text-accent disabled:opacity-50"
-                >
-                  {template.name} ({template.doseAmount}
-                  {template.doseUnit})
-                </button>
-              ))}
+              {dueTemplates.map((template) => {
+                const formattedTime = formatTime(template.preferredTime);
+                return (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => handleAdd(template.id)}
+                    disabled={pending}
+                    className="rounded-full border border-border px-3 py-1 text-xs hover:border-accent hover:text-accent disabled:opacity-50"
+                  >
+                    {template.name} ({template.doseAmount}
+                    {template.doseUnit}
+                    {formattedTime ? `, ${formattedTime}` : ""})
+                  </button>
+                );
+              })}
             </div>
           )}
           {notDueTemplates.length > 0 && (
