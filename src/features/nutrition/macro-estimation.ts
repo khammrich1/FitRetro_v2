@@ -79,19 +79,27 @@ profiles per pound even though they're all "chicken" — if you're not confident
 reference values (like USDA FoodData Central) for the specific cut/type named, search to confirm
 rather than guessing from a generic average.
 
-Some descriptions list the ingredients used to cook a whole batch of a shared dish (with
-label/quantity info for each ingredient, e.g. "20oz jar of sauce, 40 cal/serving, 9.5 servings" or
-"1 lb of ground beef") rather than a single-serving meal. When that pattern appears, never report
-the whole batch as the meal eaten. Instead: (1) find/total the nutrition for every ingredient in
-the full batch, using given label info directly and searching the web for branded or specific
-items per the guidance above; (2) estimate the total cooked weight of the batch, accounting for
-water absorbed by dry ingredients like pasta/rice and moisture lost from cooking meat; (3) scale
-the batch totals down to a single serving and report items/totals for that serving only — not the
-full batch. If the description states how much was actually eaten (e.g. "I had a 10oz bowl", "I
-ate about half of it"), scale to that exact amount; if it doesn't say, assume a typical single-adult
-serving size for that kind of dish (roughly 12-16oz for a hearty pasta-and-meat-sauce style meal,
-adjusting for the dish type) rather than defaulting to the whole batch. Meal description:
-"${description}"`,
+Most descriptions directly state what was actually eaten, item by item with its own portion —
+e.g. "20g green beans, 1 cup of rice, 1 tablespoon of sauce, 13oz chicken". That is already the
+eaten amount for each item: use those quantities exactly as given, do not scale, shrink, or treat
+them as part of a larger batch. This direct-portion case is the common one — only deviate from it
+when the pattern below clearly applies.
+
+A different, less common pattern is when someone describes the ingredients used to cook a whole
+batch of a shared dish — recognizable by container/package-level quantities (a whole jar, box, or
+pound of raw ingredient bought/used to cook) combined with a separate statement of what was
+actually served from that batch, e.g. "20oz jar of sauce, 40 cal/serving, 9.5 servings, 1 lb of
+ground beef, and I had a 10oz bowl of it". Only when both halves of that pattern are present —
+whole-batch ingredient quantities AND a separate consumed-portion statement (or a clear implication
+the dish was shared/batch-cooked) — do this instead: (1) find/total the nutrition for every
+ingredient in the full batch, using given label info directly and searching the web for branded or
+specific items per the guidance above; (2) estimate the total cooked weight of the batch,
+accounting for water absorbed by dry ingredients like pasta/rice and moisture lost from cooking
+meat; (3) scale the batch totals down to a single serving and report items/totals for that serving
+only — not the full batch. If the description states how much was actually eaten, scale to that
+exact amount; if it doesn't say, assume a typical single-adult serving size for that kind of dish
+(roughly 12-16oz for a hearty pasta-and-meat-sauce style meal, adjusting for the dish type) rather
+than defaulting to the whole batch. Meal description: "${description}"`,
       },
     ],
   });
@@ -160,9 +168,11 @@ confident of precise reference values (like USDA FoodData Central) for the speci
 shown or named on any visible packaging/label, search to confirm rather than guessing from a
 generic average.
 
-If the user's context below describes the ingredients used to cook a whole batch of a shared dish
-(with label/quantity info for each ingredient) and separately states how much of the finished dish
-this photo's portion represents, don't report the whole batch as the meal. Instead: (1) find/total
+If the user's context below just states direct portions of what's being eaten (e.g. "20g green
+beans, 1 cup rice, 13oz chicken"), use those quantities as-is — that's already the eaten amount,
+not a batch to scale down. Only if it separately describes the ingredients used to cook a whole
+batch of a shared dish (with label/quantity info for each ingredient) AND states how much of the
+finished dish this photo's portion represents, don't report the whole batch as the meal. Instead: (1) find/total
 the nutrition for every ingredient in the full batch; (2) estimate the total cooked weight of the
 batch, accounting for water absorbed by dry ingredients like pasta/rice and moisture lost from
 cooking meat; (3) scale the batch totals down proportionally to the portion shown/described, and
