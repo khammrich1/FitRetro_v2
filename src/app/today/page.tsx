@@ -3,7 +3,11 @@ import { toIsoDate, parseDayParam } from "@/lib/date";
 import { DayNav } from "@/components/ui/day-nav";
 import { getGoals, getEntriesForDay, summarizeMacros } from "@/features/nutrition";
 import { getRoutinesForUser } from "@/features/routines";
-import { getSplitDayForDate, getWorkoutsForDay, getTemplatesForUser } from "@/features/workouts";
+import {
+  getSplitCycleTargetForDate,
+  getWorkoutsForDay,
+  getTemplatesForUser,
+} from "@/features/workouts";
 import {
   getPeptideTemplatesForUser,
   getPeptideLogsForDay,
@@ -15,6 +19,7 @@ import { MealLogging } from "./_components/nutrition/meal-logging";
 import { RoutineChecklistCard } from "./_components/routine/routine-checklist-card";
 import { WorkoutList } from "./_components/workouts/workout-list";
 import { WorkoutLogging } from "./_components/workouts/workout-logging";
+import { SplitTargetCard } from "./_components/workouts/split-target-card";
 import { PeptideSection } from "./_components/peptides/peptide-section";
 
 export default async function TodayPage({
@@ -32,7 +37,7 @@ export default async function TodayPage({
     goal,
     entries,
     routines,
-    todaySplitDay,
+    splitTarget,
     workoutDetails,
     templates,
     peptideTemplates,
@@ -42,7 +47,7 @@ export default async function TodayPage({
     getGoals(userId),
     getEntriesForDay(userId, day),
     getRoutinesForUser(userId, day),
-    getSplitDayForDate(userId, day),
+    getSplitCycleTargetForDate(userId, day),
     getWorkoutsForDay(userId, day),
     getTemplatesForUser(userId),
     getPeptideTemplatesForUser(userId),
@@ -52,7 +57,7 @@ export default async function TodayPage({
 
   const consumed = summarizeMacros(entries);
   const workoutList = workoutDetails.filter((detail) => detail !== null);
-  const targetMuscleGroups = todaySplitDay?.muscleGroups ?? [];
+  const targetMuscleGroups = splitTarget?.muscleGroups ?? [];
   const mostRecentPeptideLogDatesByTemplateId = Object.fromEntries(mostRecentPeptideLogDates);
 
   return (
@@ -86,20 +91,7 @@ export default async function TodayPage({
 
       <section className="flex flex-col gap-4">
         <h2 className="retro-heading text-lg font-semibold text-primary">Workouts</h2>
-        <div className="rounded-lg border border-border bg-card p-4 text-sm">
-          {todaySplitDay ? (
-            <p>
-              Target: <span className="font-medium text-accent">{todaySplitDay.label}</span>{" "}
-              <span className="text-muted-foreground">
-                ({todaySplitDay.muscleGroups.map((group) => group.replace("_", " ")).join(", ")})
-              </span>
-            </p>
-          ) : (
-            <p className="text-muted-foreground">
-              No target set for this day — set your split schedule in Settings.
-            </p>
-          )}
-        </div>
+        <SplitTargetCard target={splitTarget} dayIso={dayIso} />
         <div>
           <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-accent">
             Workouts logged

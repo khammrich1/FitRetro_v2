@@ -7,6 +7,7 @@ import {
   real,
   pgEnum,
   uniqueIndex,
+  date,
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
@@ -71,20 +72,35 @@ export const workoutSets = pgTable("workout_sets", {
   rpe: real("rpe"),
 });
 
-/** The user's target muscle group(s) for a given day of the week (0 = Sunday ... 6 = Saturday). */
-export const workoutSplitDays = pgTable(
-  "workout_split_days",
+/** One step in the user's repeating workout rotation (e.g. "Chest & Tris"), in cycle order —
+ * not tied to specific days of the week, since a rotation length that doesn't evenly divide 7
+ * would otherwise drift or force awkward repeats. */
+export const workoutSplitCycleDays = pgTable(
+  "workout_split_cycle_days",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     userId: uuid("user_id")
       .references(() => users.id, { onDelete: "cascade" })
       .notNull(),
-    dayOfWeek: integer("day_of_week").notNull(),
+    sortOrder: integer("sort_order").notNull(),
     label: text("label").notNull(),
     muscleGroups: muscleGroupEnum("muscle_groups").array().notNull(),
   },
-  (table) => [uniqueIndex("workout_split_days_user_day_idx").on(table.userId, table.dayOfWeek)],
+  (table) => [
+    uniqueIndex("workout_split_cycle_days_user_order_idx").on(table.userId, table.sortOrder),
+  ],
 );
+
+/** Marks a rotation step as completed on a given day — the rotation advances only when a step
+ * is explicitly marked done, so rest/skipped days don't throw off the sequence. */
+export const workoutSplitCycleCompletions = pgTable("workout_split_cycle_completions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  cycleDayId: uuid("cycle_day_id")
+    .references(() => workoutSplitCycleDays.id, { onDelete: "cascade" })
+    .notNull(),
+  completedOn: date("completed_on").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 /** A reusable, user-defined workout routine (e.g. "Chest & Tris") built from a fixed exercise list. */
 export const workoutTemplates = pgTable("workout_templates", {
@@ -116,8 +132,10 @@ export type WorkoutExercise = typeof workoutExercises.$inferSelect;
 export type NewWorkoutExercise = typeof workoutExercises.$inferInsert;
 export type WorkoutSet = typeof workoutSets.$inferSelect;
 export type NewWorkoutSet = typeof workoutSets.$inferInsert;
-export type WorkoutSplitDay = typeof workoutSplitDays.$inferSelect;
-export type NewWorkoutSplitDay = typeof workoutSplitDays.$inferInsert;
+export type WorkoutSplitCycleDay = typeof workoutSplitCycleDays.$inferSelect;
+export type NewWorkoutSplitCycleDay = typeof workoutSplitCycleDays.$inferInsert;
+export type WorkoutSplitCycleCompletion = typeof workoutSplitCycleCompletions.$inferSelect;
+export type NewWorkoutSplitCycleCompletion = typeof workoutSplitCycleCompletions.$inferInsert;
 export type WorkoutTemplate = typeof workoutTemplates.$inferSelect;
 export type NewWorkoutTemplate = typeof workoutTemplates.$inferInsert;
 export type WorkoutTemplateExercise = typeof workoutTemplateExercises.$inferSelect;

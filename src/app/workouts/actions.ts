@@ -6,8 +6,11 @@ import { verifySession } from "@/features/auth";
 import {
   logWorkoutWithExercises,
   deleteWorkout,
-  upsertSplitDay,
-  deleteSplitDay,
+  addSplitCycleDay,
+  updateSplitCycleDay,
+  deleteSplitCycleDay,
+  moveSplitCycleDay,
+  toggleSplitCycleCompletion,
   estimateWorkoutFromDescription,
   suggestExercisesForMuscleGroups,
   saveTemplate,
@@ -125,33 +128,60 @@ export async function estimateWorkoutAction(description: string): Promise<Estima
   }
 }
 
-const splitDaySchema = z.object({
+const splitCycleDaySchema = z.object({
   label: z.string().trim().min(1, "Label is required."),
   muscleGroups: z.array(z.enum(muscleGroupEnum.enumValues)).min(1, "Pick at least one group."),
 });
 
-export async function upsertSplitDayAction(dayOfWeek: number, formData: FormData): Promise<void> {
+export type SplitCycleDayState = { errors?: Record<string, string[]> } | undefined;
+
+export async function addSplitCycleDayAction(
+  _state: SplitCycleDayState,
+  formData: FormData,
+): Promise<SplitCycleDayState> {
   const { userId } = await verifySession();
 
-  const validatedFields = splitDaySchema.safeParse({
+  const validatedFields = splitCycleDaySchema.safeParse({
+    label: formData.get("label"),
+    muscleGroups: formData.getAll("muscleGroups"),
+  });
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors };
+  }
+
+  await addSplitCycleDay(userId, validatedFields.data.label, validatedFields.data.muscleGroups);
+  revalidateWorkoutPaths();
+}
+
+export async function updateSplitCycleDayAction(id: string, formData: FormData): Promise<void> {
+  const { userId } = await verifySession();
+
+  const validatedFields = splitCycleDaySchema.safeParse({
     label: formData.get("label"),
     muscleGroups: formData.getAll("muscleGroups"),
   });
   if (!validatedFields.success) return;
 
-  await upsertSplitDay(
-    userId,
-    dayOfWeek,
-    validatedFields.data.label,
-    validatedFields.data.muscleGroups,
-  );
+  await updateSplitCycleDay(id, userId, validatedFields.data);
   revalidateWorkoutPaths();
 }
 
-export async function deleteSplitDayAction(dayOfWeek: number): Promise<void> {
+export async function deleteSplitCycleDayAction(id: string): Promise<void> {
   const { userId } = await verifySession();
-  await deleteSplitDay(userId, dayOfWeek);
+  await deleteSplitCycleDay(id, userId);
   revalidateWorkoutPaths();
+}
+
+export async function moveSplitCycleDayAction(id: string, direction: "up" | "down"): Promise<void> {
+  const { userId } = await verifySession();
+  await moveSplitCycleDay(id, userId, direction);
+  revalidateWorkoutPaths();
+}
+
+export async function toggleSplitCycleCompletionAction(dayIso: string): Promise<void> {
+  const { userId } = await verifySession();
+  await toggleSplitCycleCompletion(userId, parseDayParam(dayIso));
+  revalidatePath("/today");
 }
 
 export type SuggestionsState =
@@ -164,7 +194,7 @@ export async function getExerciseSuggestionsAction(
   await verifySession();
 
   if (muscleGroups.length === 0) {
-    return { error: "Set today's target muscle groups in the split schedule first." };
+    return { error: "Set up your workout rotation in Settings first." };
   }
 
   try {

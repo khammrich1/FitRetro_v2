@@ -1,0 +1,1 @@
+DROP TABLE "workout_split_days" CASCADE;

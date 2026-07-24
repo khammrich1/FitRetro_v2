@@ -1,23 +1,32 @@
-import { and, eq, asc, gte, lt, ilike } from "drizzle-orm";
+import { and, eq, asc, desc, gte, lt, lte, ilike } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   workouts,
   workoutExercises,
   workoutSets,
   exercises,
-  workoutSplitDays,
+  workoutSplitCycleDays,
+  workoutSplitCycleCompletions,
   workoutTemplates,
   workoutTemplateExercises,
   type NewWorkout,
   type MuscleGroup,
   type WorkoutTemplate,
   type WorkoutTemplateExercise,
+  type WorkoutSplitCycleDay,
 } from "@/db/schema";
 import { lbsToKg } from "./units";
 
 export type WorkoutTemplateWithExercises = WorkoutTemplate & {
   exercises: WorkoutTemplateExercise[];
 };
+
+function toDateOnly(day: Date) {
+  const year = day.getFullYear();
+  const month = String(day.getMonth() + 1).padStart(2, "0");
+  const date = String(day.getDate()).padStart(2, "0");
+  return `${year}-${month}-${date}`;
+}
 
 export async function createWorkout(input: NewWorkout) {
   const [workout] = await db.insert(workouts).values(input).returning();
@@ -135,43 +144,163 @@ export async function deleteWorkout(id: string, userId: string) {
   await db.delete(workouts).where(and(eq(workouts.id, id), eq(workouts.userId, userId)));
 }
 
-export async function upsertSplitDay(
-  userId: string,
-  dayOfWeek: number,
-  label: string,
-  muscleGroups: MuscleGroup[],
-) {
-  const [splitDay] = await db
-    .insert(workoutSplitDays)
-    .values({ userId, dayOfWeek, label, muscleGroups })
-    .onConflictDoUpdate({
-      target: [workoutSplitDays.userId, workoutSplitDays.dayOfWeek],
-      set: { label, muscleGroups },
-    })
-    .returning();
-  return splitDay;
-}
-
-export async function deleteSplitDay(userId: string, dayOfWeek: number) {
-  await db
-    .delete(workoutSplitDays)
-    .where(and(eq(workoutSplitDays.userId, userId), eq(workoutSplitDays.dayOfWeek, dayOfWeek)));
-}
-
-export async function getSplitForUser(userId: string) {
+export async function getSplitCycleForUser(userId: string): Promise<WorkoutSplitCycleDay[]> {
   return db
     .select()
-    .from(workoutSplitDays)
-    .where(eq(workoutSplitDays.userId, userId))
-    .orderBy(asc(workoutSplitDays.dayOfWeek));
+    .from(workoutSplitCycleDays)
+    .where(eq(workoutSplitCycleDays.userId, userId))
+    .orderBy(asc(workoutSplitCycleDays.sortOrder));
 }
 
-export async function getSplitDayForDate(userId: string, day: Date) {
-  const [splitDay] = await db
+export async function addSplitCycleDay(userId: string, label: string, muscleGroups: MuscleGroup[]) {
+  const siblings = await db
+    .select({ sortOrder: workoutSplitCycleDays.sortOrder })
+    .from(workoutSplitCycleDays)
+    .where(eq(workoutSplitCycleDays.userId, userId));
+  const nextSortOrder = siblings.length > 0 ? Math.max(...siblings.map((s) => s.sortOrder)) + 1 : 0;
+
+  const [day] = await db
+    .insert(workoutSplitCycleDays)
+    .values({ userId, sortOrder: nextSortOrder, label, muscleGroups })
+    .returning();
+  return day;
+}
+
+export async function updateSplitCycleDay(
+  id: string,
+  userId: string,
+  input: { label: string; muscleGroups: MuscleGroup[] },
+) {
+  const [day] = await db
+    .update(workoutSplitCycleDays)
+    .set(input)
+    .where(and(eq(workoutSplitCycleDays.id, id), eq(workoutSplitCycleDays.userId, userId)))
+    .returning();
+  return day ?? null;
+}
+
+export async function deleteSplitCycleDay(id: string, userId: string) {
+  await db
+    .delete(workoutSplitCycleDays)
+    .where(and(eq(workoutSplitCycleDays.id, id), eq(workoutSplitCycleDays.userId, userId)));
+}
+
+export async function moveSplitCycleDay(
+  id: string,
+  userId: string,
+  direction: "up" | "down",
+): Promise<void> {
+  const [day] = await db
     .select()
-    .from(workoutSplitDays)
-    .where(and(eq(workoutSplitDays.userId, userId), eq(workoutSplitDays.dayOfWeek, day.getDay())));
-  return splitDay ?? null;
+    .from(workoutSplitCycleDays)
+    .where(and(eq(workoutSplitCycleDays.id, id), eq(workoutSplitCycleDays.userId, userId)));
+  if (!day) return;
+
+  const siblings = await db
+    .select()
+    .from(workoutSplitCycleDays)
+    .where(eq(workoutSplitCycleDays.userId, userId))
+    .orderBy(asc(workoutSplitCycleDays.sortOrder));
+
+  const index = siblings.findIndex((sibling) => sibling.id === id);
+  const swapIndex = direction === "up" ? index - 1 : index + 1;
+  if (swapIndex < 0 || swapIndex >= siblings.length) return;
+
+  const swapWith = siblings[swapIndex];
+  await db.transaction(async (tx) => {
+    await tx
+      .update(workoutSplitCycleDays)
+      .set({ sortOrder: swapWith.sortOrder })
+      .where(eq(workoutSplitCycleDays.id, day.id));
+    await tx
+      .update(workoutSplitCycleDays)
+      .set({ sortOrder: day.sortOrder })
+      .where(eq(workoutSplitCycleDays.id, swapWith.id));
+  });
+}
+
+export type SplitCycleTarget = WorkoutSplitCycleDay & { completedToday: boolean };
+
+/** The rotation step that's "current" as of `day` — the step after whichever was most recently
+ * marked done on or before `day`, or the first step if nothing's been marked done yet. Advancing
+ * only happens via explicit completion, so rest/skipped days don't shift the sequence. */
+export async function getSplitCycleTargetForDate(
+  userId: string,
+  day: Date,
+): Promise<SplitCycleTarget | null> {
+  const cycleDays = await getSplitCycleForUser(userId);
+  if (cycleDays.length === 0) return null;
+
+  const dayIso = toDateOnly(day);
+  const [mostRecent] = await db
+    .select({
+      cycleDayId: workoutSplitCycleCompletions.cycleDayId,
+      completedOn: workoutSplitCycleCompletions.completedOn,
+    })
+    .from(workoutSplitCycleCompletions)
+    .innerJoin(
+      workoutSplitCycleDays,
+      eq(workoutSplitCycleCompletions.cycleDayId, workoutSplitCycleDays.id),
+    )
+    .where(
+      and(
+        eq(workoutSplitCycleDays.userId, userId),
+        lte(workoutSplitCycleCompletions.completedOn, dayIso),
+      ),
+    )
+    .orderBy(
+      desc(workoutSplitCycleCompletions.completedOn),
+      desc(workoutSplitCycleCompletions.createdAt),
+    )
+    .limit(1);
+
+  let targetIndex = 0;
+  if (mostRecent) {
+    const completedIndex = cycleDays.findIndex((cycleDay) => cycleDay.id === mostRecent.cycleDayId);
+    if (completedIndex !== -1) targetIndex = (completedIndex + 1) % cycleDays.length;
+  }
+  const target = cycleDays[targetIndex];
+
+  const [doneToday] = await db
+    .select()
+    .from(workoutSplitCycleCompletions)
+    .where(
+      and(
+        eq(workoutSplitCycleCompletions.cycleDayId, target.id),
+        eq(workoutSplitCycleCompletions.completedOn, dayIso),
+      ),
+    );
+
+  return { ...target, completedToday: Boolean(doneToday) };
+}
+
+/** Toggles completion of the current rotation target for `day`. If it was already completed for
+ * `day`, un-marks it (moving the rotation back); otherwise marks it done (advancing the rotation
+ * for subsequent days). Returns the new completed state, or null if there's no cycle defined. */
+export async function toggleSplitCycleCompletion(
+  userId: string,
+  day: Date,
+): Promise<boolean | null> {
+  const target = await getSplitCycleTargetForDate(userId, day);
+  if (!target) return null;
+
+  const dayIso = toDateOnly(day);
+  if (target.completedToday) {
+    await db
+      .delete(workoutSplitCycleCompletions)
+      .where(
+        and(
+          eq(workoutSplitCycleCompletions.cycleDayId, target.id),
+          eq(workoutSplitCycleCompletions.completedOn, dayIso),
+        ),
+      );
+    return false;
+  }
+
+  await db
+    .insert(workoutSplitCycleCompletions)
+    .values({ cycleDayId: target.id, completedOn: dayIso });
+  return true;
 }
 
 export type TemplateExerciseInput = {
