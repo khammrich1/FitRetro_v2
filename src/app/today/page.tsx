@@ -4,7 +4,11 @@ import { DayNav } from "@/components/ui/day-nav";
 import { getGoals, getEntriesForDay, summarizeMacros } from "@/features/nutrition";
 import { getRoutinesForUser } from "@/features/routines";
 import { getSplitDayForDate, getWorkoutsForDay, getTemplatesForUser } from "@/features/workouts";
-import { getPeptideTemplatesForUser, getPeptideLogsForDay } from "@/features/peptides";
+import {
+  getPeptideTemplatesForUser,
+  getPeptideLogsForDay,
+  getMostRecentLogDates,
+} from "@/features/peptides";
 import { MacroProgress } from "./_components/nutrition/macro-progress";
 import { MealList } from "./_components/nutrition/meal-list";
 import { MealLogging } from "./_components/nutrition/meal-logging";
@@ -33,6 +37,7 @@ export default async function TodayPage({
     templates,
     peptideTemplates,
     peptideLogs,
+    mostRecentPeptideLogDates,
   ] = await Promise.all([
     getGoals(userId),
     getEntriesForDay(userId, day),
@@ -42,11 +47,13 @@ export default async function TodayPage({
     getTemplatesForUser(userId),
     getPeptideTemplatesForUser(userId),
     getPeptideLogsForDay(userId, day),
+    getMostRecentLogDates(userId, day),
   ]);
 
   const consumed = summarizeMacros(entries);
   const workoutList = workoutDetails.filter((detail) => detail !== null);
   const targetMuscleGroups = todaySplitDay?.muscleGroups ?? [];
+  const mostRecentPeptideLogDatesByTemplateId = Object.fromEntries(mostRecentPeptideLogDates);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-6 py-10">
@@ -108,7 +115,12 @@ export default async function TodayPage({
 
       <section className="flex flex-col gap-4">
         <h2 className="retro-heading text-lg font-semibold text-primary">Peptides</h2>
-        <PeptideSection dayIso={dayIso} templates={peptideTemplates} logs={peptideLogs} />
+        <PeptideSection
+          dayIso={dayIso}
+          templates={peptideTemplates}
+          logs={peptideLogs}
+          mostRecentLogDates={mostRecentPeptideLogDatesByTemplateId}
+        />
       </section>
     </div>
   );

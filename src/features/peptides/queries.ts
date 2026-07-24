@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   peptideTemplates,
@@ -89,6 +89,30 @@ export async function deletePeptideLog(id: string, userId: string) {
         inArray(peptideLogs.peptideTemplateId, ownedPeptideTemplateIds(userId)),
       ),
     );
+}
+
+/** For each of a user's peptide templates, the most recent day (on or before `day`) it was
+ * logged, as a "YYYY-MM-DD" string. Templates never logged by that point are omitted. */
+export async function getMostRecentLogDates(
+  userId: string,
+  day: Date,
+): Promise<Map<string, string>> {
+  const onOrBefore = toDateOnly(day);
+  const rows = await db
+    .select({
+      peptideTemplateId: peptideLogs.peptideTemplateId,
+      loggedOn: peptideLogs.loggedOn,
+    })
+    .from(peptideLogs)
+    .innerJoin(peptideTemplates, eq(peptideLogs.peptideTemplateId, peptideTemplates.id))
+    .where(and(eq(peptideTemplates.userId, userId), lte(peptideLogs.loggedOn, onOrBefore)));
+
+  const latest = new Map<string, string>();
+  for (const row of rows) {
+    const current = latest.get(row.peptideTemplateId);
+    if (!current || row.loggedOn > current) latest.set(row.peptideTemplateId, row.loggedOn);
+  }
+  return latest;
 }
 
 export type PeptideLogWithTemplate = PeptideLog & { template: PeptideTemplate };
