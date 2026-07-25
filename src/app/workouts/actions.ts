@@ -11,6 +11,14 @@ import {
   deleteSplitCycleDay,
   moveSplitCycleDay,
   toggleSplitCycleCompletion,
+  startWorkoutFromTemplate,
+  updateWorkoutSet,
+  addWorkoutSet,
+  removeWorkoutSet,
+  addWorkoutExercise,
+  removeWorkoutExercise,
+  updateWorkoutName,
+  finishWorkout,
   estimateWorkoutFromDescription,
   suggestExercisesForMuscleGroups,
   saveTemplate,
@@ -20,7 +28,7 @@ import {
   type ExerciseSuggestion,
   type TemplateEstimate,
 } from "@/features/workouts";
-import { muscleGroupEnum } from "@/db/schema";
+import { muscleGroupEnum, type MuscleGroup } from "@/db/schema";
 import { parseDayParam } from "@/lib/date";
 
 /** Combines a calendar day with the current time of day, so workouts logged for a non-today day
@@ -181,6 +189,70 @@ export async function moveSplitCycleDayAction(id: string, direction: "up" | "dow
 export async function toggleSplitCycleCompletionAction(dayIso: string): Promise<void> {
   const { userId } = await verifySession();
   await toggleSplitCycleCompletion(userId, parseDayParam(dayIso));
+  revalidatePath("/today");
+}
+
+export async function startWorkoutFromTemplateAction(
+  templateId: string,
+  dayIso: string,
+): Promise<void> {
+  const { userId } = await verifySession();
+  await startWorkoutFromTemplate(userId, templateId, combineDayWithCurrentTime(dayIso));
+  revalidatePath("/today");
+}
+
+export type WorkoutSetInput = {
+  reps: number | null;
+  weightLbs: number | null;
+  durationSeconds: number | null;
+  rpe: number | null;
+};
+
+export async function updateWorkoutSetAction(setId: string, input: WorkoutSetInput): Promise<void> {
+  const { userId } = await verifySession();
+  await updateWorkoutSet(setId, userId, input);
+  revalidatePath("/today");
+}
+
+export async function addWorkoutSetAction(workoutExerciseId: string): Promise<void> {
+  const { userId } = await verifySession();
+  await addWorkoutSet(workoutExerciseId, userId);
+  revalidatePath("/today");
+}
+
+export async function removeWorkoutSetAction(setId: string): Promise<void> {
+  const { userId } = await verifySession();
+  await removeWorkoutSet(setId, userId);
+  revalidatePath("/today");
+}
+
+export async function addWorkoutExerciseAction(
+  workoutId: string,
+  name: string,
+  muscleGroup: MuscleGroup,
+): Promise<void> {
+  const { userId } = await verifySession();
+  if (!name.trim()) return;
+  await addWorkoutExercise(workoutId, userId, name.trim(), muscleGroup);
+  revalidatePath("/today");
+}
+
+export async function removeWorkoutExerciseAction(workoutExerciseId: string): Promise<void> {
+  const { userId } = await verifySession();
+  await removeWorkoutExercise(workoutExerciseId, userId);
+  revalidatePath("/today");
+}
+
+export async function updateWorkoutNameAction(workoutId: string, name: string): Promise<void> {
+  const { userId } = await verifySession();
+  if (!name.trim()) return;
+  await updateWorkoutName(workoutId, userId, name.trim());
+  revalidatePath("/today");
+}
+
+export async function finishWorkoutAction(workoutId: string): Promise<void> {
+  const { userId } = await verifySession();
+  await finishWorkout(workoutId, userId);
   revalidatePath("/today");
 }
 

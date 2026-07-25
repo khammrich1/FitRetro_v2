@@ -55,7 +55,7 @@ const SECTIONS: FaqSection[] = [
         q: "How do I log a workout?",
         a: [
           "On Today > Workouts, add exercises and sets (reps, weight, duration, RPE — whatever applies), or describe the workout in words and let it estimate the breakdown for you, same idea as meal logging.",
-          'If you\'ve saved a template in Settings > Workouts, tap it under "Load a template" to prefill the exercise list, then adjust as needed.',
+          'If you\'ve saved a template in Settings > Workouts, tap it under "Start from a template" — this immediately saves a workout for today and fills in its exercises, so you can enter reps/weight per set as you actually do them. It autosaves as you go, so closing the tab or refreshing mid-workout won\'t lose your progress. Tap "Finish workout" when you\'re done.',
         ],
       },
       {

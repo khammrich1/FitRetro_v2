@@ -1,4 +1,4 @@
-import { and, eq, asc, desc, gte, lt, lte, ilike } from "drizzle-orm";
+import { and, eq, asc, desc, gte, lt, lte, ilike, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   workouts,
@@ -410,4 +410,180 @@ export async function getWorkoutDetail(workoutId: string) {
       sets: setsByExercise[i],
     })),
   };
+}
+
+/** Parses a target scheme like "3x10" into a set count (capped at 10, same as the client-side
+ * parser) and a starting reps value to prefill, so a loaded template's sets show the target
+ * rather than starting blank. */
+function parseTargetSets(setsAndReps: string): { count: number; reps: number | null } {
+  const match = setsAndReps.match(/(\d+)\s*x\s*(\d+)/i);
+  if (!match) return { count: 1, reps: null };
+  return { count: Math.min(Number(match[1]) || 1, 10), reps: Number(match[2]) || null };
+}
+
+/** Subquery of workout_exercise ids belonging to workouts owned by userId — used to scope set and
+ * exercise mutations, since those tables don't carry a userId column of their own. */
+function workoutExerciseIdsForUser(userId: string) {
+  return db
+    .select({ id: workoutExercises.id })
+    .from(workoutExercises)
+    .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
+    .where(eq(workouts.userId, userId));
+}
+
+/** Starts a new in-progress workout (no completedAt) from a saved template, persisting it
+ * immediately — so loading a template survives a refresh instead of living only in client state
+ * until the final "Log workout" submit. */
+export async function startWorkoutFromTemplate(
+  userId: string,
+  templateId: string,
+  startedAt: Date,
+) {
+  const [template] = await db
+    .select()
+    .from(workoutTemplates)
+    .where(and(eq(workoutTemplates.id, templateId), eq(workoutTemplates.userId, userId)));
+  if (!template) throw new Error("Template not found.");
+
+  const templateExercises = await db
+    .select()
+    .from(workoutTemplateExercises)
+    .where(eq(workoutTemplateExercises.templateId, templateId))
+    .orderBy(asc(workoutTemplateExercises.sortOrder));
+
+  return db.transaction(async (tx) => {
+    const [workout] = await tx
+      .insert(workouts)
+      .values({ userId, name: template.name, startedAt, completedAt: null, notes: null })
+      .returning();
+
+    for (let order = 0; order < templateExercises.length; order++) {
+      const templateExercise = templateExercises[order];
+      const [existing] = await tx
+        .select()
+        .from(exercises)
+        .where(ilike(exercises.name, templateExercise.name));
+      const exercise =
+        existing ??
+        (
+          await tx
+            .insert(exercises)
+            .values({ name: templateExercise.name, muscleGroup: templateExercise.muscleGroup })
+            .returning()
+        )[0];
+
+      const [workoutExercise] = await tx
+        .insert(workoutExercises)
+        .values({ workoutId: workout.id, exerciseId: exercise.id, order })
+        .returning();
+
+      const { count, reps } = parseTargetSets(templateExercise.targetSetsReps);
+      await tx.insert(workoutSets).values(
+        Array.from({ length: count }, (_, i) => ({
+          workoutExerciseId: workoutExercise.id,
+          setNumber: i + 1,
+          reps,
+        })),
+      );
+    }
+
+    return workout;
+  });
+}
+
+export async function updateWorkoutSet(setId: string, userId: string, input: LoggedSetInput) {
+  await db
+    .update(workoutSets)
+    .set({
+      reps: input.reps,
+      weightKg: input.weightLbs !== null ? lbsToKg(input.weightLbs) : null,
+      durationSeconds: input.durationSeconds,
+      rpe: input.rpe,
+    })
+    .where(
+      and(
+        eq(workoutSets.id, setId),
+        inArray(workoutSets.workoutExerciseId, workoutExerciseIdsForUser(userId)),
+      ),
+    );
+}
+
+export async function addWorkoutSet(workoutExerciseId: string, userId: string) {
+  const [owned] = await db
+    .select({ id: workoutExercises.id })
+    .from(workoutExercises)
+    .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
+    .where(and(eq(workoutExercises.id, workoutExerciseId), eq(workouts.userId, userId)));
+  if (!owned) return;
+
+  const [{ maxSetNumber }] = await db
+    .select({ maxSetNumber: sql<number>`coalesce(max(${workoutSets.setNumber}), 0)::int` })
+    .from(workoutSets)
+    .where(eq(workoutSets.workoutExerciseId, workoutExerciseId));
+
+  await db.insert(workoutSets).values({ workoutExerciseId, setNumber: maxSetNumber + 1 });
+}
+
+export async function removeWorkoutSet(setId: string, userId: string) {
+  await db
+    .delete(workoutSets)
+    .where(
+      and(
+        eq(workoutSets.id, setId),
+        inArray(workoutSets.workoutExerciseId, workoutExerciseIdsForUser(userId)),
+      ),
+    );
+}
+
+export async function addWorkoutExercise(
+  workoutId: string,
+  userId: string,
+  name: string,
+  muscleGroup: MuscleGroup,
+) {
+  const [owned] = await db
+    .select()
+    .from(workouts)
+    .where(and(eq(workouts.id, workoutId), eq(workouts.userId, userId)));
+  if (!owned) return;
+
+  const [{ maxOrder }] = await db
+    .select({ maxOrder: sql<number>`coalesce(max(${workoutExercises.order}), -1)::int` })
+    .from(workoutExercises)
+    .where(eq(workoutExercises.workoutId, workoutId));
+
+  const exercise = await getOrCreateExercise(name, muscleGroup);
+  const [workoutExercise] = await db
+    .insert(workoutExercises)
+    .values({ workoutId, exerciseId: exercise.id, order: maxOrder + 1 })
+    .returning();
+  await db.insert(workoutSets).values({ workoutExerciseId: workoutExercise.id, setNumber: 1 });
+}
+
+export async function removeWorkoutExercise(workoutExerciseId: string, userId: string) {
+  await db
+    .delete(workoutExercises)
+    .where(
+      and(
+        eq(workoutExercises.id, workoutExerciseId),
+        inArray(
+          workoutExercises.workoutId,
+          db.select({ id: workouts.id }).from(workouts).where(eq(workouts.userId, userId)),
+        ),
+      ),
+    );
+}
+
+export async function updateWorkoutName(workoutId: string, userId: string, name: string) {
+  await db
+    .update(workouts)
+    .set({ name })
+    .where(and(eq(workouts.id, workoutId), eq(workouts.userId, userId)));
+}
+
+export async function finishWorkout(workoutId: string, userId: string) {
+  await db
+    .update(workouts)
+    .set({ completedAt: new Date() })
+    .where(and(eq(workouts.id, workoutId), eq(workouts.userId, userId)));
 }

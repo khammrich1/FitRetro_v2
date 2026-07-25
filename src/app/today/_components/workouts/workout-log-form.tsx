@@ -37,11 +37,6 @@ export type ExercisePrefill = {
   setsAndReps?: string;
 };
 
-export type TemplateToLoad = {
-  name: string;
-  exercises: ExercisePrefill[];
-};
-
 function parseSetsAndReps(setsAndReps: string | undefined): EditableSet[] {
   const match = setsAndReps?.match(/(\d+)\s*x\s*(\d+)/i);
   if (!match) return [{ ...blankSet }];
@@ -67,14 +62,10 @@ export function WorkoutLogForm({
   dayIso,
   prefill,
   onPrefillConsumed,
-  templateToLoad,
-  onTemplateLoaded,
 }: {
   dayIso: string;
   prefill?: ExercisePrefill | null;
   onPrefillConsumed?: () => void;
-  templateToLoad?: TemplateToLoad | null;
-  onTemplateLoaded?: () => void;
 }) {
   const [state, action, pending] = useActionState(logWorkoutAction, undefined);
   const [name, setName] = useState("");
@@ -83,7 +74,6 @@ export function WorkoutLogForm({
   const [estimateResult, setEstimateResult] = useState<EstimateWorkoutState>(undefined);
   const [estimating, startEstimating] = useTransition();
   const [handledPrefill, setHandledPrefill] = useState<ExercisePrefill | null>(null);
-  const [handledTemplate, setHandledTemplate] = useState<TemplateToLoad | null>(null);
   const [substituteIndex, setSubstituteIndex] = useState<number | null>(null);
   const [substituteNotes, setSubstituteNotes] = useState("");
   const [substituteResult, setSubstituteResult] = useState<SuggestionsState>(undefined);
@@ -124,34 +114,12 @@ export function WorkoutLogForm({
     );
   }
 
-  // Loading a template fully replaces the exercise list and pre-fills the workout name.
-  if (templateToLoad && templateToLoad !== handledTemplate) {
-    setHandledTemplate(templateToLoad);
-    setName(templateToLoad.name);
-    setExercises(
-      templateToLoad.exercises.length > 0
-        ? templateToLoad.exercises.map((exercise) => ({
-            name: exercise.name,
-            muscleGroup: exercise.muscleGroup,
-            sets: parseSetsAndReps(exercise.setsAndReps),
-          }))
-        : [blankExercise()],
-    );
-  }
-
   useEffect(() => {
     if (!handledPrefill) return;
     onPrefillConsumed?.();
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handledPrefill]);
-
-  useEffect(() => {
-    if (!handledTemplate) return;
-    onTemplateLoaded?.();
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handledTemplate]);
 
   const wasPending = useRef(false);
   useEffect(() => {

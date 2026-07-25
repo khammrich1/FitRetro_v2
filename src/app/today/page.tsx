@@ -20,6 +20,7 @@ import { RoutineChecklistCard } from "./_components/routine/routine-checklist-ca
 import { WorkoutList } from "./_components/workouts/workout-list";
 import { WorkoutLogging } from "./_components/workouts/workout-logging";
 import { SplitTargetCard } from "./_components/workouts/split-target-card";
+import { InProgressWorkoutCard } from "./_components/workouts/in-progress-workout-card";
 import { PeptideSection } from "./_components/peptides/peptide-section";
 
 export default async function TodayPage({
@@ -57,6 +58,8 @@ export default async function TodayPage({
 
   const consumed = summarizeMacros(entries);
   const workoutList = workoutDetails.filter((detail) => detail !== null);
+  const inProgressWorkouts = workoutList.filter((detail) => detail.workout.completedAt === null);
+  const completedWorkouts = workoutList.filter((detail) => detail.workout.completedAt !== null);
   const targetMuscleGroups = splitTarget?.muscleGroups ?? [];
   const mostRecentPeptideLogDatesByTemplateId = Object.fromEntries(mostRecentPeptideLogDates);
 
@@ -92,11 +95,18 @@ export default async function TodayPage({
       <section className="flex flex-col gap-4">
         <h2 className="retro-heading text-lg font-semibold text-primary">Workouts</h2>
         <SplitTargetCard target={splitTarget} dayIso={dayIso} />
+        {inProgressWorkouts.length > 0 && (
+          <div className="flex flex-col gap-3">
+            {inProgressWorkouts.map((detail) => (
+              <InProgressWorkoutCard key={detail.workout.id} detail={detail} />
+            ))}
+          </div>
+        )}
         <div>
           <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-accent">
             Workouts logged
           </h3>
-          <WorkoutList details={workoutList} />
+          <WorkoutList details={completedWorkouts} />
         </div>
         <WorkoutLogging
           dayIso={dayIso}

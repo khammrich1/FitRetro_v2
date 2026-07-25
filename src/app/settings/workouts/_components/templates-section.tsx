@@ -67,8 +67,9 @@ export function TemplatesSection({ templates }: { templates: WorkoutTemplateWith
         )}
       </div>
       <p className="text-xs text-muted-foreground">
-        Build your standing routines here (e.g. Chest &amp; Tris, warm-up), then load one into a
-        day&apos;s log on the Today page and swap anything you need for that day.
+        Build your standing routines here (e.g. Chest &amp; Tris, warm-up), then start one from the
+        Today page — it saves right away and autosaves as you fill in sets, so refreshing
+        mid-workout won&apos;t lose anything.
       </p>
 
       {editingId === "new" && <TemplateForm onClose={() => setEditingId(null)} />}
