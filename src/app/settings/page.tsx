@@ -9,7 +9,7 @@ const SETTINGS_SECTIONS = [
   {
     href: "/settings/workouts",
     title: "Workouts",
-    description: "Weekly split schedule and reusable exercise templates.",
+    description: "Workout rotation and reusable exercise templates.",
   },
   {
     href: "/settings/routines",

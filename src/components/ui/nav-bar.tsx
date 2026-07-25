@@ -21,6 +21,9 @@ export async function NavBar() {
             <Link href="/settings" className="font-medium text-accent">
               Settings
             </Link>
+            <Link href="/help" className="font-medium text-accent">
+              Help
+            </Link>
             <span className="text-muted-foreground">{user.displayName}</span>
             <form action={logout}>
               <button
