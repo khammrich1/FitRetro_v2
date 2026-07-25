@@ -130,7 +130,11 @@ export async function estimateMacrosFromImage(
 
   const response = await client.messages.parse({
     model: IMAGE_ESTIMATION_MODEL,
-    max_tokens: 1024,
+    // Sonnet 5 runs adaptive thinking by default (unlike Haiku 4.5, used for the text path), and
+    // max_tokens caps thinking + output combined — reading a dense photo (e.g. a recipe card) and
+    // doing batch-to-serving math can burn well past 1024 tokens of thinking alone before any
+    // actual output, which previously starved the response entirely (stop_reason: "max_tokens").
+    max_tokens: 8192,
     // Sonnet 5 supports the dynamic-filtering web search variant.
     tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 2 }],
     output_config: { format: zodOutputFormat(macroEstimateSchema) },
