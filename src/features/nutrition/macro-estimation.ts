@@ -105,6 +105,10 @@ than defaulting to the whole batch. Meal description: "${description}"`,
   });
 
   if (!response.parsed_output) {
+    console.error(
+      "Macro estimate parse failure",
+      JSON.stringify({ stopReason: response.stop_reason, content: response.content }),
+    );
     throw new Error("Failed to parse macro estimate from the model response.");
   }
 
@@ -204,6 +208,10 @@ from context rather than treating a garbled quantity as unspecified): "${note}"`
   });
 
   if (!response.parsed_output) {
+    console.error(
+      "Macro estimate parse failure",
+      JSON.stringify({ stopReason: response.stop_reason, content: response.content }),
+    );
     throw new Error("Failed to parse macro estimate from the model response.");
   }
 
