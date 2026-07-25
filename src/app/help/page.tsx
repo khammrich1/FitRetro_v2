@@ -46,6 +46,13 @@ const SECTIONS: FaqSection[] = [
           "It's just a list of what you have on hand. It doesn't track macros itself — it's used to bias Food suggestions toward things you already have, so you get fewer suggestions requiring a grocery run.",
         ],
       },
+      {
+        q: "I eat the same meal a lot — do I have to re-estimate macros every time?",
+        a: [
+          'No — save it as a meal template in Settings > Nutrition. Describe it once (type, speak, or a photo), estimate its macros, then save. From then on it shows up on Today under "Meal templates": "Log as-is" logs it instantly with those saved macros, or "Adjust & log" loads it into the custom form below for editing first (e.g. if the portion was a bit different that day).',
+          "Reorder templates with the ↑/↓ buttons in Settings — same order they show up in on Today.",
+        ],
+      },
     ],
   },
   {

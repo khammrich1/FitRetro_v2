@@ -13,6 +13,11 @@ import {
   suggestFoodsForRemainingMacros,
   estimateMacrosFromDescription,
   estimateMacrosFromImage,
+  saveMealTemplate,
+  deleteMealTemplate,
+  moveMealTemplate,
+  getMealTemplateWithItems,
+  summarizeMacros,
   SUPPORTED_IMAGE_MEDIA_TYPES,
   type SupportedImageMediaType,
   type FoodSuggestion,
@@ -302,4 +307,84 @@ export async function getRecipeAction(
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Failed to generate a recipe." };
   }
+}
+
+const saveMealTemplateSchema = z.object({
+  name: z.string().trim().min(1, "Name is required."),
+  mealType: z.enum(mealTypeEnum.enumValues),
+});
+
+export type SaveMealTemplateState = { errors?: Record<string, string[]> } | undefined;
+
+export async function saveMealTemplateAction(
+  templateId: string | undefined,
+  _state: SaveMealTemplateState,
+  formData: FormData,
+): Promise<SaveMealTemplateState> {
+  const { userId } = await verifySession();
+
+  const validatedFields = saveMealTemplateSchema.safeParse({
+    name: formData.get("name"),
+    mealType: formData.get("mealType"),
+  });
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors };
+  }
+
+  const items = parseLoggedItems(formData.get("items"));
+  if (items.length === 0) {
+    return { errors: { items: ["Add at least one item."] } };
+  }
+
+  await saveMealTemplate(userId, { templateId, ...validatedFields.data, items });
+  revalidatePath("/settings/nutrition");
+  revalidatePath("/today");
+}
+
+export async function deleteMealTemplateAction(id: string): Promise<void> {
+  const { userId } = await verifySession();
+  await deleteMealTemplate(id, userId);
+  revalidatePath("/settings/nutrition");
+  revalidatePath("/today");
+}
+
+export async function moveMealTemplateAction(id: string, direction: "up" | "down"): Promise<void> {
+  const { userId } = await verifySession();
+  await moveMealTemplate(id, userId, direction);
+  revalidatePath("/settings/nutrition");
+  revalidatePath("/today");
+}
+
+/** Logs a saved meal template directly using its stored macros — no re-estimation needed. */
+export async function logMealTemplateAction(
+  templateId: string,
+  dayIso: string,
+): Promise<{ error?: string }> {
+  const { userId } = await verifySession();
+
+  const template = await getMealTemplateWithItems(templateId, userId);
+  if (!template) return { error: "Template not found." };
+
+  const totals = summarizeMacros(template.items);
+
+  await logNutritionEntry(
+    {
+      userId,
+      loggedAt: combineDayWithCurrentTime(dayIso),
+      mealType: template.mealType,
+      description: template.name,
+      ...totals,
+    },
+    template.items.map(({ name, quantity, calories, proteinGrams, carbsGrams, fatGrams }) => ({
+      name,
+      quantity,
+      calories,
+      proteinGrams,
+      carbsGrams,
+      fatGrams,
+    })),
+  );
+
+  revalidatePath("/today");
+  return {};
 }

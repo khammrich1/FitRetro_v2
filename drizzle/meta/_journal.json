@@ -85,6 +85,13 @@
       "when": 1785007341846,
       "tag": "0011_shiny_starjammers",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1785009359564,
+      "tag": "0012_aberrant_hellfire_club",
+      "breakpoints": true
     }
   ]
 }

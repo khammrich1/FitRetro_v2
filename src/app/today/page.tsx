@@ -1,7 +1,12 @@
 import { verifySession } from "@/features/auth";
 import { toIsoDate, parseDayParam } from "@/lib/date";
 import { DayNav } from "@/components/ui/day-nav";
-import { getGoals, getEntriesForDay, summarizeMacros } from "@/features/nutrition";
+import {
+  getGoals,
+  getEntriesForDay,
+  summarizeMacros,
+  getMealTemplatesForUser,
+} from "@/features/nutrition";
 import { getRoutinesForUser } from "@/features/routines";
 import {
   getSplitCycleTargetForDate,
@@ -37,6 +42,7 @@ export default async function TodayPage({
   const [
     goal,
     entries,
+    mealTemplates,
     routines,
     splitTarget,
     workoutDetails,
@@ -47,6 +53,7 @@ export default async function TodayPage({
   ] = await Promise.all([
     getGoals(userId),
     getEntriesForDay(userId, day),
+    getMealTemplatesForUser(userId),
     getRoutinesForUser(userId, day),
     getSplitCycleTargetForDate(userId, day),
     getWorkoutsForDay(userId, day),
@@ -72,11 +79,14 @@ export default async function TodayPage({
       <section className="flex flex-col gap-4">
         <h2 className="retro-heading text-lg font-semibold text-primary">Nutrition</h2>
         <MacroProgress consumed={consumed} goal={goal} />
-        <div>
-          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-accent">Meals</h3>
-          <MealList entries={entries} />
-        </div>
-        <MealLogging dayIso={dayIso} />
+        <MealLogging dayIso={dayIso} templates={mealTemplates}>
+          <div>
+            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-accent">
+              Meals
+            </h3>
+            <MealList entries={entries} />
+          </div>
+        </MealLogging>
       </section>
 
       <section className="flex flex-col gap-4">

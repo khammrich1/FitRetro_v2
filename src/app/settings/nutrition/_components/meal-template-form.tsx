@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { useActionState } from "react";
+import { useRef, useState, useTransition } from "react";
 import { mealTypeEnum } from "@/db/schema";
+import { useSpeechToText } from "@/lib/hooks/use-speech-to-text";
 import {
-  logMealAction,
+  saveMealTemplateAction,
   estimateMacrosAction,
   estimateMacrosFromImageAction,
   type EstimateMacrosState,
 } from "@/app/nutrition/actions";
-import { useSpeechToText } from "@/lib/hooks/use-speech-to-text";
+import type { MealTemplateWithItems, MacroEstimate } from "@/features/nutrition";
 
-export type EditableItem = {
+type EditableItem = {
   name: string;
   quantity: string;
   calories: string;
@@ -20,28 +20,13 @@ export type EditableItem = {
   fatGrams: string;
 };
 
-export const blankItem: EditableItem = {
+const blankItem: EditableItem = {
   name: "",
   quantity: "",
   calories: "",
   proteinGrams: "",
   carbsGrams: "",
   fatGrams: "",
-};
-
-export type PrefillItem = {
-  name: string;
-  quantity: string;
-  calories: number;
-  proteinGrams: number;
-  carbsGrams: number;
-  fatGrams: number;
-};
-
-/** A meal to prefill into the form — an overall description plus its itemized breakdown. */
-export type MealPrefill = {
-  description: string;
-  items: PrefillItem[];
 };
 
 function isBlankItem(item: EditableItem) {
@@ -54,53 +39,35 @@ function isBlankItem(item: EditableItem) {
   );
 }
 
-export function MealForm({
-  dayIso,
-  prefill,
-  onPrefillConsumed,
+export function MealTemplateForm({
+  template,
+  onClose,
 }: {
-  dayIso: string;
-  prefill?: MealPrefill | null;
-  onPrefillConsumed?: () => void;
+  template?: MealTemplateWithItems;
+  onClose: () => void;
 }) {
-  const [state, action, pending] = useActionState(logMealAction, undefined);
+  const [name, setName] = useState(template?.name ?? "");
+  const [mealType, setMealType] = useState(template?.mealType ?? mealTypeEnum.enumValues[0]);
+  const [items, setItems] = useState<EditableItem[]>(
+    template && template.items.length > 0
+      ? template.items.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          calories: String(item.calories),
+          proteinGrams: String(item.proteinGrams),
+          carbsGrams: String(item.carbsGrams),
+          fatGrams: String(item.fatGrams),
+        }))
+      : [{ ...blankItem }],
+  );
   const [description, setDescription] = useState("");
-  const [items, setItems] = useState<EditableItem[]>([{ ...blankItem }]);
   const [estimateResult, setEstimateResult] = useState<EstimateMacrosState>(undefined);
   const [estimating, startEstimating] = useTransition();
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
-  const [handledPrefill, setHandledPrefill] = useState<MealPrefill | null>(null);
+  const [errors, setErrors] = useState<Record<string, string[]> | undefined>(undefined);
+  const [saving, startSaving] = useTransition();
   const photoInputRef = useRef<HTMLInputElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
-
-  // Adjust local state in response to a new prefill during render (React's recommended pattern
-  // for this), rather than in an effect — avoids an extra render pass just to copy props into
-  // state.
-  if (prefill && prefill !== handledPrefill) {
-    setHandledPrefill(prefill);
-    const newItems: EditableItem[] = prefill.items.map((item) => ({
-      name: item.name,
-      quantity: item.quantity,
-      calories: String(item.calories),
-      proteinGrams: String(item.proteinGrams),
-      carbsGrams: String(item.carbsGrams),
-      fatGrams: String(item.fatGrams),
-    }));
-    setItems((current) =>
-      current.length === 1 && isBlankItem(current[0]) ? newItems : [...current, ...newItems],
-    );
-    setDescription((current) => current || prefill.description);
-  }
-
-  // Side effects (notifying the parent, scrolling) can't happen during render, so they land in
-  // an effect keyed off the prefill we just handled above.
-  useEffect(() => {
-    if (!handledPrefill) return;
-    onPrefillConsumed?.();
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handledPrefill]);
 
   const {
     isListening,
@@ -110,25 +77,6 @@ export function MealForm({
   } = useSpeechToText((transcript) => {
     setDescription((current) => (current ? `${current} ${transcript}` : transcript));
   });
-
-  const wasPending = useRef(false);
-  useEffect(() => {
-    if (wasPending.current && !pending && !state?.errors) {
-      setDescription("");
-      setItems([{ ...blankItem }]);
-      setEstimateResult(undefined);
-      clearPhoto();
-    }
-    wasPending.current = pending;
-  }, [pending, state]);
-
-  function handleClear() {
-    formRef.current?.reset();
-    setDescription("");
-    setItems([{ ...blankItem }]);
-    setEstimateResult(undefined);
-    clearPhoto();
-  }
 
   function clearPhoto() {
     setPhoto(null);
@@ -148,18 +96,17 @@ export function MealForm({
     });
   }
 
-  function updateItem(index: number, field: keyof EditableItem, value: string) {
-    setItems((current) =>
-      current.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
+  function applyEstimateItems(estimateItems: MacroEstimate["items"]) {
+    setItems(
+      estimateItems.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        calories: String(item.calories),
+        proteinGrams: String(item.proteinGrams),
+        carbsGrams: String(item.carbsGrams),
+        fatGrams: String(item.fatGrams),
+      })),
     );
-  }
-
-  function addItem() {
-    setItems((current) => [...current, { ...blankItem }]);
-  }
-
-  function removeItem(index: number) {
-    setItems((current) => (current.length > 1 ? current.filter((_, i) => i !== index) : current));
   }
 
   function handleEstimate() {
@@ -176,16 +123,7 @@ export function MealForm({
               result.estimate.items.map((item) => `${item.quantity} ${item.name}`).join(", "),
             );
           }
-          setItems(
-            result.estimate.items.map((item) => ({
-              name: item.name,
-              quantity: item.quantity,
-              calories: String(item.calories),
-              proteinGrams: String(item.proteinGrams),
-              carbsGrams: String(item.carbsGrams),
-              fatGrams: String(item.fatGrams),
-            })),
-          );
+          applyEstimateItems(result.estimate.items);
         }
         return;
       }
@@ -193,18 +131,23 @@ export function MealForm({
       const result = await estimateMacrosAction(description);
       setEstimateResult(result);
       if (result && "estimate" in result) {
-        setItems(
-          result.estimate.items.map((item) => ({
-            name: item.name,
-            quantity: item.quantity,
-            calories: String(item.calories),
-            proteinGrams: String(item.proteinGrams),
-            carbsGrams: String(item.carbsGrams),
-            fatGrams: String(item.fatGrams),
-          })),
-        );
+        applyEstimateItems(result.estimate.items);
       }
     });
+  }
+
+  function updateItem(index: number, field: keyof EditableItem, value: string) {
+    setItems((current) =>
+      current.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
+    );
+  }
+
+  function addItem() {
+    setItems((current) => [...current, { ...blankItem }]);
+  }
+
+  function removeItem(index: number) {
+    setItems((current) => (current.length > 1 ? current.filter((_, i) => i !== index) : current));
   }
 
   const totals = items.reduce(
@@ -217,21 +160,61 @@ export function MealForm({
     { calories: 0, proteinGrams: 0, carbsGrams: 0, fatGrams: 0 },
   );
 
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData();
+    formData.set("name", name);
+    formData.set("mealType", mealType);
+    formData.set(
+      "items",
+      JSON.stringify(
+        items
+          .filter((item) => !isBlankItem(item))
+          .map((item) => ({
+            name: item.name,
+            quantity: item.quantity,
+            calories: item.calories.trim() === "" ? 0 : Number(item.calories),
+            proteinGrams: item.proteinGrams.trim() === "" ? 0 : Number(item.proteinGrams),
+            carbsGrams: item.carbsGrams.trim() === "" ? 0 : Number(item.carbsGrams),
+            fatGrams: item.fatGrams.trim() === "" ? 0 : Number(item.fatGrams),
+          })),
+      ),
+    );
+    startSaving(async () => {
+      const result = await saveMealTemplateAction(template?.id, undefined, formData);
+      if (result?.errors) {
+        setErrors(result.errors);
+      } else {
+        setErrors(undefined);
+        onClose();
+      }
+    });
+  }
+
   return (
     <form
-      ref={formRef}
-      action={action}
-      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-3 rounded-md border border-border bg-background p-3"
     >
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Log a meal</h2>
-      <input type="hidden" name="day" value={dayIso} />
+      <label className="flex flex-col gap-1 text-sm">
+        Template name
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Usual breakfast"
+          className="rounded-md border border-border bg-card px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+        {errors?.name && <span className="text-xs text-danger">{errors.name[0]}</span>}
+      </label>
 
       <label className="flex flex-col gap-1 text-sm">
         Meal type
         <select
-          name="mealType"
-          defaultValue="breakfast"
-          className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+          value={mealType}
+          onChange={(event) =>
+            setMealType(event.target.value as (typeof mealTypeEnum.enumValues)[number])
+          }
+          className="rounded-md border border-border bg-card px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
         >
           {mealTypeEnum.enumValues.map((type) => (
             <option key={type} value={type}>
@@ -242,25 +225,17 @@ export function MealForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        What did you eat?
+        What&apos;s in it?
         <p className="text-xs font-normal text-muted-foreground">
-          Type it, speak it (🎤), or snap a photo (📷) of your plate — then hit &quot;Estimate
-          macros.&quot; This form is for fully custom entries; for something you eat often, use a
-          meal template below instead.
+          Type it, speak it, or snap a photo — then hit &quot;Estimate macros.&quot; You only need
+          to do this once; logging the template later reuses these numbers.
         </p>
         <div className="flex gap-2">
           <input
-            name="description"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                if (!estimating && (description.trim() || photo)) handleEstimate();
-              }
-            }}
-            placeholder="40g chicken breast, 10g mixed vegetables"
-            className="flex-1 rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            placeholder="2 eggs, 2 slices toast, 1 cup black coffee"
+            className="flex-1 rounded-md border border-border bg-card px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           {micSupported && (
             <button
@@ -287,16 +262,13 @@ export function MealForm({
           <button
             type="button"
             onClick={() => photoInputRef.current?.click()}
-            title="Add a photo of your meal"
+            title="Add a photo of this meal"
             className="rounded-md border border-border px-3 py-1 text-sm hover:border-accent hover:text-accent"
           >
             📷
           </button>
         </div>
-        {state?.errors?.description && (
-          <span className="text-danger">{state.errors.description[0]}</span>
-        )}
-        {micError && <span className="text-danger">{micError}</span>}
+        {micError && <span className="text-xs text-danger">{micError}</span>}
       </label>
 
       {photoPreviewUrl && (
@@ -342,14 +314,14 @@ export function MealForm({
         {items.map((item, index) => (
           <div
             key={index}
-            className="flex flex-col gap-2 rounded-md border border-border bg-background p-2"
+            className="flex flex-col gap-2 rounded-md border border-border bg-card p-2"
           >
             <div className="flex gap-2">
               <input
                 value={item.name}
                 onChange={(event) => updateItem(index, "name", event.target.value)}
                 placeholder="Item name"
-                className="flex-1 rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               {items.length > 1 && (
                 <button
@@ -368,7 +340,7 @@ export function MealForm({
                 value={item.calories}
                 onChange={(event) => updateItem(index, "calories", event.target.value)}
                 placeholder="kcal"
-                className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="rounded-md border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <input
                 type="number"
@@ -377,7 +349,7 @@ export function MealForm({
                 value={item.proteinGrams}
                 onChange={(event) => updateItem(index, "proteinGrams", event.target.value)}
                 placeholder="protein"
-                className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="rounded-md border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <input
                 type="number"
@@ -386,7 +358,7 @@ export function MealForm({
                 value={item.carbsGrams}
                 onChange={(event) => updateItem(index, "carbsGrams", event.target.value)}
                 placeholder="carbs"
-                className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="rounded-md border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <input
                 type="number"
@@ -395,7 +367,7 @@ export function MealForm({
                 value={item.fatGrams}
                 onChange={(event) => updateItem(index, "fatGrams", event.target.value)}
                 placeholder="fat"
-                className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="rounded-md border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
           </div>
@@ -408,6 +380,7 @@ export function MealForm({
           + Add item
         </button>
       </div>
+      {errors?.items && <span className="text-sm text-danger">{errors.items[0]}</span>}
 
       <div className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-sm">
         <span className="font-medium">Total</span>
@@ -416,36 +389,22 @@ export function MealForm({
           {totals.carbsGrams.toFixed(1)}g carbs · {totals.fatGrams.toFixed(1)}g fat
         </span>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Each item&apos;s macros are editable — adjust them if the estimate looks off, add/remove
-        items, or skip estimating and enter them yourself. The total above updates automatically.
-      </p>
-
-      <input type="hidden" name="calories" value={Math.round(totals.calories)} />
-      <input type="hidden" name="proteinGrams" value={totals.proteinGrams.toFixed(2)} />
-      <input type="hidden" name="carbsGrams" value={totals.carbsGrams.toFixed(2)} />
-      <input type="hidden" name="fatGrams" value={totals.fatGrams.toFixed(2)} />
-      <input
-        type="hidden"
-        name="items"
-        value={JSON.stringify(items.filter((item) => item.name.trim() !== ""))}
-      />
 
       <div className="flex gap-3">
         <button
-          disabled={pending}
+          disabled={saving}
           type="submit"
           className="retro-glow self-start rounded-full bg-primary px-4 py-1.5 text-sm text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
         >
-          {pending ? "Logging..." : "Log meal"}
+          {saving ? "Saving..." : "Save template"}
         </button>
         <button
           type="button"
-          onClick={handleClear}
-          disabled={pending}
+          onClick={onClose}
+          disabled={saving}
           className="self-start rounded-full border border-border px-4 py-1.5 text-sm hover:border-danger hover:text-danger disabled:opacity-50"
         >
-          Clear
+          Cancel
         </button>
       </div>
     </form>

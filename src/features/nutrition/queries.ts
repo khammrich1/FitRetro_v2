@@ -1,13 +1,16 @@
-import { and, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   nutritionEntries,
   nutritionEntryItems,
   nutritionGoals,
+  mealTemplates,
+  mealTemplateItems,
   type NewNutritionEntry,
   type NewNutritionEntryItem,
   type NutritionEntryItem,
   type NewNutritionGoal,
+  type MealType,
 } from "@/db/schema";
 
 export type LoggedItemInput = Omit<NewNutritionEntryItem, "id" | "entryId">;
@@ -161,4 +164,147 @@ export function summarizeMacros(
     }),
     { calories: 0, proteinGrams: 0, carbsGrams: 0, fatGrams: 0 },
   );
+}
+
+export type MealTemplateItemInput = {
+  name: string;
+  quantity: string;
+  calories: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+};
+
+export type MealTemplateWithItems = typeof mealTemplates.$inferSelect & {
+  items: (typeof mealTemplateItems.$inferSelect)[];
+};
+
+/** Creates a new meal template, or (when `templateId` is given) replaces an existing one's items. */
+export async function saveMealTemplate(
+  userId: string,
+  input: {
+    templateId?: string;
+    name: string;
+    mealType: MealType;
+    items: MealTemplateItemInput[];
+  },
+) {
+  return db.transaction(async (tx) => {
+    let templateId = input.templateId;
+
+    if (templateId) {
+      const [updated] = await tx
+        .update(mealTemplates)
+        .set({ name: input.name, mealType: input.mealType })
+        .where(and(eq(mealTemplates.id, templateId), eq(mealTemplates.userId, userId)))
+        .returning();
+      if (!updated) throw new Error("Template not found.");
+      await tx.delete(mealTemplateItems).where(eq(mealTemplateItems.templateId, templateId));
+    } else {
+      const siblings = await tx
+        .select({ sortOrder: mealTemplates.sortOrder })
+        .from(mealTemplates)
+        .where(eq(mealTemplates.userId, userId));
+      const nextSortOrder =
+        siblings.length > 0 ? Math.max(...siblings.map((s) => s.sortOrder)) + 1 : 0;
+
+      const [created] = await tx
+        .insert(mealTemplates)
+        .values({ userId, name: input.name, mealType: input.mealType, sortOrder: nextSortOrder })
+        .returning();
+      templateId = created.id;
+    }
+
+    if (input.items.length > 0) {
+      await tx.insert(mealTemplateItems).values(
+        input.items.map((item, sortOrder) => ({
+          templateId: templateId!,
+          ...item,
+          sortOrder,
+        })),
+      );
+    }
+
+    return templateId;
+  });
+}
+
+export async function deleteMealTemplate(id: string, userId: string) {
+  await db
+    .delete(mealTemplates)
+    .where(and(eq(mealTemplates.id, id), eq(mealTemplates.userId, userId)));
+}
+
+export async function moveMealTemplate(
+  id: string,
+  userId: string,
+  direction: "up" | "down",
+): Promise<void> {
+  const [template] = await db
+    .select()
+    .from(mealTemplates)
+    .where(and(eq(mealTemplates.id, id), eq(mealTemplates.userId, userId)));
+  if (!template) return;
+
+  const siblings = await db
+    .select()
+    .from(mealTemplates)
+    .where(eq(mealTemplates.userId, userId))
+    .orderBy(asc(mealTemplates.sortOrder), asc(mealTemplates.createdAt));
+
+  const index = siblings.findIndex((sibling) => sibling.id === id);
+  const swapIndex = direction === "up" ? index - 1 : index + 1;
+  if (swapIndex < 0 || swapIndex >= siblings.length) return;
+
+  const swapWith = siblings[swapIndex];
+  await db.transaction(async (tx) => {
+    await tx
+      .update(mealTemplates)
+      .set({ sortOrder: swapWith.sortOrder })
+      .where(eq(mealTemplates.id, template.id));
+    await tx
+      .update(mealTemplates)
+      .set({ sortOrder: template.sortOrder })
+      .where(eq(mealTemplates.id, swapWith.id));
+  });
+}
+
+/** All of a user's saved meal templates, each with its ordered item list. */
+export async function getMealTemplatesForUser(userId: string): Promise<MealTemplateWithItems[]> {
+  const templates = await db
+    .select()
+    .from(mealTemplates)
+    .where(eq(mealTemplates.userId, userId))
+    .orderBy(asc(mealTemplates.sortOrder), asc(mealTemplates.createdAt));
+
+  const itemsByTemplate = await Promise.all(
+    templates.map((template) =>
+      db
+        .select()
+        .from(mealTemplateItems)
+        .where(eq(mealTemplateItems.templateId, template.id))
+        .orderBy(asc(mealTemplateItems.sortOrder)),
+    ),
+  );
+
+  return templates.map((template, i) => ({ ...template, items: itemsByTemplate[i] }));
+}
+
+export async function getMealTemplateWithItems(
+  id: string,
+  userId: string,
+): Promise<MealTemplateWithItems | null> {
+  const [template] = await db
+    .select()
+    .from(mealTemplates)
+    .where(and(eq(mealTemplates.id, id), eq(mealTemplates.userId, userId)));
+  if (!template) return null;
+
+  const items = await db
+    .select()
+    .from(mealTemplateItems)
+    .where(eq(mealTemplateItems.templateId, id))
+    .orderBy(asc(mealTemplateItems.sortOrder));
+
+  return { ...template, items };
 }

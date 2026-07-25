@@ -3,6 +3,8 @@ import { users } from "./users";
 
 export const mealTypeEnum = pgEnum("meal_type", ["breakfast", "lunch", "dinner", "snack"]);
 
+export type MealType = (typeof mealTypeEnum.enumValues)[number];
+
 /** A logged food/meal entry with macro breakdown. */
 export const nutritionEntries = pgTable("nutrition_entries", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -55,3 +57,36 @@ export const nutritionGoals = pgTable("nutrition_goals", {
 
 export type NutritionGoal = typeof nutritionGoals.$inferSelect;
 export type NewNutritionGoal = typeof nutritionGoals.$inferInsert;
+
+/** A reusable, user-defined meal (e.g. "Usual breakfast") with pre-computed macros, so logging a
+ * meal you eat often doesn't require re-estimating it every time. */
+export const mealTemplates = pgTable("meal_templates", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  mealType: mealTypeEnum("meal_type").notNull(),
+  sortOrder: integer("sort_order").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** One food item within a meal template, with its own macro breakdown. */
+export const mealTemplateItems = pgTable("meal_template_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  templateId: uuid("template_id")
+    .references(() => mealTemplates.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  quantity: text("quantity").notNull(),
+  calories: integer("calories").notNull(),
+  proteinGrams: real("protein_grams").notNull(),
+  carbsGrams: real("carbs_grams").notNull(),
+  fatGrams: real("fat_grams").notNull(),
+  sortOrder: integer("sort_order").notNull(),
+});
+
+export type MealTemplate = typeof mealTemplates.$inferSelect;
+export type NewMealTemplate = typeof mealTemplates.$inferInsert;
+export type MealTemplateItem = typeof mealTemplateItems.$inferSelect;
+export type NewMealTemplateItem = typeof mealTemplateItems.$inferInsert;
