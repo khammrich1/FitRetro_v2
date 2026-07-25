@@ -109,6 +109,7 @@ export const workoutTemplates = pgTable("workout_templates", {
     .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
   name: text("name").notNull(),
+  sortOrder: integer("sort_order").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

@@ -56,6 +56,7 @@ const SECTIONS: FaqSection[] = [
         a: [
           "On Today > Workouts, add exercises and sets (reps, weight, duration, RPE — whatever applies), or describe the workout in words and let it estimate the breakdown for you, same idea as meal logging.",
           'If you\'ve saved a template in Settings > Workouts, tap it under "Start from a template" — this immediately saves a workout for today and fills in its exercises, so you can enter reps/weight per set as you actually do them. It autosaves as you go, so closing the tab or refreshing mid-workout won\'t lose your progress. Tap "Finish workout" when you\'re done.',
+          'Prefer to build something on the spot instead? Skip the templates and use the "Log a workout" form below them — nothing saves there until you hit "Log workout."',
         ],
       },
       {
@@ -69,6 +70,12 @@ const SECTIONS: FaqSection[] = [
         q: "What are Exercise suggestions based on?",
         a: [
           'Whatever muscle groups are on today\'s rotation target. Set your rotation up in Settings > Workouts to unlock these — add equipment notes or exercises to avoid, and tap "+ Add to log" on any suggestion to drop it straight into the log form.',
+        ],
+      },
+      {
+        q: "Can I reorder my workout templates?",
+        a: [
+          'Yes — in Settings > Workouts, each template has ↑/↓ buttons to move it up or down the list. That\'s also the order they show up in under "Start from a template" on Today.',
         ],
       },
     ],

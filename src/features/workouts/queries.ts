@@ -328,9 +328,16 @@ export async function saveTemplate(
         .delete(workoutTemplateExercises)
         .where(eq(workoutTemplateExercises.templateId, templateId));
     } else {
+      const siblings = await tx
+        .select({ sortOrder: workoutTemplates.sortOrder })
+        .from(workoutTemplates)
+        .where(eq(workoutTemplates.userId, userId));
+      const nextSortOrder =
+        siblings.length > 0 ? Math.max(...siblings.map((s) => s.sortOrder)) + 1 : 0;
+
       const [created] = await tx
         .insert(workoutTemplates)
-        .values({ userId, name: input.name })
+        .values({ userId, name: input.name, sortOrder: nextSortOrder })
         .returning();
       templateId = created.id;
     }
@@ -357,13 +364,47 @@ export async function deleteTemplate(id: string, userId: string) {
     .where(and(eq(workoutTemplates.id, id), eq(workoutTemplates.userId, userId)));
 }
 
+export async function moveTemplate(
+  id: string,
+  userId: string,
+  direction: "up" | "down",
+): Promise<void> {
+  const [template] = await db
+    .select()
+    .from(workoutTemplates)
+    .where(and(eq(workoutTemplates.id, id), eq(workoutTemplates.userId, userId)));
+  if (!template) return;
+
+  const siblings = await db
+    .select()
+    .from(workoutTemplates)
+    .where(eq(workoutTemplates.userId, userId))
+    .orderBy(asc(workoutTemplates.sortOrder), asc(workoutTemplates.createdAt));
+
+  const index = siblings.findIndex((sibling) => sibling.id === id);
+  const swapIndex = direction === "up" ? index - 1 : index + 1;
+  if (swapIndex < 0 || swapIndex >= siblings.length) return;
+
+  const swapWith = siblings[swapIndex];
+  await db.transaction(async (tx) => {
+    await tx
+      .update(workoutTemplates)
+      .set({ sortOrder: swapWith.sortOrder })
+      .where(eq(workoutTemplates.id, template.id));
+    await tx
+      .update(workoutTemplates)
+      .set({ sortOrder: template.sortOrder })
+      .where(eq(workoutTemplates.id, swapWith.id));
+  });
+}
+
 /** All of a user's saved templates, each with its ordered exercise list. */
 export async function getTemplatesForUser(userId: string) {
   const templates = await db
     .select()
     .from(workoutTemplates)
     .where(eq(workoutTemplates.userId, userId))
-    .orderBy(asc(workoutTemplates.createdAt));
+    .orderBy(asc(workoutTemplates.sortOrder), asc(workoutTemplates.createdAt));
 
   const exercisesByTemplate = await Promise.all(
     templates.map((template) =>

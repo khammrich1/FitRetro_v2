@@ -23,6 +23,7 @@ import {
   suggestExercisesForMuscleGroups,
   saveTemplate,
   deleteTemplate,
+  moveTemplate,
   estimateTemplateFromDescription,
   type WorkoutEstimate,
   type ExerciseSuggestion,
@@ -329,6 +330,12 @@ export async function saveTemplateAction(
 export async function deleteTemplateAction(id: string): Promise<void> {
   const { userId } = await verifySession();
   await deleteTemplate(id, userId);
+  revalidateWorkoutPaths();
+}
+
+export async function moveTemplateAction(id: string, direction: "up" | "down"): Promise<void> {
+  const { userId } = await verifySession();
+  await moveTemplate(id, userId, direction);
   revalidateWorkoutPaths();
 }
 
