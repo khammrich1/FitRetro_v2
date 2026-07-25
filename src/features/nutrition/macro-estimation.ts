@@ -140,15 +140,16 @@ export async function estimateMacrosFromImage(
           },
           {
             type: "text",
-            text: `This photo is either (a) a plate/bowl of food, or (b) a nutrition facts label —
-handle whichever it is.
+            text: `This photo shows one of: (a) a plate/bowl of food, (b) a nutrition facts label,
+or (c) a written recipe (an ingredient list, e.g. a recipe card, cookbook page, or handwritten
+note) — handle whichever it is.
 
-(a) If it shows actual food, identify the item(s) and estimate the nutrition facts. Break it down
-into individual food items with your best-guess quantity for each based on visual portion size,
-then give calorie and macro totals (protein, carbs, fat in grams) summed across all items. Use
-standard nutrition data for common foods and typical preparation methods when the photo doesn't
-make something clear (e.g. assume cooked weight, and a light/moderate amount of any visible added
-fat like oil or dressing).
+(a) If it shows actual prepared food, identify the item(s) and estimate the nutrition facts. Break
+it down into individual food items with your best-guess quantity for each based on visual portion
+size, then give calorie and macro totals (protein, carbs, fat in grams) summed across all items.
+Use standard nutrition data for common foods and typical preparation methods when the photo
+doesn't make something clear (e.g. assume cooked weight, and a light/moderate amount of any
+visible added fat like oil or dressing).
 
 (b) If it shows a nutrition facts label/panel (e.g. a photo of a box or package, not the food
 itself), don't try to visually estimate a portion — instead read the calorie/macro values, serving
@@ -157,6 +158,19 @@ much of the product was actually used (e.g. "8oz", "half the box", "2 servings")
 label's per-serving values to that amount; if it doesn't say, use one label serving as the
 default quantity rather than guessing an unstated amount. Name the item after the product (read
 from the label/packaging if visible) and set its quantity to whatever amount you scaled to.
+
+(c) If it shows a written recipe rather than food or a label, read the ingredient list and
+quantities directly off the image (search the web for anything illegible or for brand-specific
+ingredient nutrition per the guidance below). Total the nutrition for the full batch as written,
+accounting for water absorbed by dry ingredients and moisture lost from cooking. Then scale down
+to a single serving: if the recipe states its yield (e.g. "makes 12 muffins", "one loaf, 10
+slices") and the user's context below says how much they're actually having (e.g. "just one
+muffin", "a slice"), scale to exactly that amount; if the user's context doesn't say, default to
+one unit of the recipe's stated yield (one muffin, one slice) rather than the whole batch. If the
+recipe doesn't state a yield either, assume a typical yield for that kind of baked good (e.g. 12
+for muffins/cupcakes, 8-10 slices for a loaf or cake) and default to one serving of that. Name the
+item after the recipe/dish (read from the image if titled) and set its quantity to the single
+serving you scaled to — never report the whole batch as the meal.
 
 If the photo shows a specific branded or packaged product (visible label, logo, or packaging) and
 its own nutrition facts aren't fully legible, search the web for that product's actual nutrition
