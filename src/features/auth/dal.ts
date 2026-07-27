@@ -20,7 +20,8 @@ export const getCurrentUser = cache(async () => {
 
 /** True only for the single account named by OWNER_EMAIL — not a general admin/role concept. */
 export function isOwner(email: string) {
-  return email === process.env.OWNER_EMAIL;
+  if (!process.env.OWNER_EMAIL) return false;
+  return email.toLowerCase() === process.env.OWNER_EMAIL.toLowerCase();
 }
 
 /** Gate for pages meant for the site owner alone — 404s (rather than redirecting) so the
