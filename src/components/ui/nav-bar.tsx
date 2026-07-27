@@ -24,6 +24,11 @@ export async function NavBar() {
             <Link href="/help" className="font-medium text-accent">
               Help
             </Link>
+            {user.isAdmin && (
+              <Link href="/wake-up" className="font-medium text-accent">
+                Wake Up
+              </Link>
+            )}
             <span className="text-muted-foreground">{user.displayName}</span>
             <form action={logout}>
               <button

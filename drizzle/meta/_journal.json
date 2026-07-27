@@ -92,6 +92,13 @@
       "when": 1785009359564,
       "tag": "0012_aberrant_hellfire_club",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1785132186121,
+      "tag": "0013_quiet_daimon_hellstrom",
+      "breakpoints": true
     }
   ]
 }
