@@ -137,7 +137,10 @@ export async function estimateMacrosFromImage(
     max_tokens: 8192,
     // Sonnet 5 supports the dynamic-filtering web search variant.
     tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 2 }],
-    output_config: { format: zodOutputFormat(macroEstimateSchema) },
+    // Default effort is "high" on Sonnet 5, which can mean substantially more thinking (and
+    // latency) than this task needs even for a simple food photo. "medium" cuts response time
+    // while still leaving max_tokens far above what a recipe photo's reasoning actually needs.
+    output_config: { format: zodOutputFormat(macroEstimateSchema), effort: "medium" },
     messages: [
       {
         role: "user",
