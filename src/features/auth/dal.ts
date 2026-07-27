@@ -18,12 +18,17 @@ export const getCurrentUser = cache(async () => {
   return getUserById(session.userId);
 });
 
-/** Gate for admin-only pages/actions — 404s (rather than redirecting) so the page's existence
- * isn't revealed to non-admins. */
-export const requireAdmin = cache(async () => {
+/** True only for the single account named by OWNER_EMAIL — not a general admin/role concept. */
+export function isOwner(email: string) {
+  return email === process.env.OWNER_EMAIL;
+}
+
+/** Gate for pages meant for the site owner alone — 404s (rather than redirecting) so the
+ * page's existence isn't revealed to other accounts. */
+export const requireOwner = cache(async () => {
   const { userId } = await verifySession();
   const user = await getUserById(userId);
-  if (!user?.isAdmin) {
+  if (!user || !isOwner(user.email)) {
     notFound();
   }
   return { userId, user };

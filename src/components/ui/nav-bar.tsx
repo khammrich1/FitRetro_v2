@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCurrentUser, logout } from "@/features/auth";
+import { getCurrentUser, isOwner, logout } from "@/features/auth";
 
 export async function NavBar() {
   const user = await getCurrentUser();
@@ -24,7 +24,7 @@ export async function NavBar() {
             <Link href="/help" className="font-medium text-accent">
               Help
             </Link>
-            {user.isAdmin && (
+            {isOwner(user.email) && (
               <Link href="/wake-up" className="font-medium text-accent">
                 Wake Up
               </Link>

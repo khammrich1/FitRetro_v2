@@ -1,10 +1,10 @@
-import { requireAdmin } from "@/features/auth";
+import { requireOwner } from "@/features/auth";
 
 const SUNO_SHARE_URL = "https://suno.com/s/IyOEQXlsdzNJ9MHz";
 const SUNO_EMBED_URL = "https://suno.com/embed/IyOEQXlsdzNJ9MHz";
 
 export default async function WakeUpPage() {
-  await requireAdmin();
+  await requireOwner();
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10">
