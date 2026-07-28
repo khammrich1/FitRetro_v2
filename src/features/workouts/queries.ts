@@ -1,4 +1,4 @@
-import { and, eq, asc, desc, gte, lt, lte, ilike, inArray, sql } from "drizzle-orm";
+import { and, eq, asc, desc, gte, lt, ilike, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   workouts,
@@ -222,8 +222,10 @@ export async function moveSplitCycleDay(
 export type SplitCycleTarget = WorkoutSplitCycleDay & { completedToday: boolean };
 
 /** The rotation step that's "current" as of `day` — the step after whichever was most recently
- * marked done on or before `day`, or the first step if nothing's been marked done yet. Advancing
- * only happens via explicit completion, so rest/skipped days don't shift the sequence. */
+ * marked done strictly before `day`, or the first step if nothing's been marked done yet. A
+ * completion logged on `day` itself doesn't shift what's shown as `day`'s target (only whether
+ * it's checked off) — the rotation only advances starting the next day. Advancing only happens
+ * via explicit completion, so rest/skipped days don't shift the sequence. */
 export async function getSplitCycleTargetForDate(
   userId: string,
   day: Date,
@@ -245,7 +247,7 @@ export async function getSplitCycleTargetForDate(
     .where(
       and(
         eq(workoutSplitCycleDays.userId, userId),
-        lte(workoutSplitCycleCompletions.completedOn, dayIso),
+        lt(workoutSplitCycleCompletions.completedOn, dayIso),
       ),
     )
     .orderBy(
