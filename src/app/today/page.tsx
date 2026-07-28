@@ -1,6 +1,8 @@
 import { verifySession } from "@/features/auth";
 import { toIsoDate, parseDayParam } from "@/lib/date";
+import { computeDailyScore } from "@/lib/daily-score";
 import { DayNav } from "@/components/ui/day-nav";
+import { DailyScoreCard } from "./_components/daily-score-card";
 import {
   getGoals,
   getEntriesForDay,
@@ -70,11 +72,27 @@ export default async function TodayPage({
   const targetMuscleGroups = splitTarget?.muscleGroups ?? [];
   const mostRecentPeptideLogDatesByTemplateId = Object.fromEntries(mostRecentPeptideLogDates);
 
+  const dailyScore = computeDailyScore({
+    mealsLogged: entries.length,
+    routineStepsCompleted: routines.reduce(
+      (sum, routine) => sum + routine.items.filter((item) => item.completedToday).length,
+      0,
+    ),
+    workoutSetsLogged: workoutList.reduce(
+      (sum, detail) => sum + detail.exercises.reduce((s, ex) => s + ex.sets.length, 0),
+      0,
+    ),
+    workoutsCompleted: completedWorkouts.length,
+    peptideDosesLogged: peptideLogs.length,
+  });
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-6 py-10">
       <h1 className="retro-heading text-2xl font-bold text-foreground">Today</h1>
 
       <DayNav dayIso={dayIso} todayIso={todayIso} />
+
+      <DailyScoreCard score={dailyScore} />
 
       <section className="flex flex-col gap-4">
         <h2 className="retro-heading text-lg font-semibold text-primary">Nutrition</h2>
