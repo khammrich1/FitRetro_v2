@@ -7,6 +7,11 @@ const SETTINGS_SECTIONS = [
     description: "Daily calorie and macro targets.",
   },
   {
+    href: "/settings/meal-templates",
+    title: "Meal templates",
+    description: "Save meals you eat often for one-tap logging.",
+  },
+  {
     href: "/settings/workouts",
     title: "Workouts",
     description: "Workout rotation and reusable exercise templates.",

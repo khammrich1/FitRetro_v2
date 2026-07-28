@@ -337,21 +337,21 @@ export async function saveMealTemplateAction(
   }
 
   await saveMealTemplate(userId, { templateId, ...validatedFields.data, items });
-  revalidatePath("/settings/nutrition");
+  revalidatePath("/settings/meal-templates");
   revalidatePath("/today");
 }
 
 export async function deleteMealTemplateAction(id: string): Promise<void> {
   const { userId } = await verifySession();
   await deleteMealTemplate(id, userId);
-  revalidatePath("/settings/nutrition");
+  revalidatePath("/settings/meal-templates");
   revalidatePath("/today");
 }
 
 export async function moveMealTemplateAction(id: string, direction: "up" | "down"): Promise<void> {
   const { userId } = await verifySession();
   await moveMealTemplate(id, userId, direction);
-  revalidatePath("/settings/nutrition");
+  revalidatePath("/settings/meal-templates");
   revalidatePath("/today");
 }
 
