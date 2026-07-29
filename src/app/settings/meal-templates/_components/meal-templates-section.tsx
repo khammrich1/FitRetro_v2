@@ -45,7 +45,9 @@ function TemplateCard({
       <div className="flex items-center justify-between">
         <span className="font-medium">
           {template.name}{" "}
-          <span className="text-xs font-normal text-muted-foreground">({template.mealType})</span>
+          <span className="text-xs font-normal capitalize text-muted-foreground">
+            ({template.mealType})
+          </span>
         </span>
         <div className="flex gap-3 text-xs">
           <button

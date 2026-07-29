@@ -5,6 +5,7 @@ import { mealTypeEnum } from "@/db/schema";
 import type { NutritionEntryWithItems } from "@/features/nutrition";
 import { updateMealAction, deleteMealAction } from "@/app/nutrition/actions";
 import { blankItem, type EditableItem } from "./meal-form";
+import { capitalize } from "@/lib/strings";
 
 function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
   const [editing, setEditing] = useState(false);
@@ -91,7 +92,7 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
           >
             {mealTypeEnum.enumValues.map((type) => (
               <option key={type} value={type}>
-                {type}
+                {capitalize(type)}
               </option>
             ))}
           </select>

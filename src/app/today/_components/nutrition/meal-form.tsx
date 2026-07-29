@@ -10,6 +10,7 @@ import {
   type EstimateMacrosState,
 } from "@/app/nutrition/actions";
 import { useSpeechToText } from "@/lib/hooks/use-speech-to-text";
+import { capitalize } from "@/lib/strings";
 
 export type EditableItem = {
   name: string;
@@ -235,7 +236,7 @@ export function MealForm({
         >
           {mealTypeEnum.enumValues.map((type) => (
             <option key={type} value={type}>
-              {type}
+              {capitalize(type)}
             </option>
           ))}
         </select>

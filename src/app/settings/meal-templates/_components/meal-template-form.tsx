@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { mealTypeEnum } from "@/db/schema";
 import { useSpeechToText } from "@/lib/hooks/use-speech-to-text";
+import { capitalize } from "@/lib/strings";
 import {
   saveMealTemplateAction,
   estimateMacrosAction,
@@ -218,7 +219,7 @@ export function MealTemplateForm({
         >
           {mealTypeEnum.enumValues.map((type) => (
             <option key={type} value={type}>
-              {type}
+              {capitalize(type)}
             </option>
           ))}
         </select>

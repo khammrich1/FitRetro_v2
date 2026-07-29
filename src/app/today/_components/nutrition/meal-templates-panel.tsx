@@ -54,7 +54,7 @@ function TemplateRow({
     <li className="rounded-md border border-border bg-background p-3 text-sm">
       <div className="flex items-center justify-between">
         <p className="font-medium">{template.name}</p>
-        <span className="text-xs text-muted-foreground">{template.mealType}</span>
+        <span className="text-xs capitalize text-muted-foreground">{template.mealType}</span>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
         {Math.round(totals.calories)} kcal · {totals.proteinGrams.toFixed(1)}g protein ·{" "}
