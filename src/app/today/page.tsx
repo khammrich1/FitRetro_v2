@@ -98,7 +98,7 @@ export default async function TodayPage({
 
       <DailyScoreCard score={dailyScore} />
 
-      <DailyMissionCard items={missionItems} dayIso={dayIso} />
+      <DailyMissionCard entries={missionItems} dayIso={dayIso} />
 
       <section className="flex flex-col gap-4">
         <h2 className="retro-heading text-lg font-semibold text-primary">Nutrition</h2>
