@@ -3,6 +3,7 @@ const POINTS_PER_ROUTINE_STEP = 5;
 const POINTS_PER_WORKOUT_SET = 2;
 const POINTS_PER_WORKOUT_COMPLETED = 25;
 const POINTS_PER_PEPTIDE_DOSE = 5;
+const POINTS_PER_NOTE = 5;
 
 export type DailyScoreInput = {
   mealsLogged: number;
@@ -10,6 +11,7 @@ export type DailyScoreInput = {
   workoutSetsLogged: number;
   workoutsCompleted: number;
   peptideDosesLogged: number;
+  notesAdded: number;
 };
 
 export type DailyScoreBreakdownRow = {
@@ -52,6 +54,11 @@ export function computeDailyScore(input: DailyScoreInput): DailyScore {
       label: "Peptide doses",
       count: input.peptideDosesLogged,
       points: input.peptideDosesLogged * POINTS_PER_PEPTIDE_DOSE,
+    },
+    {
+      label: "Notes added",
+      count: input.notesAdded,
+      points: input.notesAdded * POINTS_PER_NOTE,
     },
   ];
 

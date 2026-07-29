@@ -6,6 +6,7 @@ const SINGULAR_LABELS: Record<string, string> = {
   "Workout sets": "Workout set",
   "Workouts completed": "Workout completed",
   "Peptide doses": "Peptide dose",
+  "Notes added": "Note added",
 };
 
 export function DailyScoreCard({ score }: { score: DailyScore }) {
