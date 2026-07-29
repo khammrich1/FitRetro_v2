@@ -48,7 +48,7 @@ export default async function TodayPage({
     entries,
     mealTemplates,
     routines,
-    missionItems,
+    mission,
     splitTarget,
     workoutDetails,
     templates,
@@ -98,8 +98,6 @@ export default async function TodayPage({
 
       <DailyScoreCard score={dailyScore} />
 
-      <DailyMissionCard entries={missionItems} dayIso={dayIso} />
-
       <section className="flex flex-col gap-4">
         <h2 className="retro-heading text-lg font-semibold text-primary">Nutrition</h2>
         <MacroProgress consumed={consumed} goal={goal} />
@@ -125,6 +123,8 @@ export default async function TodayPage({
           ))
         )}
       </section>
+
+      <DailyMissionCard mission={mission} dayIso={dayIso} />
 
       <section className="flex flex-col gap-4">
         <h2 className="retro-heading text-lg font-semibold text-primary">Workouts</h2>

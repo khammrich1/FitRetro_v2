@@ -1,5 +1,5 @@
 {
-  "id": "880aff3c-e868-4825-830d-a6054a7fdc67",
+  "id": "80f7e08d-5ab0-48ea-a333-cab91512b12d",
   "prevId": "864f81b2-1273-4ab9-b2d7-6c14991aea4f",
   "version": "7",
   "dialect": "postgresql",
@@ -1666,8 +1666,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.daily_mission_entries": {
-      "name": "daily_mission_entries",
+    "public.daily_missions": {
+      "name": "daily_missions",
       "schema": "",
       "columns": {
         "id": {
@@ -1689,21 +1689,43 @@
           "primaryKey": false,
           "notNull": true
         },
-        "label": {
-          "name": "label",
+        "field_1": {
+          "name": "field_1",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "''"
         },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
+        "field_1_completed": {
+          "name": "field_1_completed",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": true,
-          "default": 0
+          "default": false
         },
-        "completed": {
-          "name": "completed",
+        "field_2": {
+          "name": "field_2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "field_2_completed": {
+          "name": "field_2_completed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "field_3": {
+          "name": "field_3",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "field_3_completed": {
+          "name": "field_3_completed",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
@@ -1711,8 +1733,8 @@
         }
       },
       "indexes": {
-        "daily_mission_entries_user_day_idx": {
-          "name": "daily_mission_entries_user_day_idx",
+        "daily_missions_user_day_idx": {
+          "name": "daily_missions_user_day_idx",
           "columns": [
             {
               "expression": "user_id",
@@ -1727,16 +1749,16 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
       "foreignKeys": {
-        "daily_mission_entries_user_id_users_id_fk": {
-          "name": "daily_mission_entries_user_id_users_id_fk",
-          "tableFrom": "daily_mission_entries",
+        "daily_missions_user_id_users_id_fk": {
+          "name": "daily_missions_user_id_users_id_fk",
+          "tableFrom": "daily_missions",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
