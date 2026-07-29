@@ -99,6 +99,13 @@
       "when": 1785132186121,
       "tag": "0013_quiet_daimon_hellstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1785309124515,
+      "tag": "0014_abnormal_namorita",
+      "breakpoints": true
     }
   ]
 }

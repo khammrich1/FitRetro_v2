@@ -36,12 +36,17 @@ export function SplitTargetCard({
         disabled={pending}
         className="h-4 w-4 accent-primary"
       />
-      <p className={target.completedToday ? "text-muted-foreground line-through" : ""}>
-        Target: <span className="font-medium text-accent">{target.label}</span>{" "}
-        <span className="text-muted-foreground">
-          ({target.muscleGroups.map((group) => group.replace("_", " ")).join(", ")})
-        </span>
-      </p>
+      <div>
+        <p className={target.completedToday ? "text-muted-foreground line-through" : ""}>
+          Target: <span className="font-medium text-accent">{target.label}</span>{" "}
+          <span className="text-muted-foreground">
+            ({target.muscleGroups.map((group) => group.replace("_", " ")).join(", ")})
+          </span>
+        </p>
+        {target.completedToday && target.nextLabel && (
+          <p className="text-xs text-muted-foreground">Up next: {target.nextLabel}</p>
+        )}
+      </div>
     </div>
   );
 }

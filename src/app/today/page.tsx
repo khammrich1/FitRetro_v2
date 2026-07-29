@@ -10,6 +10,7 @@ import {
   getMealTemplatesForUser,
 } from "@/features/nutrition";
 import { getRoutinesForUser } from "@/features/routines";
+import { getMissionForDay } from "@/features/daily-mission";
 import {
   getSplitCycleTargetForDate,
   getWorkoutsForDay,
@@ -24,6 +25,7 @@ import { MacroProgress } from "./_components/nutrition/macro-progress";
 import { MealList } from "./_components/nutrition/meal-list";
 import { MealLogging } from "./_components/nutrition/meal-logging";
 import { RoutineChecklistCard } from "./_components/routine/routine-checklist-card";
+import { DailyMissionCard } from "./_components/daily-mission-card";
 import { WorkoutList } from "./_components/workouts/workout-list";
 import { WorkoutLogging } from "./_components/workouts/workout-logging";
 import { SplitTargetCard } from "./_components/workouts/split-target-card";
@@ -46,6 +48,7 @@ export default async function TodayPage({
     entries,
     mealTemplates,
     routines,
+    missionItems,
     splitTarget,
     workoutDetails,
     templates,
@@ -57,6 +60,7 @@ export default async function TodayPage({
     getEntriesForDay(userId, day),
     getMealTemplatesForUser(userId),
     getRoutinesForUser(userId, day),
+    getMissionForDay(userId, day),
     getSplitCycleTargetForDate(userId, day),
     getWorkoutsForDay(userId, day),
     getTemplatesForUser(userId),
@@ -93,6 +97,8 @@ export default async function TodayPage({
       <DayNav dayIso={dayIso} todayIso={todayIso} />
 
       <DailyScoreCard score={dailyScore} />
+
+      <DailyMissionCard items={missionItems} dayIso={dayIso} />
 
       <section className="flex flex-col gap-4">
         <h2 className="retro-heading text-lg font-semibold text-primary">Nutrition</h2>

@@ -2,6 +2,11 @@ import Link from "next/link";
 
 const SETTINGS_SECTIONS = [
   {
+    href: "/settings/daily-mission",
+    title: "Daily mission",
+    description: "The handful of things that make today a win — mandatory on Today.",
+  },
+  {
     href: "/settings/nutrition",
     title: "Nutrition goals",
     description: "Daily calorie and macro targets.",

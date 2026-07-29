@@ -208,18 +208,27 @@ export async function moveSplitCycleDay(
 
   const swapWith = siblings[swapIndex];
   await db.transaction(async (tx) => {
+    // Swaps through sortOrder -1 (never used by a real row) so the two updates never collide
+    // with the unique (userId, sortOrder) index mid-transaction.
     await tx
       .update(workoutSplitCycleDays)
-      .set({ sortOrder: swapWith.sortOrder })
+      .set({ sortOrder: -1 })
       .where(eq(workoutSplitCycleDays.id, day.id));
     await tx
       .update(workoutSplitCycleDays)
       .set({ sortOrder: day.sortOrder })
       .where(eq(workoutSplitCycleDays.id, swapWith.id));
+    await tx
+      .update(workoutSplitCycleDays)
+      .set({ sortOrder: swapWith.sortOrder })
+      .where(eq(workoutSplitCycleDays.id, day.id));
   });
 }
 
-export type SplitCycleTarget = WorkoutSplitCycleDay & { completedToday: boolean };
+export type SplitCycleTarget = WorkoutSplitCycleDay & {
+  completedToday: boolean;
+  nextLabel: string | null;
+};
 
 /** The rotation step that's "current" as of `day` — the step after whichever was most recently
  * marked done strictly before `day`, or the first step if nothing's been marked done yet. A
@@ -273,7 +282,10 @@ export async function getSplitCycleTargetForDate(
       ),
     );
 
-  return { ...target, completedToday: Boolean(doneToday) };
+  const nextLabel =
+    cycleDays.length > 1 ? cycleDays[(targetIndex + 1) % cycleDays.length].label : null;
+
+  return { ...target, completedToday: Boolean(doneToday), nextLabel };
 }
 
 /** Toggles completion of the current rotation target for `day`. If it was already completed for
