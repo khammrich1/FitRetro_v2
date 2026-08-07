@@ -119,6 +119,21 @@ prepended automatically, e.g. `pg_dump "$DATABASE_URL" > backup-$(date +%Y%m%d%H
 npm run db:migrate && ...`. For databases a session can reach directly (e.g. a sandboxed dev DB),
 back it up the same way before running anything destructive there, no exceptions.
 
+## Deploying
+
+Production runs on the user's own droplet under pm2 as process name **`fitretro`**. Claude
+sessions have no SSH/droplet access — deploys only ever happen via a command handed to the user
+to run themselves. Standard command (only include the `db:migrate`/backup steps when the diff
+being deployed actually has a pending migration):
+
+```bash
+pg_dump "$DATABASE_URL" > backup-$(date +%Y%m%d%H%M%S).sql && \
+git pull origin <branch> && npm install && npm run db:migrate && \
+npm run build && pm2 restart fitretro
+```
+
+For a pure code change with no schema migration, drop the `pg_dump`/`db:migrate` steps.
+
 ## Auth
 
 Email/password auth using stateless JWT sessions (`jose`) in an httpOnly cookie — see
