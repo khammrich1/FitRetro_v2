@@ -9,16 +9,18 @@ describe("computeDailyScore", () => {
       workoutSetsLogged: 12,
       workoutsCompleted: 1,
       peptideDosesLogged: 2,
+      supplementDosesLogged: 3,
       notesAdded: 4,
     });
 
-    expect(score.total).toBe(2 * 5 + 3 * 5 + 12 * 2 + 1 * 25 + 2 * 5 + 4 * 5);
+    expect(score.total).toBe(2 * 5 + 3 * 5 + 12 * 2 + 1 * 25 + 2 * 5 + 3 * 5 + 4 * 5);
     expect(score.breakdown).toEqual([
       { label: "Meals logged", count: 2, points: 10 },
       { label: "Routine steps", count: 3, points: 15 },
       { label: "Workout sets", count: 12, points: 24 },
       { label: "Workouts completed", count: 1, points: 25 },
       { label: "Peptide doses", count: 2, points: 10 },
+      { label: "Supplement doses", count: 3, points: 15 },
       { label: "Notes added", count: 4, points: 20 },
     ]);
   });
@@ -30,6 +32,7 @@ describe("computeDailyScore", () => {
       workoutSetsLogged: 0,
       workoutsCompleted: 0,
       peptideDosesLogged: 0,
+      supplementDosesLogged: 0,
       notesAdded: 0,
     });
 

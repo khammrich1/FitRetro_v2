@@ -123,6 +123,18 @@ const SECTIONS: FaqSection[] = [
       },
     ],
   },
+  {
+    title: "Supplements",
+    items: [
+      {
+        q: "How is this different from Peptides?",
+        a: [
+          "Same model, separate list — define supplements in Settings > Supplements with a name, dose, and frequency, then log doses on Today the same way you would a peptide.",
+          "They're kept separate so peptide protocols and everyday supplements (vitamins, creatine, etc.) don't get mixed into one list.",
+        ],
+      },
+    ],
+  },
 ];
 
 export default function HelpPage() {

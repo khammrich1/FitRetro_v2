@@ -21,6 +21,11 @@ import {
   getPeptideLogsForDay,
   getMostRecentLogDates,
 } from "@/features/peptides";
+import {
+  getSupplementTemplatesForUser,
+  getSupplementLogsForDay,
+  getMostRecentSupplementLogDates,
+} from "@/features/supplements";
 import { MacroProgress } from "./_components/nutrition/macro-progress";
 import { MealList } from "./_components/nutrition/meal-list";
 import { MealLogging } from "./_components/nutrition/meal-logging";
@@ -31,6 +36,7 @@ import { WorkoutLogging } from "./_components/workouts/workout-logging";
 import { SplitTargetCard } from "./_components/workouts/split-target-card";
 import { InProgressWorkoutCard } from "./_components/workouts/in-progress-workout-card";
 import { PeptideSection } from "./_components/peptides/peptide-section";
+import { SupplementSection } from "./_components/supplements/supplement-section";
 
 export default async function TodayPage({
   searchParams,
@@ -55,6 +61,9 @@ export default async function TodayPage({
     peptideTemplates,
     peptideLogs,
     mostRecentPeptideLogDates,
+    supplementTemplates,
+    supplementLogs,
+    mostRecentSupplementLogDates,
   ] = await Promise.all([
     getGoals(userId),
     getEntriesForDay(userId, day),
@@ -67,6 +76,9 @@ export default async function TodayPage({
     getPeptideTemplatesForUser(userId),
     getPeptideLogsForDay(userId, day),
     getMostRecentLogDates(userId, day),
+    getSupplementTemplatesForUser(userId),
+    getSupplementLogsForDay(userId, day),
+    getMostRecentSupplementLogDates(userId, day),
   ]);
 
   const consumed = summarizeMacros(entries);
@@ -75,6 +87,7 @@ export default async function TodayPage({
   const completedWorkouts = workoutList.filter((detail) => detail.workout.completedAt !== null);
   const targetMuscleGroups = splitTarget?.muscleGroups ?? [];
   const mostRecentPeptideLogDatesByTemplateId = Object.fromEntries(mostRecentPeptideLogDates);
+  const mostRecentSupplementLogDatesByTemplateId = Object.fromEntries(mostRecentSupplementLogDates);
 
   const dailyScore = computeDailyScore({
     mealsLogged: entries.length,
@@ -88,6 +101,7 @@ export default async function TodayPage({
     ),
     workoutsCompleted: completedWorkouts.length,
     peptideDosesLogged: peptideLogs.length,
+    supplementDosesLogged: supplementLogs.length,
     notesAdded:
       routines.reduce(
         (sum, routine) =>
@@ -162,6 +176,16 @@ export default async function TodayPage({
           templates={peptideTemplates}
           logs={peptideLogs}
           mostRecentLogDates={mostRecentPeptideLogDatesByTemplateId}
+        />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="retro-heading text-lg font-semibold text-primary">Supplements</h2>
+        <SupplementSection
+          dayIso={dayIso}
+          templates={supplementTemplates}
+          logs={supplementLogs}
+          mostRecentLogDates={mostRecentSupplementLogDatesByTemplateId}
         />
       </section>
     </div>

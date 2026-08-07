@@ -26,6 +26,11 @@ const SETTINGS_SECTIONS = [
     title: "Peptides",
     description: "Peptides you take, their dose, and frequency.",
   },
+  {
+    href: "/settings/supplements",
+    title: "Supplements",
+    description: "Supplements you take, their dose, and frequency.",
+  },
 ];
 
 export default function SettingsPage() {
