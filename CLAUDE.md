@@ -99,6 +99,26 @@ Copy `.env.example` to `.env` and set `DATABASE_URL` to a running Postgres insta
 running any `db:*` script or the app itself. Schema lives in `src/db/schema/*.ts`; run
 `npm run db:generate` after changing it to produce a migration under `drizzle/`.
 
+Migrations are per-slot files (`drizzle/000N_*.sql`) tracked by content hash in the DB's
+migrations table — never delete/regenerate an already-generated migration file to reshape a
+table again, even mid-feature. Once a migration file has existed, assume some database
+somewhere may have already applied it; add a new migration instead. (This nearly bit the
+daily-mission feature: three redesigns reused migration slot 14 with three different filenames
+before it shipped, which would have left any database that had already migrated against an
+earlier version with a stale table shape and a broken `/today` page.)
+
+**Data safety:** never run a schema change, migration, or bulk mutation that can destroy or
+overwrite existing rows (dropped/renamed columns, dropped tables, `DELETE`/`UPDATE` without a
+narrow `WHERE`, `db:generate` output that Drizzle marks with a data-loss warning) without both
+(a) telling the user explicitly what will be lost, and (b) taking a backup first — no exceptions,
+regardless of environment or how minor the change seems. Claude sessions do not have direct
+access to the production database or droplet; production changes only ever happen through
+commands handed to the user to run themselves. So in practice: any command sequence handed to
+the user that includes a migration or other destructive step must have a `pg_dump` backup step
+prepended automatically, e.g. `pg_dump "$DATABASE_URL" > backup-$(date +%Y%m%d%H%M%S).sql &&
+npm run db:migrate && ...`. For databases a session can reach directly (e.g. a sandboxed dev DB),
+back it up the same way before running anything destructive there, no exceptions.
+
 ## Auth
 
 Email/password auth using stateless JWT sessions (`jose`) in an httpOnly cookie — see
