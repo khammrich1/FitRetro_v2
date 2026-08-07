@@ -65,7 +65,12 @@ export function MealForm({
   onPrefillConsumed?: () => void;
 }) {
   const [state, action, pending] = useActionState(logMealAction, undefined);
+  // `description` is the meal's label (required, stored, shown in the meal list). `estimatePrompt`
+  // is the separate "what did you eat" free-text fed to macro estimation (voice/photo included) —
+  // kept apart so manual item entry never forces filling in an estimation prompt just to satisfy
+  // the description requirement.
   const [description, setDescription] = useState("");
+  const [estimatePrompt, setEstimatePrompt] = useState("");
   const [items, setItems] = useState<EditableItem[]>([{ ...blankItem }]);
   const [estimateResult, setEstimateResult] = useState<EstimateMacrosState>(undefined);
   const [estimating, startEstimating] = useTransition();
@@ -109,13 +114,14 @@ export function MealForm({
     toggleListening,
     error: micError,
   } = useSpeechToText((transcript) => {
-    setDescription((current) => (current ? `${current} ${transcript}` : transcript));
+    setEstimatePrompt((current) => (current ? `${current} ${transcript}` : transcript));
   });
 
   const wasPending = useRef(false);
   useEffect(() => {
     if (wasPending.current && !pending && !state?.errors) {
       setDescription("");
+      setEstimatePrompt("");
       setItems([{ ...blankItem }]);
       setEstimateResult(undefined);
       clearPhoto();
@@ -126,6 +132,7 @@ export function MealForm({
   function handleClear() {
     formRef.current?.reset();
     setDescription("");
+    setEstimatePrompt("");
     setItems([{ ...blankItem }]);
     setEstimateResult(undefined);
     clearPhoto();
@@ -168,13 +175,14 @@ export function MealForm({
       if (photo) {
         const formData = new FormData();
         formData.append("image", photo);
-        formData.append("note", description);
+        formData.append("note", estimatePrompt);
         const result = await estimateMacrosFromImageAction(formData);
         setEstimateResult(result);
         if (result && "estimate" in result) {
           if (!description.trim()) {
             setDescription(
-              result.estimate.items.map((item) => `${item.quantity} ${item.name}`).join(", "),
+              estimatePrompt.trim() ||
+                result.estimate.items.map((item) => `${item.quantity} ${item.name}`).join(", "),
             );
           }
           setItems(
@@ -191,9 +199,10 @@ export function MealForm({
         return;
       }
 
-      const result = await estimateMacrosAction(description);
+      const result = await estimateMacrosAction(estimatePrompt);
       setEstimateResult(result);
       if (result && "estimate" in result) {
+        if (!description.trim()) setDescription(estimatePrompt.trim());
         setItems(
           result.estimate.items.map((item) => ({
             name: item.name,
@@ -243,21 +252,34 @@ export function MealForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
+        Description
+        <input
+          name="description"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          placeholder="e.g. Post-workout shake"
+          className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+        {state?.errors?.description && (
+          <span className="text-danger">{state.errors.description[0]}</span>
+        )}
+      </label>
+
+      <label className="flex flex-col gap-1 text-sm">
         What did you eat?
         <p className="text-xs font-normal text-muted-foreground">
-          Type it, speak it (🎤), or snap a photo (📷) of your plate — then hit &quot;Estimate
-          macros.&quot; This form is for fully custom entries; for something you eat often, use a
-          meal template below instead.
+          Optional — type it, speak it (🎤), or snap a photo (📷) of your plate, then hit
+          &quot;Estimate macros.&quot; Skip this and fill in the items yourself below if you&apos;d
+          rather enter everything manually.
         </p>
         <div className="flex gap-2">
           <input
-            name="description"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
+            value={estimatePrompt}
+            onChange={(event) => setEstimatePrompt(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
-                if (!estimating && (description.trim() || photo)) handleEstimate();
+                if (!estimating && (estimatePrompt.trim() || photo)) handleEstimate();
               }
             }}
             placeholder="40g chicken breast, 10g mixed vegetables"
@@ -294,9 +316,6 @@ export function MealForm({
             📷
           </button>
         </div>
-        {state?.errors?.description && (
-          <span className="text-danger">{state.errors.description[0]}</span>
-        )}
         {micError && <span className="text-danger">{micError}</span>}
       </label>
 
@@ -321,7 +340,7 @@ export function MealForm({
       <button
         type="button"
         onClick={handleEstimate}
-        disabled={estimating || (!description.trim() && !photo)}
+        disabled={estimating || (!estimatePrompt.trim() && !photo)}
         className="self-start rounded-full border border-border px-4 py-1.5 text-sm hover:border-accent hover:text-accent disabled:opacity-50"
       >
         {estimating ? "Estimating macros..." : "Estimate macros"}
