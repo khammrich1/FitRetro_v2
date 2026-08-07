@@ -79,8 +79,11 @@ export function DailyMissionCard({ mission, dayIso }: { mission: MissionForDay; 
       </div>
       <div className="flex flex-col gap-2 rounded-lg border-2 border-accent bg-card p-4">
         {FIELDS.map((f) => (
+          // Keying on dayIso remounts the row on day navigation, so the text input
+          // re-initializes from the fresh mission instead of keeping stale local state
+          // from a previously viewed day (which would otherwise get saved onto the new day).
           <MissionFieldRow
-            key={f.index}
+            key={`${dayIso}-${f.index}`}
             fieldIndex={f.index}
             text={String(mission[f.textKey] ?? "")}
             completed={Boolean(mission[f.completedKey])}
