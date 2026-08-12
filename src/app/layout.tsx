@@ -17,6 +17,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <NavBar />
         {children}
+        <footer className="mt-auto py-2 text-center text-[10px] text-muted-foreground/50">
+          {process.env.NEXT_PUBLIC_GIT_SHA}
+        </footer>
       </body>
     </html>
   );

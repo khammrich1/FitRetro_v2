@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { mealTypeEnum } from "@/db/schema";
 import type { FoodSuggestion } from "@/features/nutrition";
 import {
   getSuggestionsAction,
@@ -12,15 +11,7 @@ import {
   type SuggestionsState,
   type RecipeState,
 } from "@/app/nutrition/actions";
-import type { MealPrefill } from "./meal-form";
-
-function inferMealType(): (typeof mealTypeEnum.enumValues)[number] {
-  const hour = new Date().getHours();
-  if (hour < 11) return "breakfast";
-  if (hour < 16) return "lunch";
-  if (hour < 21) return "dinner";
-  return "snack";
-}
+import { inferMealType, type MealPrefill } from "./meal-form";
 
 function SuggestionCard({
   suggestion,

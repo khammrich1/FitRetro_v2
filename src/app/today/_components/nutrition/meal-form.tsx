@@ -45,6 +45,16 @@ export type MealPrefill = {
   items: PrefillItem[];
 };
 
+/** Guesses today's meal type from the current time, used to default the meal-type picker instead
+ * of always assuming breakfast. */
+export function inferMealType(): (typeof mealTypeEnum.enumValues)[number] {
+  const hour = new Date().getHours();
+  if (hour < 11) return "breakfast";
+  if (hour < 16) return "lunch";
+  if (hour < 21) return "dinner";
+  return "snack";
+}
+
 function isBlankItem(item: EditableItem) {
   return (
     item.name.trim() === "" &&
@@ -240,7 +250,7 @@ export function MealForm({
         Meal type
         <select
           name="mealType"
-          defaultValue="breakfast"
+          defaultValue={inferMealType()}
           className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
         >
           {mealTypeEnum.enumValues.map((type) => (
