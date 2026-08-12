@@ -81,6 +81,19 @@ export function MealForm({
   // the description requirement.
   const [description, setDescription] = useState("");
   const [estimatePrompt, setEstimatePrompt] = useState("");
+  // Starts at a fixed value (not time-inferred) so server and client render the same thing on
+  // mount, then corrects to the actual local time client-side only — inferring this during render
+  // would use the server's clock (wrong timezone) for the initial paint since this component is
+  // still server-rendered first.
+  const [mealType, setMealType] = useState<(typeof mealTypeEnum.enumValues)[number]>(
+    mealTypeEnum.enumValues[0],
+  );
+  useEffect(() => {
+    // Deliberately client-only: correcting the SSR-guessed default to the browser's actual local
+    // time, not a state update in response to a prop/external change.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMealType(inferMealType());
+  }, []);
   const [items, setItems] = useState<EditableItem[]>([{ ...blankItem }]);
   const [estimateResult, setEstimateResult] = useState<EstimateMacrosState>(undefined);
   const [estimating, startEstimating] = useTransition();
@@ -250,7 +263,10 @@ export function MealForm({
         Meal type
         <select
           name="mealType"
-          defaultValue={inferMealType()}
+          value={mealType}
+          onChange={(event) =>
+            setMealType(event.target.value as (typeof mealTypeEnum.enumValues)[number])
+          }
           className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
         >
           {mealTypeEnum.enumValues.map((type) => (
