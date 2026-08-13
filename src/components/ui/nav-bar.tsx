@@ -15,6 +15,9 @@ export async function NavBar() {
             <Link href="/today" className="font-medium text-accent">
               Today
             </Link>
+            <Link href="/calendar" className="font-medium text-accent">
+              Calendar
+            </Link>
             <Link href="/pantry" className="font-medium text-accent">
               Pantry
             </Link>
