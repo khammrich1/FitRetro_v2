@@ -24,10 +24,18 @@ export async function NavBar() {
             <Link href="/help" className="font-medium text-accent">
               Help
             </Link>
+            <Link href="/feedback" className="font-medium text-accent">
+              Feedback
+            </Link>
             {isOwner(user.email) && (
-              <Link href="/wake-up" className="font-medium text-accent">
-                Wake Up
-              </Link>
+              <>
+                <Link href="/feedback/review" className="font-medium text-accent">
+                  Review Feedback
+                </Link>
+                <Link href="/wake-up" className="font-medium text-accent">
+                  Wake Up
+                </Link>
+              </>
             )}
             <span className="text-muted-foreground">{user.displayName}</span>
             <form action={logout}>

@@ -135,6 +135,18 @@ const SECTIONS: FaqSection[] = [
       },
     ],
   },
+  {
+    title: "Feedback",
+    items: [
+      {
+        q: "What's Feedback for?",
+        a: [
+          "Bug reports, feature ideas, or anything else about the app itself — not workout/recipe reviews or anything tied to your own data.",
+          "It goes straight to the person building the app, not to other users.",
+        ],
+      },
+    ],
+  },
 ];
 
 export default function HelpPage() {
