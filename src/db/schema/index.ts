@@ -10,3 +10,4 @@ export * from "./peptides";
 export * from "./supplements";
 export * from "./daily-mission";
 export * from "./feedback";
+export * from "./water";

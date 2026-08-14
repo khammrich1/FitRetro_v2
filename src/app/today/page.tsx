@@ -26,9 +26,11 @@ import {
   getSupplementLogsForDay,
   getMostRecentSupplementLogDates,
 } from "@/features/supplements";
+import { getWaterIntakeForDay } from "@/features/water";
 import { MacroProgress } from "./_components/nutrition/macro-progress";
 import { MealList } from "./_components/nutrition/meal-list";
 import { MealLogging } from "./_components/nutrition/meal-logging";
+import { WaterTracker } from "./_components/nutrition/water-tracker";
 import { RoutineChecklistCard } from "./_components/routine/routine-checklist-card";
 import { DailyMissionCard } from "./_components/daily-mission-card";
 import { WorkoutList } from "./_components/workouts/workout-list";
@@ -64,6 +66,7 @@ export default async function TodayPage({
     supplementTemplates,
     supplementLogs,
     mostRecentSupplementLogDates,
+    waterOunces,
   ] = await Promise.all([
     getGoals(userId),
     getEntriesForDay(userId, day),
@@ -79,6 +82,7 @@ export default async function TodayPage({
     getSupplementTemplatesForUser(userId),
     getSupplementLogsForDay(userId, day),
     getMostRecentSupplementLogDates(userId, day),
+    getWaterIntakeForDay(userId, day),
   ]);
 
   const consumed = summarizeMacros(entries);
@@ -121,6 +125,7 @@ export default async function TodayPage({
       <section className="flex flex-col gap-4">
         <h2 className="retro-heading text-lg font-semibold text-primary">Nutrition</h2>
         <MacroProgress consumed={consumed} goal={goal} />
+        <WaterTracker key={dayIso} dayIso={dayIso} initialOunces={waterOunces} />
         <MealLogging dayIso={dayIso} templates={mealTemplates}>
           <div>
             <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-accent">
