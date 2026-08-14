@@ -376,6 +376,29 @@ export function MealForm({
         <p className="text-sm text-danger">{estimateResult.error}</p>
       )}
 
+      <div className="grid grid-cols-4 gap-2 rounded-md border border-border bg-card p-3 text-center text-sm">
+        <div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Calories</div>
+          <div className="retro-heading font-bold text-primary">{Math.round(totals.calories)}</div>
+        </div>
+        <div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Protein</div>
+          <div className="retro-heading font-bold text-primary">
+            {totals.proteinGrams.toFixed(1)}g
+          </div>
+        </div>
+        <div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Fat</div>
+          <div className="retro-heading font-bold text-primary">{totals.fatGrams.toFixed(1)}g</div>
+        </div>
+        <div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Carbs</div>
+          <div className="retro-heading font-bold text-primary">
+            {totals.carbsGrams.toFixed(1)}g
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-2">
         {items.length > 0 && (
           <div className="grid grid-cols-4 gap-2 px-2 text-xs text-muted-foreground">
@@ -455,16 +478,9 @@ export function MealForm({
         </button>
       </div>
 
-      <div className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-sm">
-        <span className="font-medium">Total</span>
-        <span className="text-muted-foreground">
-          {Math.round(totals.calories)} kcal · {totals.proteinGrams.toFixed(1)}g protein ·{" "}
-          {totals.carbsGrams.toFixed(1)}g carbs · {totals.fatGrams.toFixed(1)}g fat
-        </span>
-      </div>
       <p className="text-xs text-muted-foreground">
         Each item&apos;s macros are editable — adjust them if the estimate looks off, add/remove
-        items, or skip estimating and enter them yourself. The total above updates automatically.
+        items, or skip estimating and enter them yourself. The total up top updates automatically.
       </p>
 
       <input type="hidden" name="calories" value={Math.round(totals.calories)} />
