@@ -249,7 +249,6 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
           <span className="font-medium capitalize">{entry.mealType}</span> — {entry.description}
         </span>
         <div className="flex items-center gap-3">
-          <span className="text-muted-foreground">{entry.calories} kcal</span>
           {entry.items.length > 0 && (
             <button
               onClick={() => setShowDetails((current) => !current)}
@@ -274,6 +273,10 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
             Remove
           </button>
         </div>
+      </div>
+      <div className="text-xs text-muted-foreground">
+        {entry.calories} kcal · {entry.proteinGrams}g protein · {entry.carbsGrams}g carbs ·{" "}
+        {entry.fatGrams}g fat
       </div>
 
       {showDetails && entry.items.length > 0 && (
