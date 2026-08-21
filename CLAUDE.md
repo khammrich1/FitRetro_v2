@@ -136,6 +136,9 @@ npm run build && pm2 restart fitretro
 
 For a pure code change with no schema migration, drop the `pg_dump`/`db:migrate` steps.
 
+The user edits files on the droplet (e.g. `.env`) with **vim**, not nano — use `vim` in any
+command handed to them that opens a file for editing.
+
 ## Auth
 
 Email/password auth using stateless JWT sessions (`jose`) in an httpOnly cookie — see
