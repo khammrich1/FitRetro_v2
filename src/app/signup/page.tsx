@@ -60,6 +60,87 @@ export default function SignupPage() {
           )}
         </div>
 
+        <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-3">
+          <p className="text-sm font-medium">Optional — get a starting macro goal</p>
+          <p className="text-xs text-muted-foreground">
+            Fill in all four and we&apos;ll suggest daily calorie/protein/carb/fat targets to start
+            from (edit anytime in Settings &gt; Nutrition). Leave any blank to skip this.
+          </p>
+
+          <div className="flex gap-2">
+            <label className="flex flex-1 flex-col gap-1 text-sm">
+              Sex
+              <select
+                name="sex"
+                defaultValue=""
+                className="rounded-md border border-border bg-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="">—</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+              </select>
+            </label>
+            <label className="flex flex-1 flex-col gap-1 text-sm">
+              Age
+              <input
+                name="age"
+                type="number"
+                min={0}
+                className="rounded-md border border-border bg-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </label>
+          </div>
+          {(state?.errors?.sex || state?.errors?.age) && (
+            <p className="text-sm text-danger">
+              {state?.errors?.sex?.[0] ?? state?.errors?.age?.[0]}
+            </p>
+          )}
+
+          <div className="flex gap-2">
+            <label className="flex flex-1 flex-col gap-1 text-sm">
+              Height (ft)
+              <input
+                name="heightFeet"
+                type="number"
+                min={0}
+                placeholder="5"
+                className="rounded-md border border-border bg-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-1 text-sm">
+              Height (in)
+              <input
+                name="heightInches"
+                type="number"
+                min={0}
+                max={11.9}
+                step="any"
+                placeholder="9"
+                className="rounded-md border border-border bg-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-1 text-sm">
+              Weight (lb)
+              <input
+                name="weightLbs"
+                type="number"
+                min={0}
+                step="any"
+                className="rounded-md border border-border bg-background px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </label>
+          </div>
+          {(state?.errors?.heightFeet ||
+            state?.errors?.heightInches ||
+            state?.errors?.weightLbs) && (
+            <p className="text-sm text-danger">
+              {state?.errors?.heightFeet?.[0] ??
+                state?.errors?.heightInches?.[0] ??
+                state?.errors?.weightLbs?.[0]}
+            </p>
+          )}
+        </div>
+
         {state?.message && <p className="text-sm text-danger">{state.message}</p>}
 
         <button
