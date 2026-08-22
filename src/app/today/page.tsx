@@ -27,12 +27,14 @@ import {
   getMostRecentSupplementLogDates,
 } from "@/features/supplements";
 import { getWaterIntakeForDay } from "@/features/water";
+import { getDailyNoteForDay } from "@/features/daily-note";
 import { MacroProgress } from "./_components/nutrition/macro-progress";
 import { MealList } from "./_components/nutrition/meal-list";
 import { MealLogging } from "./_components/nutrition/meal-logging";
 import { WaterTracker } from "./_components/nutrition/water-tracker";
 import { RoutineChecklistCard } from "./_components/routine/routine-checklist-card";
 import { DailyMissionCard } from "./_components/daily-mission-card";
+import { DailyNoteCard } from "./_components/daily-note-card";
 import { WorkoutList } from "./_components/workouts/workout-list";
 import { WorkoutLogging } from "./_components/workouts/workout-logging";
 import { SplitTargetCard } from "./_components/workouts/split-target-card";
@@ -67,6 +69,7 @@ export default async function TodayPage({
     supplementLogs,
     mostRecentSupplementLogDates,
     waterOunces,
+    dailyNote,
   ] = await Promise.all([
     getGoals(userId),
     getEntriesForDay(userId, day),
@@ -83,6 +86,7 @@ export default async function TodayPage({
     getSupplementLogsForDay(userId, day),
     getMostRecentSupplementLogDates(userId, day),
     getWaterIntakeForDay(userId, day),
+    getDailyNoteForDay(userId, day),
   ]);
 
   const consumed = summarizeMacros(entries);
@@ -150,6 +154,8 @@ export default async function TodayPage({
       </section>
 
       <DailyMissionCard mission={mission} dayIso={dayIso} />
+
+      <DailyNoteCard dayIso={dayIso} note={dailyNote} />
 
       <section className="flex flex-col gap-4">
         <h2 className="retro-heading text-lg font-semibold text-primary">Workouts</h2>
