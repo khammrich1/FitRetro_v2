@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { verifySession } from "@/features/auth";
+import { checkAiUsageAllowed } from "@/features/ai-usage";
 import {
   addPantryItem,
   updatePantryItem,
@@ -86,7 +87,7 @@ export type IdentifyPantryItemState =
 export async function identifyPantryItemFromImageAction(
   formData: FormData,
 ): Promise<IdentifyPantryItemState> {
-  await verifySession();
+  const { userId } = await verifySession();
 
   const image = formData.get("image");
   if (!(image instanceof File) || image.size === 0) {
@@ -99,6 +100,11 @@ export async function identifyPantryItemFromImageAction(
 
   if (!isSupportedImageMediaType(image.type)) {
     return { error: "Unsupported image type — use JPEG, PNG, WebP, or GIF." };
+  }
+
+  const usageCheck = await checkAiUsageAllowed(userId);
+  if (!usageCheck.allowed) {
+    return { error: usageCheck.error };
   }
 
   try {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { verifySession } from "@/features/auth";
+import { checkAiUsageAllowed } from "@/features/ai-usage";
 import {
   logNutritionEntry,
   updateNutritionEntry,
@@ -179,6 +180,11 @@ export async function getSuggestionsAction(
     return { error: "Set your daily macro goals first to get suggestions." };
   }
 
+  const usageCheck = await checkAiUsageAllowed(userId);
+  if (!usageCheck.allowed) {
+    return { error: usageCheck.error };
+  }
+
   try {
     const [pantryItems, goal] = await Promise.all([listPantryItems(userId), getGoals(userId)]);
     const pantryItemNames = pantryItems.map((item) =>
@@ -199,10 +205,15 @@ export async function getSuggestionsAction(
 export type EstimateMacrosState = { estimate: MacroEstimate } | { error: string } | undefined;
 
 export async function estimateMacrosAction(description: string): Promise<EstimateMacrosState> {
-  await verifySession();
+  const { userId } = await verifySession();
 
   if (!description.trim()) {
     return { error: "Describe what you ate first." };
+  }
+
+  const usageCheck = await checkAiUsageAllowed(userId);
+  if (!usageCheck.allowed) {
+    return { error: usageCheck.error };
   }
 
   try {
@@ -222,7 +233,7 @@ function isSupportedImageMediaType(value: string): value is SupportedImageMediaT
 export async function estimateMacrosFromImageAction(
   formData: FormData,
 ): Promise<EstimateMacrosState> {
-  await verifySession();
+  const { userId } = await verifySession();
 
   const image = formData.get("image");
   if (!(image instanceof File) || image.size === 0) {
@@ -235,6 +246,11 @@ export async function estimateMacrosFromImageAction(
 
   if (!isSupportedImageMediaType(image.type)) {
     return { error: "Unsupported image type — use JPEG, PNG, WebP, or GIF." };
+  }
+
+  const usageCheck = await checkAiUsageAllowed(userId);
+  if (!usageCheck.allowed) {
+    return { error: usageCheck.error };
   }
 
   const note = formData.get("note")?.toString().trim() || undefined;
@@ -299,7 +315,12 @@ export async function getRecipeAction(
   description: string,
   macros: { calories: number; proteinGrams: number; carbsGrams: number; fatGrams: number },
 ): Promise<RecipeState> {
-  await verifySession();
+  const { userId } = await verifySession();
+
+  const usageCheck = await checkAiUsageAllowed(userId);
+  if (!usageCheck.allowed) {
+    return { error: usageCheck.error };
+  }
 
   try {
     const recipe = await generateRecipe(name, description, macros);

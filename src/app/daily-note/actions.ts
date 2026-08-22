@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { verifySession } from "@/features/auth";
 import { setDailyNoteForDay, cleanUpDailyNote } from "@/features/daily-note";
+import { checkAiUsageAllowed } from "@/features/ai-usage";
 import { parseDayParam } from "@/lib/date";
 
 export async function setDailyNoteAction(dayIso: string, note: string): Promise<void> {
@@ -14,10 +15,15 @@ export async function setDailyNoteAction(dayIso: string, note: string): Promise<
 export type CleanUpNoteState = { text: string } | { error: string };
 
 export async function cleanUpNoteAction(rawText: string): Promise<CleanUpNoteState> {
-  await verifySession();
+  const { userId } = await verifySession();
 
   if (!rawText.trim()) {
     return { error: "Nothing to clean up yet." };
+  }
+
+  const usageCheck = await checkAiUsageAllowed(userId);
+  if (!usageCheck.allowed) {
+    return { error: usageCheck.error };
   }
 
   try {

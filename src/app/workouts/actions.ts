@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { verifySession } from "@/features/auth";
+import { checkAiUsageAllowed } from "@/features/ai-usage";
 import {
   logWorkoutWithExercises,
   deleteWorkout,
@@ -123,10 +124,15 @@ export async function deleteWorkoutAction(id: string): Promise<void> {
 export type EstimateWorkoutState = { estimate: WorkoutEstimate } | { error: string } | undefined;
 
 export async function estimateWorkoutAction(description: string): Promise<EstimateWorkoutState> {
-  await verifySession();
+  const { userId } = await verifySession();
 
   if (!description.trim()) {
     return { error: "Describe your workout first." };
+  }
+
+  const usageCheck = await checkAiUsageAllowed(userId);
+  if (!usageCheck.allowed) {
+    return { error: usageCheck.error };
   }
 
   try {
@@ -264,10 +270,15 @@ export async function getExerciseSuggestionsAction(
   muscleGroups: string[],
   notes?: string,
 ): Promise<SuggestionsState> {
-  await verifySession();
+  const { userId } = await verifySession();
 
   if (muscleGroups.length === 0) {
     return { error: "Set up your workout rotation in Settings first." };
+  }
+
+  const usageCheck = await checkAiUsageAllowed(userId);
+  if (!usageCheck.allowed) {
+    return { error: usageCheck.error };
   }
 
   try {
@@ -342,10 +353,15 @@ export async function moveTemplateAction(id: string, direction: "up" | "down"): 
 export type EstimateTemplateState = { estimate: TemplateEstimate } | { error: string } | undefined;
 
 export async function estimateTemplateAction(description: string): Promise<EstimateTemplateState> {
-  await verifySession();
+  const { userId } = await verifySession();
 
   if (!description.trim()) {
     return { error: "Describe your routine first." };
+  }
+
+  const usageCheck = await checkAiUsageAllowed(userId);
+  if (!usageCheck.allowed) {
+    return { error: usageCheck.error };
   }
 
   try {
