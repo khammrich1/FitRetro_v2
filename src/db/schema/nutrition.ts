@@ -52,6 +52,7 @@ export const nutritionGoals = pgTable("nutrition_goals", {
   dailyProteinGrams: real("daily_protein_grams").notNull(),
   dailyCarbsGrams: real("daily_carbs_grams").notNull(),
   dailyFatGrams: real("daily_fat_grams").notNull(),
+  dailyWaterOunces: integer("daily_water_ounces").default(64).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

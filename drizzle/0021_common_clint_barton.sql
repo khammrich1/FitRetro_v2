@@ -1,0 +1,1 @@
+ALTER TABLE "nutrition_goals" ADD COLUMN "daily_water_ounces" integer DEFAULT 64 NOT NULL;

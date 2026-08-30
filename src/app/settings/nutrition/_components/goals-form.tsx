@@ -63,6 +63,17 @@ export function GoalsForm({ goal }: { goal: NutritionGoal | null }) {
             className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </label>
+
+        <label className="flex flex-col gap-1 text-sm">
+          Water (oz)
+          <input
+            name="dailyWaterOunces"
+            type="number"
+            min={0}
+            defaultValue={goal?.dailyWaterOunces ?? 64}
+            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </label>
       </div>
 
       {state?.errors && (

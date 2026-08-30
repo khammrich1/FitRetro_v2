@@ -140,6 +140,7 @@ const goalsSchema = z.object({
   dailyProteinGrams: z.coerce.number().min(0),
   dailyCarbsGrams: z.coerce.number().min(0),
   dailyFatGrams: z.coerce.number().min(0),
+  dailyWaterOunces: z.coerce.number().int().min(0),
 });
 
 export type GoalsState =
@@ -156,6 +157,7 @@ export async function setGoalsAction(_state: GoalsState, formData: FormData): Pr
     dailyProteinGrams: formData.get("dailyProteinGrams"),
     dailyCarbsGrams: formData.get("dailyCarbsGrams"),
     dailyFatGrams: formData.get("dailyFatGrams"),
+    dailyWaterOunces: formData.get("dailyWaterOunces"),
   });
 
   if (!validatedFields.success) {

@@ -119,6 +119,7 @@ export async function upsertGoals(input: NewNutritionGoal) {
         dailyProteinGrams: input.dailyProteinGrams,
         dailyCarbsGrams: input.dailyCarbsGrams,
         dailyFatGrams: input.dailyFatGrams,
+        dailyWaterOunces: input.dailyWaterOunces,
         updatedAt: new Date(),
       },
     })

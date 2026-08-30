@@ -129,7 +129,12 @@ export default async function TodayPage({
       <section className="flex flex-col gap-4">
         <h2 className="retro-heading text-lg font-semibold text-primary">Nutrition</h2>
         <MacroProgress consumed={consumed} goal={goal} />
-        <WaterTracker key={dayIso} dayIso={dayIso} initialOunces={waterOunces} />
+        <WaterTracker
+          key={dayIso}
+          dayIso={dayIso}
+          initialOunces={waterOunces}
+          goalOunces={goal?.dailyWaterOunces ?? 64}
+        />
         <MealLogging dayIso={dayIso} templates={mealTemplates}>
           <div>
             <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-accent">
