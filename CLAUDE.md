@@ -119,18 +119,32 @@ prepended automatically, e.g. `pg_dump "$DATABASE_URL" > backup-$(date +%Y%m%d%H
 npm run db:migrate && ...`. For databases a session can reach directly (e.g. a sandboxed dev DB),
 back it up the same way before running anything destructive there, no exceptions.
 
+## Git workflow
+
+`main` is the trunk. Each task/change gets its own short-lived branch off `main` (e.g.
+`claude/<slug>`), pushed when the work is verified (typecheck/lint/test/format green, live
+smoke-tested), with a PR opened into `main` — the PR body summarizes what changed and why. The
+user reviews/merges on GitHub; don't merge a PR yourself unless explicitly asked to. Deploys pull
+from `main`, so a change isn't live on the droplet until its PR is merged.
+
+(Historical note: earlier in this project's life everything was pushed directly to one long-lived
+branch, `claude/quirky-maxwell-ovfba4`, which was also the repo's only branch — `main` didn't
+exist yet. That branch is not itself part of the PR flow going forward.)
+
 ## Deploying
 
 Production runs on the user's own droplet under pm2 as process name **`fitretro`**, checked out
-at **`/opt/fitretro`** (that's also where `.env` lives). Claude sessions have no SSH/droplet
-access — deploys only ever happen via a command handed to the user to run themselves. Standard
-command (only include the `db:migrate`/backup steps when the diff being deployed actually has a
-pending migration):
+at **`/opt/fitretro`** (that's also where `.env` lives) — confirm which branch is checked out
+there before handing over a deploy command; it should track `main` post-merge, but flag it if it's
+still on the old direct-push branch instead. Claude sessions have no SSH/droplet access — deploys
+only ever happen via a command handed to the user to run themselves, and only after the relevant
+PR is merged into `main`. Standard command (only include the `db:migrate`/backup steps when the
+diff being deployed actually has a pending migration):
 
 ```bash
 cd /opt/fitretro && \
 pg_dump "$DATABASE_URL" > backup-$(date +%Y%m%d%H%M%S).sql && \
-git pull origin <branch> && npm install && npm run db:migrate && \
+git pull origin main && npm install && npm run db:migrate && \
 npm run build && pm2 restart fitretro
 ```
 
