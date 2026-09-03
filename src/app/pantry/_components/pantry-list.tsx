@@ -64,7 +64,14 @@ function PantryListItem({ item }: { item: PantryItem }) {
     <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md border border-border bg-background p-3 text-sm">
       <span className="min-w-0 break-words">
         <span className="font-medium">{item.name}</span>
-        {item.quantity && <span className="text-muted-foreground"> — {item.quantity}</span>}
+        {item.totalPortions !== null ? (
+          <span className={item.portionsRemaining === 0 ? "text-danger" : "text-muted-foreground"}>
+            {" "}
+            — {item.portionsRemaining} of {item.totalPortions} portions left
+          </span>
+        ) : (
+          item.quantity && <span className="text-muted-foreground"> — {item.quantity}</span>
+        )}
         {hasMacros && (
           <span className="block text-xs text-accent">
             {item.caloriesPerPortion} kcal · {(item.proteinGramsPerPortion ?? 0).toFixed(1)}g

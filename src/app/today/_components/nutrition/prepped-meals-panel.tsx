@@ -47,7 +47,7 @@ function PreppedMealRow({
       items: [
         {
           name: item.name,
-          quantity: item.quantity ?? "1 portion",
+          quantity: "1 portion",
           calories,
           proteinGrams,
           carbsGrams,
@@ -61,7 +61,11 @@ function PreppedMealRow({
     <li className="rounded-md border border-border bg-background p-3 text-sm">
       <div className="flex items-center justify-between">
         <p className="font-medium">{item.name}</p>
-        {item.quantity && <span className="text-xs text-muted-foreground">{item.quantity}</span>}
+        {item.totalPortions !== null && (
+          <span className="text-xs text-muted-foreground">
+            {item.portionsRemaining} of {item.totalPortions} left
+          </span>
+        )}
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
         {calories} kcal · {proteinGrams.toFixed(1)}g protein · {carbsGrams.toFixed(1)}g carbs ·{" "}
@@ -103,7 +107,11 @@ export function PreppedMealsPanel({
   items: PantryItem[];
   onAdjustAndLog: (prefill: MealPrefill) => void;
 }) {
-  const prepped = items.filter((item) => item.caloriesPerPortion !== null);
+  const prepped = items.filter(
+    (item) =>
+      item.caloriesPerPortion !== null &&
+      (item.totalPortions === null || (item.portionsRemaining ?? 0) > 0),
+  );
   if (prepped.length === 0) return null;
 
   return (
