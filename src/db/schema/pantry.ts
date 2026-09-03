@@ -16,6 +16,8 @@ export const pantryItems = pgTable("pantry_items", {
   proteinGramsPerPortion: real("protein_grams_per_portion"),
   carbsGramsPerPortion: real("carbs_grams_per_portion"),
   fatGramsPerPortion: real("fat_grams_per_portion"),
+  totalPortions: integer("total_portions"),
+  portionsRemaining: integer("portions_remaining"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

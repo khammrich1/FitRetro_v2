@@ -78,11 +78,12 @@ export async function addMealPrepBatchAction(
   await addPantryItem({
     userId,
     name,
-    quantity: `1 portion (of ${portions})`,
     caloriesPerPortion: Math.round(totals.calories / portions),
     proteinGramsPerPortion: totals.proteinGrams / portions,
     carbsGramsPerPortion: totals.carbsGrams / portions,
     fatGramsPerPortion: totals.fatGrams / portions,
+    totalPortions: portions,
+    portionsRemaining: portions,
   });
 
   revalidatePath("/pantry");
