@@ -61,8 +61,8 @@ function PantryListItem({ item }: { item: PantryItem }) {
   const hasMacros = item.caloriesPerPortion !== null;
 
   return (
-    <li className="flex items-center justify-between rounded-md border border-border bg-background p-3 text-sm">
-      <span>
+    <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md border border-border bg-background p-3 text-sm">
+      <span className="min-w-0 break-words">
         <span className="font-medium">{item.name}</span>
         {item.quantity && <span className="text-muted-foreground"> — {item.quantity}</span>}
         {hasMacros && (
@@ -73,7 +73,7 @@ function PantryListItem({ item }: { item: PantryItem }) {
           </span>
         )}
       </span>
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         <button
           onClick={() => setEditing(true)}
           disabled={pending}

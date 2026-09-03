@@ -25,14 +25,19 @@ function PreppedMealRow({
   const fatGrams = item.fatGramsPerPortion ?? 0;
 
   function handleLog() {
+    setError(null);
     startLogging(async () => {
-      const result = await logPantryItemAction({
-        pantryItemId: item.id,
-        dayIso,
-        mealType: inferMealType(),
-      });
-      if (result.error) setError(result.error);
-      else setLogged(true);
+      try {
+        const result = await logPantryItemAction({
+          pantryItemId: item.id,
+          dayIso,
+          mealType: inferMealType(),
+        });
+        if (result.error) setError(result.error);
+        else setLogged(true);
+      } catch {
+        setError("Something went wrong logging that — try again.");
+      }
     });
   }
 

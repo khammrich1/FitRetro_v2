@@ -244,11 +244,11 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
 
   return (
     <li className="flex flex-col gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm">
-      <div className="flex items-center justify-between">
-        <span>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <span className="min-w-0 break-words">
           <span className="font-medium capitalize">{entry.mealType}</span> — {entry.description}
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           {entry.items.length > 0 && (
             <button
               onClick={() => setShowDetails((current) => !current)}
