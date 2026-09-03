@@ -24,7 +24,7 @@ import {
   type FoodSuggestion,
   type MacroEstimate,
 } from "@/features/nutrition";
-import { listPantryItems, getPantryItemById } from "@/features/pantry";
+import { listPantryItems, getPantryItemById, decrementPantryItemPortion } from "@/features/pantry";
 import { generateRecipe, type GeneratedRecipe } from "@/features/recipes";
 import { mealTypeEnum, type MealType } from "@/db/schema";
 import { parseDayParam } from "@/lib/date";
@@ -424,6 +424,13 @@ export async function logPantryItemAction(input: LogPantryItemInput): Promise<{ 
     return { error: "That item no longer has known macros." };
   }
 
+  if (pantryItem.portionsRemaining !== null) {
+    const decremented = await decrementPantryItemPortion(input.pantryItemId, userId);
+    if (!decremented) {
+      return { error: "No portions left — prep another batch." };
+    }
+  }
+
   const calories = pantryItem.caloriesPerPortion;
   const proteinGrams = pantryItem.proteinGramsPerPortion ?? 0;
   const carbsGrams = pantryItem.carbsGramsPerPortion ?? 0;
@@ -453,5 +460,6 @@ export async function logPantryItemAction(input: LogPantryItemInput): Promise<{ 
   );
 
   revalidatePath("/today");
+  revalidatePath("/pantry");
   return {};
 }
