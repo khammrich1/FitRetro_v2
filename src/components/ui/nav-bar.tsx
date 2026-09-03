@@ -21,6 +21,9 @@ export async function NavBar() {
             <Link href="/pantry" className="font-medium text-accent">
               Pantry
             </Link>
+            <Link href="/meal-prep" className="font-medium text-accent">
+              Meal Prep
+            </Link>
             <Link href="/settings" className="font-medium text-accent">
               Settings
             </Link>

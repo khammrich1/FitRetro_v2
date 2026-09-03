@@ -58,11 +58,20 @@ function PantryListItem({ item }: { item: PantryItem }) {
     );
   }
 
+  const hasMacros = item.caloriesPerPortion !== null;
+
   return (
     <li className="flex items-center justify-between rounded-md border border-border bg-background p-3 text-sm">
       <span>
         <span className="font-medium">{item.name}</span>
         {item.quantity && <span className="text-muted-foreground"> — {item.quantity}</span>}
+        {hasMacros && (
+          <span className="block text-xs text-accent">
+            {item.caloriesPerPortion} kcal · {(item.proteinGramsPerPortion ?? 0).toFixed(1)}g
+            protein · {(item.carbsGramsPerPortion ?? 0).toFixed(1)}g carbs ·{" "}
+            {(item.fatGramsPerPortion ?? 0).toFixed(1)}g fat / portion
+          </span>
+        )}
       </span>
       <div className="flex items-center gap-3">
         <button

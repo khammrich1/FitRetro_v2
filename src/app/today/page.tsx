@@ -28,6 +28,7 @@ import {
 } from "@/features/supplements";
 import { getWaterIntakeForDay } from "@/features/water";
 import { getDailyNoteForDay } from "@/features/daily-note";
+import { listPantryItems } from "@/features/pantry";
 import { MacroProgress } from "./_components/nutrition/macro-progress";
 import { MealList } from "./_components/nutrition/meal-list";
 import { MealLogging } from "./_components/nutrition/meal-logging";
@@ -70,6 +71,7 @@ export default async function TodayPage({
     mostRecentSupplementLogDates,
     waterOunces,
     dailyNote,
+    pantryItems,
   ] = await Promise.all([
     getGoals(userId),
     getEntriesForDay(userId, day),
@@ -87,6 +89,7 @@ export default async function TodayPage({
     getMostRecentSupplementLogDates(userId, day),
     getWaterIntakeForDay(userId, day),
     getDailyNoteForDay(userId, day),
+    listPantryItems(userId),
   ]);
 
   const consumed = summarizeMacros(entries);
@@ -135,7 +138,7 @@ export default async function TodayPage({
           initialOunces={waterOunces}
           goalOunces={goal?.dailyWaterOunces ?? 64}
         />
-        <MealLogging dayIso={dayIso} templates={mealTemplates}>
+        <MealLogging dayIso={dayIso} templates={mealTemplates} pantryItems={pantryItems}>
           <div>
             <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-accent">
               Meals

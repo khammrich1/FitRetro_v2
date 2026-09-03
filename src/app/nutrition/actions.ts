@@ -24,9 +24,9 @@ import {
   type FoodSuggestion,
   type MacroEstimate,
 } from "@/features/nutrition";
-import { listPantryItems } from "@/features/pantry";
+import { listPantryItems, getPantryItemById } from "@/features/pantry";
 import { generateRecipe, type GeneratedRecipe } from "@/features/recipes";
-import { mealTypeEnum } from "@/db/schema";
+import { mealTypeEnum, type MealType } from "@/db/schema";
 import { parseDayParam } from "@/lib/date";
 
 /** Combines a calendar day with the current time of day, so meals logged for a non-today day
@@ -406,6 +406,50 @@ export async function logMealTemplateAction(
       carbsGrams,
       fatGrams,
     })),
+  );
+
+  revalidatePath("/today");
+  return {};
+}
+
+export type LogPantryItemInput = { pantryItemId: string; dayIso: string; mealType: MealType };
+
+/** Logs one portion of a meal-prepped pantry item using its stored per-portion macros — no
+ * re-estimation needed, same idea as logMealTemplateAction. */
+export async function logPantryItemAction(input: LogPantryItemInput): Promise<{ error?: string }> {
+  const { userId } = await verifySession();
+
+  const pantryItem = await getPantryItemById(input.pantryItemId, userId);
+  if (!pantryItem || pantryItem.caloriesPerPortion === null) {
+    return { error: "That item no longer has known macros." };
+  }
+
+  const calories = pantryItem.caloriesPerPortion;
+  const proteinGrams = pantryItem.proteinGramsPerPortion ?? 0;
+  const carbsGrams = pantryItem.carbsGramsPerPortion ?? 0;
+  const fatGrams = pantryItem.fatGramsPerPortion ?? 0;
+
+  await logNutritionEntry(
+    {
+      userId,
+      loggedAt: combineDayWithCurrentTime(input.dayIso),
+      mealType: input.mealType,
+      description: pantryItem.name,
+      calories,
+      proteinGrams,
+      carbsGrams,
+      fatGrams,
+    },
+    [
+      {
+        name: pantryItem.name,
+        quantity: pantryItem.quantity ?? "1 portion",
+        calories,
+        proteinGrams,
+        carbsGrams,
+        fatGrams,
+      },
+    ],
   );
 
   revalidatePath("/today");

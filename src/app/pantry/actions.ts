@@ -13,6 +13,83 @@ import {
 } from "@/features/pantry";
 import { SUPPORTED_IMAGE_MEDIA_TYPES, type SupportedImageMediaType } from "@/features/nutrition";
 
+const mealPrepItemSchema = z.object({
+  name: z.string().trim().min(1),
+  quantity: z.string().trim(),
+  calories: z.coerce.number().min(0),
+  proteinGrams: z.coerce.number().min(0),
+  carbsGrams: z.coerce.number().min(0),
+  fatGrams: z.coerce.number().min(0),
+});
+
+const mealPrepItemsSchema = z.array(mealPrepItemSchema);
+
+function parseMealPrepItems(raw: FormDataEntryValue | null): z.infer<typeof mealPrepItemsSchema> {
+  if (typeof raw !== "string") return [];
+  try {
+    const result = mealPrepItemsSchema.safeParse(JSON.parse(raw));
+    return result.success ? result.data : [];
+  } catch {
+    return [];
+  }
+}
+
+const mealPrepBatchSchema = z.object({
+  name: z.string().trim().min(1, "Name is required."),
+  portions: z.coerce.number().int().min(1, "At least 1 portion."),
+});
+
+export type MealPrepBatchState = { errors?: Record<string, string[]> } | undefined;
+
+/** Sums a batch's bulk ingredients, divides by portions, and adds one pantry item carrying the
+ * per-portion macros — that's what makes it show up as a one-tap-loggable "prepped meal" on
+ * Today (see logPantryItemAction in app/nutrition/actions.ts). */
+export async function addMealPrepBatchAction(
+  _state: MealPrepBatchState,
+  formData: FormData,
+): Promise<MealPrepBatchState> {
+  const { userId } = await verifySession();
+
+  const validatedFields = mealPrepBatchSchema.safeParse({
+    name: formData.get("name"),
+    portions: formData.get("portions"),
+  });
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors };
+  }
+
+  const items = parseMealPrepItems(formData.get("items"));
+  if (items.length === 0) {
+    return { errors: { items: ["Add at least one ingredient."] } };
+  }
+
+  const totals = items.reduce(
+    (acc, item) => ({
+      calories: acc.calories + item.calories,
+      proteinGrams: acc.proteinGrams + item.proteinGrams,
+      carbsGrams: acc.carbsGrams + item.carbsGrams,
+      fatGrams: acc.fatGrams + item.fatGrams,
+    }),
+    { calories: 0, proteinGrams: 0, carbsGrams: 0, fatGrams: 0 },
+  );
+
+  const { name, portions } = validatedFields.data;
+
+  await addPantryItem({
+    userId,
+    name,
+    quantity: `1 portion (of ${portions})`,
+    caloriesPerPortion: Math.round(totals.calories / portions),
+    proteinGramsPerPortion: totals.proteinGrams / portions,
+    carbsGramsPerPortion: totals.carbsGrams / portions,
+    fatGramsPerPortion: totals.fatGrams / portions,
+  });
+
+  revalidatePath("/pantry");
+  revalidatePath("/meal-prep");
+  revalidatePath("/today");
+}
+
 const pantryItemSchema = z.object({
   name: z.string().trim().min(1, "Name is required."),
   quantity: z.preprocess(

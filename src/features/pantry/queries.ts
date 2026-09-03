@@ -15,6 +15,14 @@ export async function addPantryItem(input: NewPantryItem) {
   return item;
 }
 
+export async function getPantryItemById(id: string, userId: string) {
+  const [item] = await db
+    .select()
+    .from(pantryItems)
+    .where(and(eq(pantryItems.id, id), eq(pantryItems.userId, userId)));
+  return item ?? null;
+}
+
 export async function updatePantryItem(
   id: string,
   userId: string,
