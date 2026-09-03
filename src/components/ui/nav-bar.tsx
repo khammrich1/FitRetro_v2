@@ -5,11 +5,11 @@ export async function NavBar() {
   const user = await getCurrentUser();
 
   return (
-    <nav className="flex items-center justify-between border-b border-border px-6 py-4">
+    <nav className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border px-4 py-3 sm:px-6 sm:py-4">
       <Link href="/" className="retro-heading text-sm font-bold text-primary">
         FitRetro
       </Link>
-      <div className="flex items-center gap-4 text-sm">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
         {user ? (
           <>
             <Link href="/today" className="font-medium text-accent">
