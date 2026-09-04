@@ -68,8 +68,8 @@ function PreppedMealRow({
         )}
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        {calories} kcal · {proteinGrams.toFixed(1)}g protein · {carbsGrams.toFixed(1)}g carbs ·{" "}
-        {fatGrams.toFixed(1)}g fat
+        {calories} kcal · {fatGrams.toFixed(1)}g fat · {carbsGrams.toFixed(1)}g carbs ·{" "}
+        {proteinGrams.toFixed(1)}g protein
       </p>
 
       <div className="mt-2 flex flex-wrap gap-3 text-xs">

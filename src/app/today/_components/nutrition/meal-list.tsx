@@ -106,9 +106,9 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
           <div className="flex flex-col gap-2">
             <div className="grid grid-cols-4 gap-2 px-2 text-xs text-muted-foreground">
               <span>Calories</span>
-              <span>Protein (g)</span>
-              <span>Carbs (g)</span>
               <span>Fat (g)</span>
+              <span>Carbs (g)</span>
+              <span>Protein (g)</span>
             </div>
             {items.map((item, index) => (
               <div
@@ -144,8 +144,8 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
                     type="number"
                     min={0}
                     step="any"
-                    value={item.proteinGrams}
-                    onChange={(event) => updateItem(index, "proteinGrams", event.target.value)}
+                    value={item.fatGrams}
+                    onChange={(event) => updateItem(index, "fatGrams", event.target.value)}
                     className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                   <input
@@ -160,8 +160,8 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
                     type="number"
                     min={0}
                     step="any"
-                    value={item.fatGrams}
-                    onChange={(event) => updateItem(index, "fatGrams", event.target.value)}
+                    value={item.proteinGrams}
+                    onChange={(event) => updateItem(index, "proteinGrams", event.target.value)}
                     className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                 </div>
@@ -177,9 +177,9 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
             <div className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-sm">
               <span className="font-medium">Total</span>
               <span className="text-muted-foreground">
-                {Math.round(itemTotals.calories)} kcal · {itemTotals.proteinGrams.toFixed(1)}g
-                protein · {itemTotals.carbsGrams.toFixed(1)}g carbs ·{" "}
-                {itemTotals.fatGrams.toFixed(1)}g fat
+                {Math.round(itemTotals.calories)} kcal · {itemTotals.fatGrams.toFixed(1)}g fat ·{" "}
+                {itemTotals.carbsGrams.toFixed(1)}g carbs · {itemTotals.proteinGrams.toFixed(1)}g
+                protein
               </span>
             </div>
           </div>
@@ -194,12 +194,12 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
               className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
             <input
-              value={proteinGrams}
-              onChange={(event) => setProteinGrams(event.target.value)}
+              value={fatGrams}
+              onChange={(event) => setFatGrams(event.target.value)}
               type="number"
               min={0}
               step="any"
-              placeholder="protein"
+              placeholder="fat"
               className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
             <input
@@ -212,12 +212,12 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
               className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
             <input
-              value={fatGrams}
-              onChange={(event) => setFatGrams(event.target.value)}
+              value={proteinGrams}
+              onChange={(event) => setProteinGrams(event.target.value)}
               type="number"
               min={0}
               step="any"
-              placeholder="fat"
+              placeholder="protein"
               className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
@@ -275,8 +275,8 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
         </div>
       </div>
       <div className="text-xs text-muted-foreground">
-        {entry.calories} kcal · {entry.proteinGrams}g protein · {entry.carbsGrams}g carbs ·{" "}
-        {entry.fatGrams}g fat
+        {entry.calories} kcal · {entry.fatGrams}g fat · {entry.carbsGrams}g carbs ·{" "}
+        {entry.proteinGrams}g protein
       </div>
 
       {showDetails && entry.items.length > 0 && (
@@ -287,8 +287,8 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
                 {item.quantity} {item.name}
               </span>
               <span>
-                {item.calories} kcal · {item.proteinGrams}g protein · {item.carbsGrams}g carbs ·{" "}
-                {item.fatGrams}g fat
+                {item.calories} kcal · {item.fatGrams}g fat · {item.carbsGrams}g carbs ·{" "}
+                {item.proteinGrams}g protein
               </span>
             </li>
           ))}

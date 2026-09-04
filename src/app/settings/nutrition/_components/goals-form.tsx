@@ -29,13 +29,13 @@ export function GoalsForm({ goal }: { goal: NutritionGoal | null }) {
         </label>
 
         <label className="flex flex-col gap-1 text-sm">
-          Protein (g)
+          Fat (g)
           <input
-            name="dailyProteinGrams"
+            name="dailyFatGrams"
             type="number"
             min={0}
             step="any"
-            defaultValue={goal?.dailyProteinGrams}
+            defaultValue={goal?.dailyFatGrams}
             className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </label>
@@ -53,13 +53,13 @@ export function GoalsForm({ goal }: { goal: NutritionGoal | null }) {
         </label>
 
         <label className="flex flex-col gap-1 text-sm">
-          Fat (g)
+          Protein (g)
           <input
-            name="dailyFatGrams"
+            name="dailyProteinGrams"
             type="number"
             min={0}
             step="any"
-            defaultValue={goal?.dailyFatGrams}
+            defaultValue={goal?.dailyProteinGrams}
             className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </label>
