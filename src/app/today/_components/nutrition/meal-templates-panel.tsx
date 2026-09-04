@@ -57,8 +57,8 @@ function TemplateRow({
         <span className="text-xs capitalize text-muted-foreground">{template.mealType}</span>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        {Math.round(totals.calories)} kcal · {totals.proteinGrams.toFixed(1)}g protein ·{" "}
-        {totals.carbsGrams.toFixed(1)}g carbs · {totals.fatGrams.toFixed(1)}g fat
+        {Math.round(totals.calories)} kcal · {totals.fatGrams.toFixed(1)}g fat ·{" "}
+        {totals.carbsGrams.toFixed(1)}g carbs · {totals.proteinGrams.toFixed(1)}g protein
       </p>
 
       <div className="mt-2 flex flex-wrap gap-3 text-xs">

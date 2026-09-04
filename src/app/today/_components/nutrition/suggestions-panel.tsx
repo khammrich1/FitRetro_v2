@@ -98,8 +98,8 @@ function SuggestionCard({
       <p className="font-medium">{suggestion.name}</p>
       <p className="text-muted-foreground">{suggestion.description}</p>
       <p className="mt-1 text-xs text-muted-foreground">
-        {suggestion.calories} kcal · {suggestion.proteinGrams}g protein · {suggestion.carbsGrams}g
-        carbs · {suggestion.fatGrams}g fat
+        {suggestion.calories} kcal · {suggestion.fatGrams}g fat · {suggestion.carbsGrams}g carbs ·{" "}
+        {suggestion.proteinGrams}g protein
       </p>
       <p className="mt-1 text-xs text-accent">{suggestion.reason}</p>
 
