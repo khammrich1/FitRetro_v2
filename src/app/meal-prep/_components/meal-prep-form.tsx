@@ -261,9 +261,9 @@ export function MealPrepForm() {
         {items.length > 0 && (
           <div className="grid grid-cols-4 gap-2 px-2 text-xs text-muted-foreground">
             <span>Calories</span>
-            <span>Protein (g)</span>
-            <span>Carbs (g)</span>
             <span>Fat (g)</span>
+            <span>Carbs (g)</span>
+            <span>Protein (g)</span>
           </div>
         )}
         {items.map((item, index) => (
@@ -301,9 +301,9 @@ export function MealPrepForm() {
                 type="number"
                 min={0}
                 step="any"
-                value={item.proteinGrams}
-                onChange={(event) => updateItem(index, "proteinGrams", event.target.value)}
-                placeholder="protein"
+                value={item.fatGrams}
+                onChange={(event) => updateItem(index, "fatGrams", event.target.value)}
+                placeholder="fat"
                 className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <input
@@ -319,9 +319,9 @@ export function MealPrepForm() {
                 type="number"
                 min={0}
                 step="any"
-                value={item.fatGrams}
-                onChange={(event) => updateItem(index, "fatGrams", event.target.value)}
-                placeholder="fat"
+                value={item.proteinGrams}
+                onChange={(event) => updateItem(index, "proteinGrams", event.target.value)}
+                placeholder="protein"
                 className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
@@ -339,8 +339,8 @@ export function MealPrepForm() {
       <div className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-sm">
         <span className="font-medium">Batch total</span>
         <span className="text-muted-foreground">
-          {Math.round(totals.calories)} kcal · {totals.proteinGrams.toFixed(1)}g protein ·{" "}
-          {totals.carbsGrams.toFixed(1)}g carbs · {totals.fatGrams.toFixed(1)}g fat
+          {Math.round(totals.calories)} kcal · {totals.fatGrams.toFixed(1)}g fat ·{" "}
+          {totals.carbsGrams.toFixed(1)}g carbs · {totals.proteinGrams.toFixed(1)}g protein
         </span>
       </div>
 
@@ -360,8 +360,8 @@ export function MealPrepForm() {
       <div className="flex items-center justify-between rounded-md border border-accent bg-card px-3 py-2 text-sm">
         <span className="font-medium text-accent">Per portion</span>
         <span className="text-muted-foreground">
-          {Math.round(perPortion.calories)} kcal · {perPortion.proteinGrams.toFixed(1)}g protein ·{" "}
-          {perPortion.carbsGrams.toFixed(1)}g carbs · {perPortion.fatGrams.toFixed(1)}g fat
+          {Math.round(perPortion.calories)} kcal · {perPortion.fatGrams.toFixed(1)}g fat ·{" "}
+          {perPortion.carbsGrams.toFixed(1)}g carbs · {perPortion.proteinGrams.toFixed(1)}g protein
         </span>
       </div>
 

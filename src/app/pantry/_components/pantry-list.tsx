@@ -74,9 +74,9 @@ function PantryListItem({ item }: { item: PantryItem }) {
         )}
         {hasMacros && (
           <span className="block text-xs text-accent">
-            {item.caloriesPerPortion} kcal · {(item.proteinGramsPerPortion ?? 0).toFixed(1)}g
-            protein · {(item.carbsGramsPerPortion ?? 0).toFixed(1)}g carbs ·{" "}
-            {(item.fatGramsPerPortion ?? 0).toFixed(1)}g fat / portion
+            {item.caloriesPerPortion} kcal · {(item.fatGramsPerPortion ?? 0).toFixed(1)}g fat ·{" "}
+            {(item.carbsGramsPerPortion ?? 0).toFixed(1)}g carbs ·{" "}
+            {(item.proteinGramsPerPortion ?? 0).toFixed(1)}g protein / portion
           </span>
         )}
       </span>

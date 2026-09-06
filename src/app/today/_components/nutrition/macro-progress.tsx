@@ -48,9 +48,9 @@ export function MacroProgress({
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Progress</h2>
       <ProgressBar label="Calories" consumed={consumed.calories} goal={goal.dailyCalories} />
-      <ProgressBar label="Protein" consumed={consumed.proteinGrams} goal={goal.dailyProteinGrams} />
-      <ProgressBar label="Carbs" consumed={consumed.carbsGrams} goal={goal.dailyCarbsGrams} />
       <ProgressBar label="Fat" consumed={consumed.fatGrams} goal={goal.dailyFatGrams} />
+      <ProgressBar label="Carbs" consumed={consumed.carbsGrams} goal={goal.dailyCarbsGrams} />
+      <ProgressBar label="Protein" consumed={consumed.proteinGrams} goal={goal.dailyProteinGrams} />
     </div>
   );
 }

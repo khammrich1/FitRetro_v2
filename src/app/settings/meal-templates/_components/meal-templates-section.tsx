@@ -84,8 +84,8 @@ function TemplateCard({
         ))}
       </ul>
       <p className="text-xs text-muted-foreground">
-        Total: {Math.round(totals.calories)} kcal · {totals.proteinGrams.toFixed(1)}g protein ·{" "}
-        {totals.carbsGrams.toFixed(1)}g carbs · {totals.fatGrams.toFixed(1)}g fat
+        Total: {Math.round(totals.calories)} kcal · {totals.fatGrams.toFixed(1)}g fat ·{" "}
+        {totals.carbsGrams.toFixed(1)}g carbs · {totals.proteinGrams.toFixed(1)}g protein
       </p>
     </div>
   );
