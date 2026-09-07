@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { verifySession } from "@/features/auth";
+import { getCurrentUser, verifySession } from "@/features/auth";
 import { getGoals } from "@/features/nutrition";
+import { parseMacroOrder } from "@/lib/macro-order";
 import { GoalsForm } from "./_components/goals-form";
+import { MacroOrderCard } from "./_components/macro-order-card";
 
 export default async function NutritionSettingsPage() {
   const { userId } = await verifySession();
-  const goal = await getGoals(userId);
+  const [goal, user] = await Promise.all([getGoals(userId), getCurrentUser()]);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10">
@@ -17,7 +19,8 @@ export default async function NutritionSettingsPage() {
         </Link>{" "}
         page.
       </p>
-      <GoalsForm goal={goal} />
+      <GoalsForm goal={goal} macroOrder={parseMacroOrder(user?.macroOrder)} />
+      <MacroOrderCard initialOrder={parseMacroOrder(user?.macroOrder)} />
     </div>
   );
 }

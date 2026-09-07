@@ -5,15 +5,18 @@ import Link from "next/link";
 import type { PantryItem } from "@/db/schema";
 import { logPantryItemAction } from "@/app/nutrition/actions";
 import { inferMealType, type MealPrefill } from "./meal-form";
+import { type MacroKey } from "@/lib/macro-order";
 
 function PreppedMealRow({
   item,
   dayIso,
   onAdjustAndLog,
+  macroOrder,
 }: {
   item: PantryItem;
   dayIso: string;
   onAdjustAndLog: (prefill: MealPrefill) => void;
+  macroOrder: MacroKey[];
 }) {
   const [logged, setLogged] = useState(false);
   const [logging, startLogging] = useTransition();
@@ -23,6 +26,11 @@ function PreppedMealRow({
   const proteinGrams = item.proteinGramsPerPortion ?? 0;
   const carbsGrams = item.carbsGramsPerPortion ?? 0;
   const fatGrams = item.fatGramsPerPortion ?? 0;
+  const gramsByKey: Record<MacroKey, number> = {
+    fat: fatGrams,
+    carbs: carbsGrams,
+    protein: proteinGrams,
+  };
 
   function handleLog() {
     setError(null);
@@ -68,8 +76,8 @@ function PreppedMealRow({
         )}
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        {calories} kcal · {fatGrams.toFixed(1)}g fat · {carbsGrams.toFixed(1)}g carbs ·{" "}
-        {proteinGrams.toFixed(1)}g protein
+        {calories} kcal ·{" "}
+        {macroOrder.map((key) => `${gramsByKey[key].toFixed(1)}g ${key}`).join(" · ")}
       </p>
 
       <div className="mt-2 flex flex-wrap gap-3 text-xs">
@@ -102,10 +110,12 @@ export function PreppedMealsPanel({
   dayIso,
   items,
   onAdjustAndLog,
+  macroOrder,
 }: {
   dayIso: string;
   items: PantryItem[];
   onAdjustAndLog: (prefill: MealPrefill) => void;
+  macroOrder: MacroKey[];
 }) {
   const prepped = items.filter(
     (item) =>
@@ -131,6 +141,7 @@ export function PreppedMealsPanel({
             item={item}
             dayIso={dayIso}
             onAdjustAndLog={onAdjustAndLog}
+            macroOrder={macroOrder}
           />
         ))}
       </ul>

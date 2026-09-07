@@ -13,6 +13,10 @@ export const users = pgTable("users", {
    * not used anywhere else. Neither field updates itself over time. */
   sex: sexEnum("sex"),
   age: integer("age"),
+  /** User's preferred display order for fat/carbs/protein (e.g. "fat,carbs,protein"), applied
+   * everywhere macros are shown. Null means "use the default nutrition-label order" — see
+   * @/lib/macro-order. Independent of nutritionGoals so it can be set before any goal exists. */
+  macroOrder: text("macro_order"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

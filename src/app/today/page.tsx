@@ -1,6 +1,7 @@
-import { verifySession } from "@/features/auth";
+import { verifySession, getCurrentUser } from "@/features/auth";
 import { toIsoDate, parseDayParam } from "@/lib/date";
 import { computeDailyScore } from "@/lib/daily-score";
+import { parseMacroOrder } from "@/lib/macro-order";
 import { DayNav } from "@/components/ui/day-nav";
 import { DailyScoreCard } from "./_components/daily-score-card";
 import {
@@ -72,6 +73,7 @@ export default async function TodayPage({
     waterOunces,
     dailyNote,
     pantryItems,
+    user,
   ] = await Promise.all([
     getGoals(userId),
     getEntriesForDay(userId, day),
@@ -90,8 +92,10 @@ export default async function TodayPage({
     getWaterIntakeForDay(userId, day),
     getDailyNoteForDay(userId, day),
     listPantryItems(userId),
+    getCurrentUser(),
   ]);
 
+  const macroOrder = parseMacroOrder(user?.macroOrder);
   const consumed = summarizeMacros(entries);
   const workoutList = workoutDetails.filter((detail) => detail !== null);
   const inProgressWorkouts = workoutList.filter((detail) => detail.workout.completedAt === null);
@@ -131,19 +135,24 @@ export default async function TodayPage({
 
       <section className="flex flex-col gap-4">
         <h2 className="retro-heading text-lg font-semibold text-primary">Nutrition</h2>
-        <MacroProgress consumed={consumed} goal={goal} />
+        <MacroProgress consumed={consumed} goal={goal} macroOrder={macroOrder} />
         <WaterTracker
           key={dayIso}
           dayIso={dayIso}
           initialOunces={waterOunces}
           goalOunces={goal?.dailyWaterOunces ?? 64}
         />
-        <MealLogging dayIso={dayIso} templates={mealTemplates} pantryItems={pantryItems}>
+        <MealLogging
+          dayIso={dayIso}
+          templates={mealTemplates}
+          pantryItems={pantryItems}
+          macroOrder={macroOrder}
+        >
           <div>
             <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-accent">
               Meals
             </h3>
-            <MealList entries={entries} />
+            <MealList entries={entries} macroOrder={macroOrder} />
           </div>
         </MealLogging>
       </section>

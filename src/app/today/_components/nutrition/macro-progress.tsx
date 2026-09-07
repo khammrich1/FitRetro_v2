@@ -1,3 +1,5 @@
+import { MACRO_LABELS, type MacroKey } from "@/lib/macro-order";
+
 function ProgressBar({ label, consumed, goal }: { label: string; consumed: number; goal: number }) {
   const isOver = consumed > goal;
   const percent = goal > 0 ? Math.min(100, Math.round((consumed / goal) * 100)) : 0;
@@ -27,6 +29,7 @@ function ProgressBar({ label, consumed, goal }: { label: string; consumed: numbe
 export function MacroProgress({
   consumed,
   goal,
+  macroOrder,
 }: {
   consumed: { calories: number; proteinGrams: number; carbsGrams: number; fatGrams: number };
   goal: {
@@ -35,6 +38,7 @@ export function MacroProgress({
     dailyCarbsGrams: number;
     dailyFatGrams: number;
   } | null;
+  macroOrder: MacroKey[];
 }) {
   if (!goal) {
     return (
@@ -44,13 +48,29 @@ export function MacroProgress({
     );
   }
 
+  const consumedByKey: Record<MacroKey, number> = {
+    fat: consumed.fatGrams,
+    carbs: consumed.carbsGrams,
+    protein: consumed.proteinGrams,
+  };
+  const goalByKey: Record<MacroKey, number> = {
+    fat: goal.dailyFatGrams,
+    carbs: goal.dailyCarbsGrams,
+    protein: goal.dailyProteinGrams,
+  };
+
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Progress</h2>
       <ProgressBar label="Calories" consumed={consumed.calories} goal={goal.dailyCalories} />
-      <ProgressBar label="Fat" consumed={consumed.fatGrams} goal={goal.dailyFatGrams} />
-      <ProgressBar label="Carbs" consumed={consumed.carbsGrams} goal={goal.dailyCarbsGrams} />
-      <ProgressBar label="Protein" consumed={consumed.proteinGrams} goal={goal.dailyProteinGrams} />
+      {macroOrder.map((key) => (
+        <ProgressBar
+          key={key}
+          label={MACRO_LABELS[key]}
+          consumed={consumedByKey[key]}
+          goal={goalByKey[key]}
+        />
+      ))}
     </div>
   );
 }

@@ -4,15 +4,18 @@ import { useState, useTransition } from "react";
 import type { MealTemplateWithItems } from "@/features/nutrition";
 import { logMealTemplateAction } from "@/app/nutrition/actions";
 import type { MealPrefill } from "./meal-form";
+import { GRAM_FIELD, type MacroKey } from "@/lib/macro-order";
 
 function TemplateRow({
   template,
   dayIso,
   onAdjustAndLog,
+  macroOrder,
 }: {
   template: MealTemplateWithItems;
   dayIso: string;
   onAdjustAndLog: (prefill: MealPrefill) => void;
+  macroOrder: MacroKey[];
 }) {
   const [logged, setLogged] = useState(false);
   const [logging, startLogging] = useTransition();
@@ -57,8 +60,8 @@ function TemplateRow({
         <span className="text-xs capitalize text-muted-foreground">{template.mealType}</span>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        {Math.round(totals.calories)} kcal · {totals.fatGrams.toFixed(1)}g fat ·{" "}
-        {totals.carbsGrams.toFixed(1)}g carbs · {totals.proteinGrams.toFixed(1)}g protein
+        {Math.round(totals.calories)} kcal ·{" "}
+        {macroOrder.map((key) => `${totals[GRAM_FIELD[key]].toFixed(1)}g ${key}`).join(" · ")}
       </p>
 
       <div className="mt-2 flex flex-wrap gap-3 text-xs">
@@ -91,10 +94,12 @@ export function MealTemplatesPanel({
   dayIso,
   templates,
   onAdjustAndLog,
+  macroOrder,
 }: {
   dayIso: string;
   templates: MealTemplateWithItems[];
   onAdjustAndLog: (prefill: MealPrefill) => void;
+  macroOrder: MacroKey[];
 }) {
   if (templates.length === 0) return null;
 
@@ -112,6 +117,7 @@ export function MealTemplatesPanel({
             template={template}
             dayIso={dayIso}
             onAdjustAndLog={onAdjustAndLog}
+            macroOrder={macroOrder}
           />
         ))}
       </ul>

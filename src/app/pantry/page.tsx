@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { verifySession } from "@/features/auth";
+import { verifySession, getCurrentUser } from "@/features/auth";
 import { listPantryItems } from "@/features/pantry";
+import { parseMacroOrder } from "@/lib/macro-order";
 import { PantryItemForm } from "./_components/pantry-item-form";
 import { PantryList } from "./_components/pantry-list";
 
 export default async function PantryPage() {
   const { userId } = await verifySession();
-  const items = await listPantryItems(userId);
+  const [items, user] = await Promise.all([listPantryItems(userId), getCurrentUser()]);
+  const macroOrder = parseMacroOrder(user?.macroOrder);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10">
@@ -22,7 +24,7 @@ export default async function PantryPage() {
 
       <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Your items</h2>
-        <PantryList items={items} />
+        <PantryList items={items} macroOrder={macroOrder} />
       </div>
 
       <PantryItemForm />

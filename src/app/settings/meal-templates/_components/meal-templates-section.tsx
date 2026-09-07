@@ -4,17 +4,20 @@ import { useState, useTransition } from "react";
 import { deleteMealTemplateAction, moveMealTemplateAction } from "@/app/nutrition/actions";
 import { MealTemplateForm } from "./meal-template-form";
 import type { MealTemplateWithItems } from "@/features/nutrition";
+import { GRAM_FIELD, type MacroKey } from "@/lib/macro-order";
 
 function TemplateCard({
   template,
   isFirst,
   isLast,
   onEdit,
+  macroOrder,
 }: {
   template: MealTemplateWithItems;
   isFirst: boolean;
   isLast: boolean;
   onEdit: () => void;
+  macroOrder: MacroKey[];
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -84,14 +87,20 @@ function TemplateCard({
         ))}
       </ul>
       <p className="text-xs text-muted-foreground">
-        Total: {Math.round(totals.calories)} kcal · {totals.fatGrams.toFixed(1)}g fat ·{" "}
-        {totals.carbsGrams.toFixed(1)}g carbs · {totals.proteinGrams.toFixed(1)}g protein
+        Total: {Math.round(totals.calories)} kcal ·{" "}
+        {macroOrder.map((key) => `${totals[GRAM_FIELD[key]].toFixed(1)}g ${key}`).join(" · ")}
       </p>
     </div>
   );
 }
 
-export function MealTemplatesSection({ templates }: { templates: MealTemplateWithItems[] }) {
+export function MealTemplatesSection({
+  templates,
+  macroOrder,
+}: {
+  templates: MealTemplateWithItems[];
+  macroOrder: MacroKey[];
+}) {
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
 
   return (
@@ -114,7 +123,9 @@ export function MealTemplatesSection({ templates }: { templates: MealTemplateWit
         logging them on Today is a single tap instead of estimating from scratch every time.
       </p>
 
-      {editingId === "new" && <MealTemplateForm onClose={() => setEditingId(null)} />}
+      {editingId === "new" && (
+        <MealTemplateForm onClose={() => setEditingId(null)} macroOrder={macroOrder} />
+      )}
 
       {templates.length === 0 && editingId !== "new" ? (
         <p className="text-sm text-muted-foreground">No meal templates yet.</p>
@@ -126,6 +137,7 @@ export function MealTemplatesSection({ templates }: { templates: MealTemplateWit
                 key={template.id}
                 template={template}
                 onClose={() => setEditingId(null)}
+                macroOrder={macroOrder}
               />
             ) : (
               <TemplateCard
@@ -134,6 +146,7 @@ export function MealTemplatesSection({ templates }: { templates: MealTemplateWit
                 isFirst={index === 0}
                 isLast={index === templates.length - 1}
                 onEdit={() => setEditingId(template.id)}
+                macroOrder={macroOrder}
               />
             ),
           )}

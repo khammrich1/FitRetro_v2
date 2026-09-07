@@ -11,6 +11,7 @@ import {
 } from "@/app/nutrition/actions";
 import { useSpeechToText } from "@/lib/hooks/use-speech-to-text";
 import { capitalize } from "@/lib/strings";
+import { MACRO_LABELS, GRAM_FIELD, type MacroKey } from "@/lib/macro-order";
 
 export type EditableItem = {
   name: string;
@@ -69,10 +70,12 @@ export function MealForm({
   dayIso,
   prefill,
   onPrefillConsumed,
+  macroOrder,
 }: {
   dayIso: string;
   prefill?: MealPrefill | null;
   onPrefillConsumed?: () => void;
+  macroOrder: MacroKey[];
 }) {
   const [state, action, pending] = useActionState(logMealAction, undefined);
   // `description` is the meal's label (required, stored, shown in the meal list). `estimatePrompt`
@@ -380,9 +383,9 @@ export function MealForm({
         {items.length > 0 && (
           <div className="grid grid-cols-4 gap-2 px-2 text-xs text-muted-foreground">
             <span>Calories</span>
-            <span>Fat (g)</span>
-            <span>Carbs (g)</span>
-            <span>Protein (g)</span>
+            {macroOrder.map((key) => (
+              <span key={key}>{MACRO_LABELS[key]} (g)</span>
+            ))}
           </div>
         )}
         {items.map((item, index) => (
@@ -416,33 +419,18 @@ export function MealForm({
                 placeholder="kcal"
                 className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
-              <input
-                type="number"
-                min={0}
-                step="any"
-                value={item.fatGrams}
-                onChange={(event) => updateItem(index, "fatGrams", event.target.value)}
-                placeholder="fat"
-                className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              <input
-                type="number"
-                min={0}
-                step="any"
-                value={item.carbsGrams}
-                onChange={(event) => updateItem(index, "carbsGrams", event.target.value)}
-                placeholder="carbs"
-                className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              <input
-                type="number"
-                min={0}
-                step="any"
-                value={item.proteinGrams}
-                onChange={(event) => updateItem(index, "proteinGrams", event.target.value)}
-                placeholder="protein"
-                className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
+              {macroOrder.map((key) => (
+                <input
+                  key={key}
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={item[GRAM_FIELD[key]]}
+                  onChange={(event) => updateItem(index, GRAM_FIELD[key], event.target.value)}
+                  placeholder={key}
+                  className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              ))}
             </div>
           </div>
         ))}
@@ -458,8 +446,8 @@ export function MealForm({
       <div className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-sm">
         <span className="font-medium">Total</span>
         <span className="text-muted-foreground">
-          {Math.round(totals.calories)} kcal · {totals.fatGrams.toFixed(1)}g fat ·{" "}
-          {totals.carbsGrams.toFixed(1)}g carbs · {totals.proteinGrams.toFixed(1)}g protein
+          {Math.round(totals.calories)} kcal ·{" "}
+          {macroOrder.map((key) => `${totals[GRAM_FIELD[key]].toFixed(1)}g ${key}`).join(" · ")}
         </span>
       </div>
       <p className="text-xs text-muted-foreground">

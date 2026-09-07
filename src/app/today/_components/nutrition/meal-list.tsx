@@ -6,8 +6,15 @@ import type { NutritionEntryWithItems } from "@/features/nutrition";
 import { updateMealAction, deleteMealAction } from "@/app/nutrition/actions";
 import { blankItem, type EditableItem } from "./meal-form";
 import { capitalize } from "@/lib/strings";
+import { MACRO_LABELS, GRAM_FIELD, type MacroKey } from "@/lib/macro-order";
 
-function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
+function MealListItem({
+  entry,
+  macroOrder,
+}: {
+  entry: NutritionEntryWithItems;
+  macroOrder: MacroKey[];
+}) {
   const [editing, setEditing] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [mealType, setMealType] = useState(entry.mealType);
@@ -28,6 +35,12 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
   const [carbsGrams, setCarbsGrams] = useState(String(entry.carbsGrams));
   const [fatGrams, setFatGrams] = useState(String(entry.fatGrams));
   const [pending, startTransition] = useTransition();
+
+  const manualValueByKey: Record<MacroKey, [string, (value: string) => void]> = {
+    fat: [fatGrams, setFatGrams],
+    carbs: [carbsGrams, setCarbsGrams],
+    protein: [proteinGrams, setProteinGrams],
+  };
 
   const itemTotals = items.reduce(
     (acc, item) => ({
@@ -106,9 +119,9 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
           <div className="flex flex-col gap-2">
             <div className="grid grid-cols-4 gap-2 px-2 text-xs text-muted-foreground">
               <span>Calories</span>
-              <span>Fat (g)</span>
-              <span>Carbs (g)</span>
-              <span>Protein (g)</span>
+              {macroOrder.map((key) => (
+                <span key={key}>{MACRO_LABELS[key]} (g)</span>
+              ))}
             </div>
             {items.map((item, index) => (
               <div
@@ -140,30 +153,17 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
                     onChange={(event) => updateItem(index, "calories", event.target.value)}
                     className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
-                  <input
-                    type="number"
-                    min={0}
-                    step="any"
-                    value={item.fatGrams}
-                    onChange={(event) => updateItem(index, "fatGrams", event.target.value)}
-                    className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    step="any"
-                    value={item.carbsGrams}
-                    onChange={(event) => updateItem(index, "carbsGrams", event.target.value)}
-                    className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    step="any"
-                    value={item.proteinGrams}
-                    onChange={(event) => updateItem(index, "proteinGrams", event.target.value)}
-                    className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
+                  {macroOrder.map((key) => (
+                    <input
+                      key={key}
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={item[GRAM_FIELD[key]]}
+                      onChange={(event) => updateItem(index, GRAM_FIELD[key], event.target.value)}
+                      className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  ))}
                 </div>
               </div>
             ))}
@@ -177,9 +177,10 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
             <div className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-sm">
               <span className="font-medium">Total</span>
               <span className="text-muted-foreground">
-                {Math.round(itemTotals.calories)} kcal · {itemTotals.fatGrams.toFixed(1)}g fat ·{" "}
-                {itemTotals.carbsGrams.toFixed(1)}g carbs · {itemTotals.proteinGrams.toFixed(1)}g
-                protein
+                {Math.round(itemTotals.calories)} kcal ·{" "}
+                {macroOrder
+                  .map((key) => `${itemTotals[GRAM_FIELD[key]].toFixed(1)}g ${key}`)
+                  .join(" · ")}
               </span>
             </div>
           </div>
@@ -193,33 +194,21 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
               placeholder="kcal"
               className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
-            <input
-              value={fatGrams}
-              onChange={(event) => setFatGrams(event.target.value)}
-              type="number"
-              min={0}
-              step="any"
-              placeholder="fat"
-              className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            <input
-              value={carbsGrams}
-              onChange={(event) => setCarbsGrams(event.target.value)}
-              type="number"
-              min={0}
-              step="any"
-              placeholder="carbs"
-              className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            <input
-              value={proteinGrams}
-              onChange={(event) => setProteinGrams(event.target.value)}
-              type="number"
-              min={0}
-              step="any"
-              placeholder="protein"
-              className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
+            {macroOrder.map((key) => {
+              const [value, setValue] = manualValueByKey[key];
+              return (
+                <input
+                  key={key}
+                  value={value}
+                  onChange={(event) => setValue(event.target.value)}
+                  type="number"
+                  min={0}
+                  step="any"
+                  placeholder={key}
+                  className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              );
+            })}
           </div>
         )}
         <div className="flex gap-3">
@@ -275,8 +264,8 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
         </div>
       </div>
       <div className="text-xs text-muted-foreground">
-        {entry.calories} kcal · {entry.fatGrams}g fat · {entry.carbsGrams}g carbs ·{" "}
-        {entry.proteinGrams}g protein
+        {entry.calories} kcal ·{" "}
+        {macroOrder.map((key) => `${entry[GRAM_FIELD[key]]}g ${key}`).join(" · ")}
       </div>
 
       {showDetails && entry.items.length > 0 && (
@@ -287,8 +276,8 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
                 {item.quantity} {item.name}
               </span>
               <span>
-                {item.calories} kcal · {item.fatGrams}g fat · {item.carbsGrams}g carbs ·{" "}
-                {item.proteinGrams}g protein
+                {item.calories} kcal ·{" "}
+                {macroOrder.map((key) => `${item[GRAM_FIELD[key]]}g ${key}`).join(" · ")}
               </span>
             </li>
           ))}
@@ -298,7 +287,13 @@ function MealListItem({ entry }: { entry: NutritionEntryWithItems }) {
   );
 }
 
-export function MealList({ entries }: { entries: NutritionEntryWithItems[] }) {
+export function MealList({
+  entries,
+  macroOrder,
+}: {
+  entries: NutritionEntryWithItems[];
+  macroOrder: MacroKey[];
+}) {
   if (entries.length === 0) {
     return <p className="text-sm text-muted-foreground">No meals logged yet for this day.</p>;
   }
@@ -306,7 +301,7 @@ export function MealList({ entries }: { entries: NutritionEntryWithItems[] }) {
   return (
     <ul className="flex flex-col gap-2">
       {entries.map((entry) => (
-        <MealListItem key={entry.id} entry={entry} />
+        <MealListItem key={entry.id} entry={entry} macroOrder={macroOrder} />
       ))}
     </ul>
   );
