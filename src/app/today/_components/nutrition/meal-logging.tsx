@@ -7,6 +7,7 @@ import { MealTemplatesPanel } from "./meal-templates-panel";
 import { PreppedMealsPanel } from "./prepped-meals-panel";
 import type { MealTemplateWithItems } from "@/features/nutrition";
 import type { PantryItem } from "@/db/schema";
+import type { MacroKey } from "@/lib/macro-order";
 
 /** Wraps everything in the Nutrition section that shares "prefill" state — a suggestion or
  * template's items staged into the log form for editing before submit. Suggestions render near
@@ -17,22 +18,39 @@ export function MealLogging({
   dayIso,
   templates,
   pantryItems,
+  macroOrder,
   children,
 }: {
   dayIso: string;
   templates: MealTemplateWithItems[];
   pantryItems: PantryItem[];
+  macroOrder: MacroKey[];
   children?: ReactNode;
 }) {
   const [prefill, setPrefill] = useState<MealPrefill | null>(null);
 
   return (
     <>
-      <SuggestionsPanel dayIso={dayIso} onAdjustAndLog={setPrefill} />
+      <SuggestionsPanel dayIso={dayIso} onAdjustAndLog={setPrefill} macroOrder={macroOrder} />
       {children}
-      <MealTemplatesPanel dayIso={dayIso} templates={templates} onAdjustAndLog={setPrefill} />
-      <PreppedMealsPanel dayIso={dayIso} items={pantryItems} onAdjustAndLog={setPrefill} />
-      <MealForm dayIso={dayIso} prefill={prefill} onPrefillConsumed={() => setPrefill(null)} />
+      <MealTemplatesPanel
+        dayIso={dayIso}
+        templates={templates}
+        onAdjustAndLog={setPrefill}
+        macroOrder={macroOrder}
+      />
+      <PreppedMealsPanel
+        dayIso={dayIso}
+        items={pantryItems}
+        onAdjustAndLog={setPrefill}
+        macroOrder={macroOrder}
+      />
+      <MealForm
+        dayIso={dayIso}
+        prefill={prefill}
+        onPrefillConsumed={() => setPrefill(null)}
+        macroOrder={macroOrder}
+      />
     </>
   );
 }

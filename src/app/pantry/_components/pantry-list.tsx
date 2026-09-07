@@ -3,8 +3,9 @@
 import { useState, useTransition } from "react";
 import type { PantryItem } from "@/db/schema";
 import { updatePantryItemAction, deletePantryItemAction } from "../actions";
+import { type MacroKey } from "@/lib/macro-order";
 
-function PantryListItem({ item }: { item: PantryItem }) {
+function PantryListItem({ item, macroOrder }: { item: PantryItem; macroOrder: MacroKey[] }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.name);
   const [quantity, setQuantity] = useState(item.quantity ?? "");
@@ -59,6 +60,11 @@ function PantryListItem({ item }: { item: PantryItem }) {
   }
 
   const hasMacros = item.caloriesPerPortion !== null;
+  const gramsByKey: Record<MacroKey, number> = {
+    fat: item.fatGramsPerPortion ?? 0,
+    carbs: item.carbsGramsPerPortion ?? 0,
+    protein: item.proteinGramsPerPortion ?? 0,
+  };
 
   return (
     <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md border border-border bg-background p-3 text-sm">
@@ -74,9 +80,8 @@ function PantryListItem({ item }: { item: PantryItem }) {
         )}
         {hasMacros && (
           <span className="block text-xs text-accent">
-            {item.caloriesPerPortion} kcal · {(item.fatGramsPerPortion ?? 0).toFixed(1)}g fat ·{" "}
-            {(item.carbsGramsPerPortion ?? 0).toFixed(1)}g carbs ·{" "}
-            {(item.proteinGramsPerPortion ?? 0).toFixed(1)}g protein / portion
+            {item.caloriesPerPortion} kcal ·{" "}
+            {macroOrder.map((key) => `${gramsByKey[key].toFixed(1)}g ${key}`).join(" · ")} / portion
           </span>
         )}
       </span>
@@ -100,7 +105,7 @@ function PantryListItem({ item }: { item: PantryItem }) {
   );
 }
 
-export function PantryList({ items }: { items: PantryItem[] }) {
+export function PantryList({ items, macroOrder }: { items: PantryItem[]; macroOrder: MacroKey[] }) {
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">Your pantry is empty — add items below.</p>;
   }
@@ -108,7 +113,7 @@ export function PantryList({ items }: { items: PantryItem[] }) {
   return (
     <ul className="flex flex-col gap-2">
       {items.map((item) => (
-        <PantryListItem key={item.id} item={item} />
+        <PantryListItem key={item.id} item={item} macroOrder={macroOrder} />
       ))}
     </ul>
   );

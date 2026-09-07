@@ -12,15 +12,18 @@ import {
   type RecipeState,
 } from "@/app/nutrition/actions";
 import { inferMealType, type MealPrefill } from "./meal-form";
+import { GRAM_FIELD, type MacroKey } from "@/lib/macro-order";
 
 function SuggestionCard({
   suggestion,
   dayIso,
   onAdjustAndLog,
+  macroOrder,
 }: {
   suggestion: FoodSuggestion;
   dayIso: string;
   onAdjustAndLog: (prefill: MealPrefill) => void;
+  macroOrder: MacroKey[];
 }) {
   const [logged, setLogged] = useState(false);
   const [logging, startLogging] = useTransition();
@@ -98,8 +101,8 @@ function SuggestionCard({
       <p className="font-medium">{suggestion.name}</p>
       <p className="text-muted-foreground">{suggestion.description}</p>
       <p className="mt-1 text-xs text-muted-foreground">
-        {suggestion.calories} kcal · {suggestion.fatGrams}g fat · {suggestion.carbsGrams}g carbs ·{" "}
-        {suggestion.proteinGrams}g protein
+        {suggestion.calories} kcal ·{" "}
+        {macroOrder.map((key) => `${suggestion[GRAM_FIELD[key]]}g ${key}`).join(" · ")}
       </p>
       <p className="mt-1 text-xs text-accent">{suggestion.reason}</p>
 
@@ -167,9 +170,11 @@ function SuggestionCard({
 export function SuggestionsPanel({
   dayIso,
   onAdjustAndLog,
+  macroOrder,
 }: {
   dayIso: string;
   onAdjustAndLog: (prefill: MealPrefill) => void;
+  macroOrder: MacroKey[];
 }) {
   const [state, setState] = useState<SuggestionsState>(undefined);
   const [preference, setPreference] = useState("");
@@ -225,6 +230,7 @@ export function SuggestionsPanel({
               suggestion={suggestion}
               dayIso={dayIso}
               onAdjustAndLog={onAdjustAndLog}
+              macroOrder={macroOrder}
             />
           ))}
         </ul>

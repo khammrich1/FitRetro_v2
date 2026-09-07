@@ -1,11 +1,16 @@
 import Link from "next/link";
-import { verifySession } from "@/features/auth";
+import { verifySession, getCurrentUser } from "@/features/auth";
 import { getMealTemplatesForUser } from "@/features/nutrition";
+import { parseMacroOrder } from "@/lib/macro-order";
 import { MealTemplatesSection } from "./_components/meal-templates-section";
 
 export default async function MealTemplatesSettingsPage() {
   const { userId } = await verifySession();
-  const mealTemplates = await getMealTemplatesForUser(userId);
+  const [mealTemplates, user] = await Promise.all([
+    getMealTemplatesForUser(userId),
+    getCurrentUser(),
+  ]);
+  const macroOrder = parseMacroOrder(user?.macroOrder);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10">
@@ -17,7 +22,7 @@ export default async function MealTemplatesSettingsPage() {
         </Link>{" "}
         page.
       </p>
-      <MealTemplatesSection templates={mealTemplates} />
+      <MealTemplatesSection templates={mealTemplates} macroOrder={macroOrder} />
     </div>
   );
 }

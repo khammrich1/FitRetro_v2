@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { verifySession } from "@/features/auth";
+import { verifySession, setUserMacroOrder } from "@/features/auth";
 import { checkAiUsageAllowed } from "@/features/ai-usage";
+import { MACRO_KEYS, macroOrderToString, type MacroKey } from "@/lib/macro-order";
 import {
   logNutritionEntry,
   updateNutritionEntry,
@@ -461,5 +462,28 @@ export async function logPantryItemAction(input: LogPantryItemInput): Promise<{ 
 
   revalidatePath("/today");
   revalidatePath("/pantry");
+  return {};
+}
+
+/** Persists the user's preferred fat/carbs/protein display order — applied everywhere macros are
+ * shown (see @/lib/macro-order). Validates the input is exactly those three keys, each once. */
+export async function setMacroOrderAction(order: MacroKey[]): Promise<{ error?: string }> {
+  const { userId } = await verifySession();
+
+  const isValid =
+    order.length === MACRO_KEYS.length &&
+    MACRO_KEYS.every((key) => order.includes(key)) &&
+    new Set(order).size === MACRO_KEYS.length;
+  if (!isValid) {
+    return { error: "Invalid macro order." };
+  }
+
+  await setUserMacroOrder(userId, macroOrderToString(order));
+
+  revalidatePath("/today");
+  revalidatePath("/pantry");
+  revalidatePath("/meal-prep");
+  revalidatePath("/settings/nutrition");
+  revalidatePath("/settings/meal-templates");
   return {};
 }

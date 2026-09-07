@@ -19,3 +19,7 @@ export async function createUser(input: NewUser) {
   const [user] = await db.insert(users).values(input).returning();
   return user;
 }
+
+export async function setUserMacroOrder(userId: string, macroOrder: string) {
+  await db.update(users).set({ macroOrder, updatedAt: new Date() }).where(eq(users.id, userId));
+}

@@ -1,8 +1,11 @@
-import { verifySession } from "@/features/auth";
+import { verifySession, getCurrentUser } from "@/features/auth";
+import { parseMacroOrder } from "@/lib/macro-order";
 import { MealPrepForm } from "./_components/meal-prep-form";
 
 export default async function MealPrepPage() {
   await verifySession();
+  const user = await getCurrentUser();
+  const macroOrder = parseMacroOrder(user?.macroOrder);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10">
@@ -12,7 +15,7 @@ export default async function MealPrepPage() {
         to your Pantry with its macros already calculated — then log it in one tap from the Prepped
         meals section on Today.
       </p>
-      <MealPrepForm />
+      <MealPrepForm macroOrder={macroOrder} />
     </div>
   );
 }

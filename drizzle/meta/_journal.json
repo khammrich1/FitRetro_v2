@@ -169,6 +169,13 @@
       "when": 1788468967188,
       "tag": "0023_lazy_roulette",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788743006736,
+      "tag": "0024_yummy_eternals",
+      "breakpoints": true
     }
   ]
 }

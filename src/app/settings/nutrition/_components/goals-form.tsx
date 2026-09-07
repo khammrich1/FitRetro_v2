@@ -3,9 +3,28 @@
 import { useActionState } from "react";
 import { setGoalsAction } from "@/app/nutrition/actions";
 import type { NutritionGoal } from "@/db/schema";
+import { MACRO_LABELS, type MacroKey } from "@/lib/macro-order";
 
-export function GoalsForm({ goal }: { goal: NutritionGoal | null }) {
+const FIELD_NAME: Record<MacroKey, string> = {
+  fat: "dailyFatGrams",
+  carbs: "dailyCarbsGrams",
+  protein: "dailyProteinGrams",
+};
+
+export function GoalsForm({
+  goal,
+  macroOrder,
+}: {
+  goal: NutritionGoal | null;
+  macroOrder: MacroKey[];
+}) {
   const [state, action, pending] = useActionState(setGoalsAction, undefined);
+
+  const defaultValue: Record<MacroKey, number | undefined> = {
+    fat: goal?.dailyFatGrams,
+    carbs: goal?.dailyCarbsGrams,
+    protein: goal?.dailyProteinGrams,
+  };
 
   return (
     <form
@@ -28,41 +47,19 @@ export function GoalsForm({ goal }: { goal: NutritionGoal | null }) {
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-sm">
-          Fat (g)
-          <input
-            name="dailyFatGrams"
-            type="number"
-            min={0}
-            step="any"
-            defaultValue={goal?.dailyFatGrams}
-            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm">
-          Carbs (g)
-          <input
-            name="dailyCarbsGrams"
-            type="number"
-            min={0}
-            step="any"
-            defaultValue={goal?.dailyCarbsGrams}
-            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm">
-          Protein (g)
-          <input
-            name="dailyProteinGrams"
-            type="number"
-            min={0}
-            step="any"
-            defaultValue={goal?.dailyProteinGrams}
-            className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </label>
+        {macroOrder.map((key) => (
+          <label key={key} className="flex flex-col gap-1 text-sm">
+            {MACRO_LABELS[key]} (g)
+            <input
+              name={FIELD_NAME[key]}
+              type="number"
+              min={0}
+              step="any"
+              defaultValue={defaultValue[key]}
+              className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </label>
+        ))}
 
         <label className="flex flex-col gap-1 text-sm">
           Water (oz)
