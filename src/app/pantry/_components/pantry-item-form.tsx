@@ -7,21 +7,40 @@ import {
   identifyPantryItemFromImageAction,
   type IdentifyPantryItemState,
 } from "../actions";
+import { MACRO_LABELS, GRAM_FIELD, type MacroKey } from "@/lib/macro-order";
 
-export function PantryItemForm() {
+export function PantryItemForm({ macroOrder }: { macroOrder: MacroKey[] }) {
   const [state, action, pending] = useActionState(addPantryItemAction, undefined);
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [trackUnits, setTrackUnits] = useState(false);
+  const [unitCount, setUnitCount] = useState("");
+  const [calories, setCalories] = useState("");
+  const [fatGrams, setFatGrams] = useState("");
+  const [carbsGrams, setCarbsGrams] = useState("");
+  const [proteinGrams, setProteinGrams] = useState("");
   const [identifyResult, setIdentifyResult] = useState<IdentifyPantryItemState>(undefined);
   const [identifying, startIdentifying] = useTransition();
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const gramValueByKey: Record<MacroKey, [string, (value: string) => void]> = {
+    fat: [fatGrams, setFatGrams],
+    carbs: [carbsGrams, setCarbsGrams],
+    protein: [proteinGrams, setProteinGrams],
+  };
 
   const wasPending = useRef(false);
   useEffect(() => {
     if (wasPending.current && !pending && !state?.errors) {
       setName("");
       setQuantity("");
+      setTrackUnits(false);
+      setUnitCount("");
+      setCalories("");
+      setFatGrams("");
+      setCarbsGrams("");
+      setProteinGrams("");
       setIdentifyResult(undefined);
       clearPhoto();
     }
@@ -123,6 +142,69 @@ export function PantryItemForm() {
           className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
       </label>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={trackUnits}
+          onChange={(event) => setTrackUnits(event.target.checked)}
+        />
+        Track individual units (e.g. a case of protein shakes) — quick-log one at a time from Today
+      </label>
+
+      {trackUnits && (
+        <div className="flex flex-col gap-2 rounded-md border border-border bg-background p-3">
+          <label className="flex flex-col gap-1 text-sm">
+            How many units
+            <input
+              name="unitCount"
+              type="number"
+              min={1}
+              value={unitCount}
+              onChange={(event) => setUnitCount(event.target.value)}
+              placeholder="12"
+              className="w-24 rounded-md border border-border bg-card px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            {state?.errors?.unitCount && (
+              <span className="text-danger">{state.errors.unitCount[0]}</span>
+            )}
+          </label>
+          <p className="text-xs text-muted-foreground">Macros for one unit (e.g. one shake):</p>
+          <div className="grid grid-cols-4 gap-2 px-2 text-xs text-muted-foreground">
+            <span>Calories</span>
+            {macroOrder.map((key) => (
+              <span key={key}>{MACRO_LABELS[key]} (g)</span>
+            ))}
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            <input
+              name="calories"
+              type="number"
+              min={0}
+              value={calories}
+              onChange={(event) => setCalories(event.target.value)}
+              placeholder="kcal"
+              className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            {macroOrder.map((key) => {
+              const [value, setValue] = gramValueByKey[key];
+              return (
+                <input
+                  key={key}
+                  name={GRAM_FIELD[key]}
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={value}
+                  onChange={(event) => setValue(event.target.value)}
+                  placeholder={key}
+                  className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <button
         disabled={pending}

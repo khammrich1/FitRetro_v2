@@ -19,7 +19,9 @@ export default async function PantryPage() {
         <Link href="/meal-prep" className="text-accent underline">
           Meal Prep
         </Link>{" "}
-        to add a portion here with its macros already calculated.
+        to add a portion here with its macros already calculated. Got a case of something instead
+        (protein shakes, bars)? Check &quot;Track individual units&quot; below to quick-log one at a
+        time from Today.
       </p>
 
       <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
@@ -27,7 +29,7 @@ export default async function PantryPage() {
         <PantryList items={items} macroOrder={macroOrder} />
       </div>
 
-      <PantryItemForm />
+      <PantryItemForm macroOrder={macroOrder} />
     </div>
   );
 }
