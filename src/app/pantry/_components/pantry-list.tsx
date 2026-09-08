@@ -73,7 +73,7 @@ function PantryListItem({ item, macroOrder }: { item: PantryItem; macroOrder: Ma
         {item.totalPortions !== null ? (
           <span className={item.portionsRemaining === 0 ? "text-danger" : "text-muted-foreground"}>
             {" "}
-            — {item.portionsRemaining} of {item.totalPortions} portions left
+            — {item.portionsRemaining} of {item.totalPortions} left
           </span>
         ) : (
           item.quantity && <span className="text-muted-foreground"> — {item.quantity}</span>
@@ -81,7 +81,7 @@ function PantryListItem({ item, macroOrder }: { item: PantryItem; macroOrder: Ma
         {hasMacros && (
           <span className="block text-xs text-accent">
             {item.caloriesPerPortion} kcal ·{" "}
-            {macroOrder.map((key) => `${gramsByKey[key].toFixed(1)}g ${key}`).join(" · ")} / portion
+            {macroOrder.map((key) => `${gramsByKey[key].toFixed(1)}g ${key}`).join(" · ")} / unit
           </span>
         )}
       </span>

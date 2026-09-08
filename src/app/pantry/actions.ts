@@ -91,12 +91,18 @@ export async function addMealPrepBatchAction(
   revalidatePath("/today");
 }
 
+function optionalString(value: unknown) {
+  return typeof value === "string" && value.trim() === "" ? undefined : value;
+}
+
 const pantryItemSchema = z.object({
   name: z.string().trim().min(1, "Name is required."),
-  quantity: z.preprocess(
-    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-    z.string().trim().optional(),
-  ),
+  quantity: z.preprocess(optionalString, z.string().trim().optional()),
+  unitCount: z.preprocess(optionalString, z.coerce.number().int().min(1).optional()),
+  calories: z.preprocess(optionalString, z.coerce.number().min(0).optional()),
+  proteinGrams: z.preprocess(optionalString, z.coerce.number().min(0).optional()),
+  carbsGrams: z.preprocess(optionalString, z.coerce.number().min(0).optional()),
+  fatGrams: z.preprocess(optionalString, z.coerce.number().min(0).optional()),
 });
 
 export type PantryItemState =
@@ -114,19 +120,36 @@ export async function addPantryItemAction(
   const validatedFields = pantryItemSchema.safeParse({
     name: formData.get("name"),
     quantity: formData.get("quantity"),
+    unitCount: formData.get("unitCount"),
+    calories: formData.get("calories"),
+    proteinGrams: formData.get("proteinGrams"),
+    carbsGrams: formData.get("carbsGrams"),
+    fatGrams: formData.get("fatGrams"),
   });
 
   if (!validatedFields.success) {
     return { errors: validatedFields.error.flatten().fieldErrors };
   }
 
+  const { name, quantity, unitCount, calories, proteinGrams, carbsGrams, fatGrams } =
+    validatedFields.data;
+
   await addPantryItem({
     userId,
-    name: validatedFields.data.name,
-    quantity: validatedFields.data.quantity ?? null,
+    name,
+    quantity: quantity ?? null,
+    ...(unitCount !== undefined && {
+      totalPortions: unitCount,
+      portionsRemaining: unitCount,
+      caloriesPerPortion: Math.round(calories ?? 0),
+      proteinGramsPerPortion: proteinGrams ?? 0,
+      carbsGramsPerPortion: carbsGrams ?? 0,
+      fatGramsPerPortion: fatGrams ?? 0,
+    }),
   });
 
   revalidatePath("/pantry");
+  revalidatePath("/today");
 }
 
 export async function updatePantryItemAction(id: string, formData: FormData): Promise<void> {

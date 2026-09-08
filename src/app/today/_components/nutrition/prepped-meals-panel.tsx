@@ -55,7 +55,7 @@ function PreppedMealRow({
       items: [
         {
           name: item.name,
-          quantity: "1 portion",
+          quantity: "1 unit",
           calories,
           proteinGrams,
           carbsGrams,
@@ -90,7 +90,7 @@ function PreppedMealRow({
             disabled={logging}
             className="text-muted-foreground hover:text-accent disabled:opacity-50"
           >
-            {logging ? "Logging..." : "Log 1 portion"}
+            {logging ? "Logging..." : "Log 1"}
           </button>
         )}
         <button
@@ -126,11 +126,16 @@ export function PreppedMealsPanel({
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Prepped meals</h2>
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Quick log</h2>
       <p className="text-xs text-muted-foreground">
-        Meal-prepped portions from your pantry, macros already known — one tap to log. Prep more at{" "}
+        Pantry items with known macros and a count — meal-prepped portions or individually tracked
+        units like a case of protein shakes — one tap to log. Prep a batch at{" "}
         <Link href="/meal-prep" className="text-accent underline">
           Meal Prep
+        </Link>
+        , or add a countable item directly from{" "}
+        <Link href="/pantry" className="text-accent underline">
+          Pantry
         </Link>
         .
       </p>
