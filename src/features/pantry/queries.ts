@@ -26,7 +26,16 @@ export async function getPantryItemById(id: string, userId: string) {
 export async function updatePantryItem(
   id: string,
   userId: string,
-  input: { name: string; quantity?: string | null },
+  input: {
+    name: string;
+    quantity?: string | null;
+    totalPortions?: number | null;
+    portionsRemaining?: number | null;
+    caloriesPerPortion?: number | null;
+    proteinGramsPerPortion?: number | null;
+    carbsGramsPerPortion?: number | null;
+    fatGramsPerPortion?: number | null;
+  },
 ) {
   const [item] = await db
     .update(pantryItems)

@@ -7,6 +7,12 @@ import {
   identifyPantryItemFromImageAction,
   type IdentifyPantryItemState,
 } from "../actions";
+import {
+  estimateMacrosAction,
+  estimateMacrosFromImageAction,
+  type EstimateMacrosState,
+} from "@/app/nutrition/actions";
+import { useSpeechToText } from "@/lib/hooks/use-speech-to-text";
 import { MACRO_LABELS, GRAM_FIELD, type MacroKey } from "@/lib/macro-order";
 
 export function PantryItemForm({ macroOrder }: { macroOrder: MacroKey[] }) {
@@ -23,6 +29,24 @@ export function PantryItemForm({ macroOrder }: { macroOrder: MacroKey[] }) {
   const [identifying, startIdentifying] = useTransition();
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // Separate from the item photo/scan above — this estimates the per-unit macros (e.g. "Oikos
+  // Triple Zero vanilla, single cup"), not the item's name/quantity.
+  const [estimatePrompt, setEstimatePrompt] = useState("");
+  const [estimatePhoto, setEstimatePhoto] = useState<File | null>(null);
+  const [estimatePhotoPreviewUrl, setEstimatePhotoPreviewUrl] = useState<string | null>(null);
+  const [estimateResult, setEstimateResult] = useState<EstimateMacrosState>(undefined);
+  const [estimating, startEstimating] = useTransition();
+  const estimatePhotoInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    isListening,
+    isSupported: micSupported,
+    toggleListening,
+    error: micError,
+  } = useSpeechToText((transcript) => {
+    setEstimatePrompt((current) => (current ? `${current} ${transcript}` : transcript));
+  });
 
   const gramValueByKey: Record<MacroKey, [string, (value: string) => void]> = {
     fat: [fatGrams, setFatGrams],
@@ -43,6 +67,9 @@ export function PantryItemForm({ macroOrder }: { macroOrder: MacroKey[] }) {
       setProteinGrams("");
       setIdentifyResult(undefined);
       clearPhoto();
+      setEstimatePrompt("");
+      setEstimateResult(undefined);
+      clearEstimatePhoto();
     }
     wasPending.current = pending;
   }, [pending, state]);
@@ -70,6 +97,66 @@ export function PantryItemForm({ macroOrder }: { macroOrder: MacroKey[] }) {
       if (result && "identification" in result) {
         setName(result.identification.name);
         setQuantity(result.identification.quantity ?? "");
+      }
+    });
+  }
+
+  function clearEstimatePhoto() {
+    setEstimatePhoto(null);
+    setEstimatePhotoPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
+    if (estimatePhotoInputRef.current) estimatePhotoInputRef.current.value = "";
+  }
+
+  function handleEstimatePhotoSelected(file: File | undefined) {
+    if (!file) return;
+    setEstimatePhoto(file);
+    setEstimatePhotoPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
+    });
+  }
+
+  function applyEstimate(
+    items: { calories: number; fatGrams: number; carbsGrams: number; proteinGrams: number }[],
+  ) {
+    const totals = items.reduce(
+      (acc, item) => ({
+        calories: acc.calories + item.calories,
+        fatGrams: acc.fatGrams + item.fatGrams,
+        carbsGrams: acc.carbsGrams + item.carbsGrams,
+        proteinGrams: acc.proteinGrams + item.proteinGrams,
+      }),
+      { calories: 0, fatGrams: 0, carbsGrams: 0, proteinGrams: 0 },
+    );
+    setCalories(String(Math.round(totals.calories)));
+    setFatGrams(totals.fatGrams.toFixed(1));
+    setCarbsGrams(totals.carbsGrams.toFixed(1));
+    setProteinGrams(totals.proteinGrams.toFixed(1));
+  }
+
+  function handleEstimate() {
+    startEstimating(async () => {
+      if (estimatePhoto) {
+        const formData = new FormData();
+        formData.append("image", estimatePhoto);
+        formData.append("note", estimatePrompt);
+        const result = await estimateMacrosFromImageAction(formData);
+        setEstimateResult(result);
+        if (result && "estimate" in result) {
+          if (!name.trim()) setName(estimatePrompt.trim() || result.estimate.items[0]?.name || "");
+          applyEstimate(result.estimate.items);
+        }
+        return;
+      }
+
+      const result = await estimateMacrosAction(estimatePrompt);
+      setEstimateResult(result);
+      if (result && "estimate" in result) {
+        if (!name.trim()) setName(estimatePrompt.trim());
+        applyEstimate(result.estimate.items);
       }
     });
   }
@@ -149,7 +236,8 @@ export function PantryItemForm({ macroOrder }: { macroOrder: MacroKey[] }) {
           checked={trackUnits}
           onChange={(event) => setTrackUnits(event.target.checked)}
         />
-        Track individual units (e.g. a case of protein shakes) — quick-log one at a time from Today
+        Track individual units (e.g. a case of protein shakes, Oikos yogurts) — quick-log one at a
+        time from Today
       </label>
 
       {trackUnits && (
@@ -169,7 +257,92 @@ export function PantryItemForm({ macroOrder }: { macroOrder: MacroKey[] }) {
               <span className="text-danger">{state.errors.unitCount[0]}</span>
             )}
           </label>
-          <p className="text-xs text-muted-foreground">Macros for one unit (e.g. one shake):</p>
+
+          <label className="flex flex-col gap-1 text-sm">
+            Macros for one unit
+            <p className="text-xs font-normal text-muted-foreground">
+              Describe it (e.g. &quot;Oikos Triple Zero vanilla, single cup&quot;) or snap a photo
+              of the nutrition label, then hit &quot;Estimate macros&quot; — or skip this and enter
+              the numbers yourself below.
+            </p>
+            <div className="flex gap-2">
+              <input
+                value={estimatePrompt}
+                onChange={(event) => setEstimatePrompt(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (!estimating && (estimatePrompt.trim() || estimatePhoto)) handleEstimate();
+                  }
+                }}
+                placeholder="Oikos Triple Zero vanilla, single cup"
+                className="flex-1 rounded-md border border-border bg-card px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              {micSupported && (
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  aria-pressed={isListening}
+                  title={isListening ? "Stop listening" : "Describe by voice"}
+                  className={`rounded-md border px-3 py-1 text-sm ${
+                    isListening
+                      ? "border-danger text-danger"
+                      : "border-border hover:border-accent hover:text-accent"
+                  }`}
+                >
+                  {isListening ? "● Listening" : "🎤"}
+                </button>
+              )}
+              <input
+                ref={estimatePhotoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={(event) => handleEstimatePhotoSelected(event.target.files?.[0])}
+              />
+              <button
+                type="button"
+                onClick={() => estimatePhotoInputRef.current?.click()}
+                title="Snap the nutrition label"
+                className="rounded-md border border-border px-3 py-1 text-sm hover:border-accent hover:text-accent"
+              >
+                📷
+              </button>
+            </div>
+            {micError && <span className="text-danger">{micError}</span>}
+          </label>
+
+          {estimatePhotoPreviewUrl && (
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={estimatePhotoPreviewUrl}
+                alt="Nutrition label"
+                className="h-16 w-16 rounded-md border border-border object-cover"
+              />
+              <button
+                type="button"
+                onClick={clearEstimatePhoto}
+                className="text-sm text-muted-foreground hover:text-danger"
+              >
+                Remove photo
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleEstimate}
+            disabled={estimating || (!estimatePrompt.trim() && !estimatePhoto)}
+            className="self-start rounded-full border border-border px-4 py-1.5 text-sm hover:border-accent hover:text-accent disabled:opacity-50"
+          >
+            {estimating ? "Estimating macros..." : "Estimate macros"}
+          </button>
+
+          {estimateResult && "error" in estimateResult && (
+            <p className="text-sm text-danger">{estimateResult.error}</p>
+          )}
+
           <div className="grid grid-cols-4 gap-2 px-2 text-xs text-muted-foreground">
             <span>Calories</span>
             {macroOrder.map((key) => (
