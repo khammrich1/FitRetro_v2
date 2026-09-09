@@ -152,22 +152,59 @@ export async function addPantryItemAction(
   revalidatePath("/today");
 }
 
+const editPantryItemSchema = z.object({
+  name: z.string().trim().min(1, "Name is required."),
+  quantity: z.preprocess(optionalString, z.string().trim().optional()),
+  totalPortions: z.preprocess(optionalString, z.coerce.number().int().min(1).optional()),
+  portionsRemaining: z.preprocess(optionalString, z.coerce.number().int().min(0).optional()),
+  calories: z.preprocess(optionalString, z.coerce.number().min(0).optional()),
+  proteinGrams: z.preprocess(optionalString, z.coerce.number().min(0).optional()),
+  carbsGrams: z.preprocess(optionalString, z.coerce.number().min(0).optional()),
+  fatGrams: z.preprocess(optionalString, z.coerce.number().min(0).optional()),
+});
+
 export async function updatePantryItemAction(id: string, formData: FormData): Promise<void> {
   const { userId } = await verifySession();
 
-  const validatedFields = pantryItemSchema.safeParse({
+  const validatedFields = editPantryItemSchema.safeParse({
     name: formData.get("name"),
     quantity: formData.get("quantity"),
+    totalPortions: formData.get("totalPortions"),
+    portionsRemaining: formData.get("portionsRemaining"),
+    calories: formData.get("calories"),
+    proteinGrams: formData.get("proteinGrams"),
+    carbsGrams: formData.get("carbsGrams"),
+    fatGrams: formData.get("fatGrams"),
   });
 
   if (!validatedFields.success) return;
 
+  const {
+    name,
+    quantity,
+    totalPortions,
+    portionsRemaining,
+    calories,
+    proteinGrams,
+    carbsGrams,
+    fatGrams,
+  } = validatedFields.data;
+
+  const tracked = formData.get("trackUnits") !== null;
+
   await updatePantryItem(id, userId, {
-    name: validatedFields.data.name,
-    quantity: validatedFields.data.quantity ?? null,
+    name,
+    quantity: quantity ?? null,
+    totalPortions: tracked ? (totalPortions ?? 1) : null,
+    portionsRemaining: tracked ? (portionsRemaining ?? totalPortions ?? 1) : null,
+    caloriesPerPortion: tracked ? Math.round(calories ?? 0) : null,
+    proteinGramsPerPortion: tracked ? (proteinGrams ?? 0) : null,
+    carbsGramsPerPortion: tracked ? (carbsGrams ?? 0) : null,
+    fatGramsPerPortion: tracked ? (fatGrams ?? 0) : null,
   });
 
   revalidatePath("/pantry");
+  revalidatePath("/today");
 }
 
 export async function deletePantryItemAction(id: string): Promise<void> {
