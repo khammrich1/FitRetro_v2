@@ -21,6 +21,7 @@ function PreppedMealRow({
   const [logged, setLogged] = useState(false);
   const [logging, startLogging] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [qtyInput, setQtyInput] = useState("1");
 
   const calories = item.caloriesPerPortion ?? 0;
   const proteinGrams = item.proteinGramsPerPortion ?? 0;
@@ -31,6 +32,8 @@ function PreppedMealRow({
     carbs: carbsGrams,
     protein: proteinGrams,
   };
+  const remaining = item.portionsRemaining ?? 1;
+  const quantity = Math.min(remaining, Math.max(1, Math.round(Number(qtyInput) || 1)));
 
   function handleLog() {
     setError(null);
@@ -40,6 +43,7 @@ function PreppedMealRow({
           pantryItemId: item.id,
           dayIso,
           mealType: inferMealType(),
+          quantity,
         });
         if (result.error) setError(result.error);
         else setLogged(true);
@@ -55,11 +59,11 @@ function PreppedMealRow({
       items: [
         {
           name: item.name,
-          quantity: "1 unit",
-          calories,
-          proteinGrams,
-          carbsGrams,
-          fatGrams,
+          quantity: quantity > 1 ? `${quantity} units` : "1 unit",
+          calories: calories * quantity,
+          proteinGrams: proteinGrams * quantity,
+          carbsGrams: carbsGrams * quantity,
+          fatGrams: fatGrams * quantity,
         },
       ],
     });
@@ -80,18 +84,30 @@ function PreppedMealRow({
         {macroOrder.map((key) => `${gramsByKey[key].toFixed(1)}g ${key}`).join(" · ")}
       </p>
 
-      <div className="mt-2 flex flex-wrap gap-3 text-xs">
+      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
         {logged ? (
           <span className="text-accent">Logged ✓</span>
         ) : (
-          <button
-            type="button"
-            onClick={handleLog}
-            disabled={logging}
-            className="text-muted-foreground hover:text-accent disabled:opacity-50"
-          >
-            {logging ? "Logging..." : "Log 1"}
-          </button>
+          <>
+            <input
+              type="number"
+              min={1}
+              max={remaining}
+              value={qtyInput}
+              onChange={(event) => setQtyInput(event.target.value)}
+              disabled={logging}
+              aria-label={`Quantity of ${item.name} to log`}
+              className="w-14 rounded-md border border-border bg-background px-2 py-1 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <button
+              type="button"
+              onClick={handleLog}
+              disabled={logging}
+              className="text-muted-foreground hover:text-accent disabled:opacity-50"
+            >
+              {logging ? "Logging..." : `Log ${quantity}`}
+            </button>
+          </>
         )}
         <button
           type="button"
