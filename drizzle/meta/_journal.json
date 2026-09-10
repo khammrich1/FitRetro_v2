@@ -176,6 +176,13 @@
       "when": 1788743006736,
       "tag": "0024_yummy_eternals",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1789065647249,
+      "tag": "0025_smart_spot",
+      "breakpoints": true
     }
   ]
 }
