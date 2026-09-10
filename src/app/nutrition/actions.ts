@@ -413,12 +413,18 @@ export async function logMealTemplateAction(
   return {};
 }
 
-export type LogPantryItemInput = { pantryItemId: string; dayIso: string; mealType: MealType };
+export type LogPantryItemInput = {
+  pantryItemId: string;
+  dayIso: string;
+  mealType: MealType;
+  quantity?: number;
+};
 
-/** Logs one portion of a meal-prepped pantry item using its stored per-portion macros — no
- * re-estimation needed, same idea as logMealTemplateAction. */
+/** Logs `quantity` portions (default 1) of a meal-prepped pantry item using its stored
+ * per-portion macros — no re-estimation needed, same idea as logMealTemplateAction. */
 export async function logPantryItemAction(input: LogPantryItemInput): Promise<{ error?: string }> {
   const { userId } = await verifySession();
+  const quantity = Math.max(1, Math.round(input.quantity ?? 1));
 
   const pantryItem = await getPantryItemById(input.pantryItemId, userId);
   if (!pantryItem || pantryItem.caloriesPerPortion === null) {
@@ -426,23 +432,32 @@ export async function logPantryItemAction(input: LogPantryItemInput): Promise<{ 
   }
 
   if (pantryItem.portionsRemaining !== null) {
-    const decremented = await decrementPantryItemPortion(input.pantryItemId, userId);
+    const decremented = await decrementPantryItemPortion(input.pantryItemId, userId, quantity);
     if (!decremented) {
-      return { error: "No portions left — prep another batch." };
+      return {
+        error:
+          pantryItem.portionsRemaining > 0
+            ? `Only ${pantryItem.portionsRemaining} left — lower the quantity.`
+            : "No portions left — prep another batch.",
+      };
     }
   }
 
-  const calories = pantryItem.caloriesPerPortion;
-  const proteinGrams = pantryItem.proteinGramsPerPortion ?? 0;
-  const carbsGrams = pantryItem.carbsGramsPerPortion ?? 0;
-  const fatGrams = pantryItem.fatGramsPerPortion ?? 0;
+  const calories = pantryItem.caloriesPerPortion * quantity;
+  const proteinGrams = (pantryItem.proteinGramsPerPortion ?? 0) * quantity;
+  const carbsGrams = (pantryItem.carbsGramsPerPortion ?? 0) * quantity;
+  const fatGrams = (pantryItem.fatGramsPerPortion ?? 0) * quantity;
+  const quantityLabel =
+    quantity > 1
+      ? `${quantity} x ${pantryItem.quantity ?? "1 unit"}`
+      : (pantryItem.quantity ?? "1 unit");
 
   await logNutritionEntry(
     {
       userId,
       loggedAt: combineDayWithCurrentTime(input.dayIso),
       mealType: input.mealType,
-      description: pantryItem.name,
+      description: quantity > 1 ? `${pantryItem.name} (x${quantity})` : pantryItem.name,
       calories,
       proteinGrams,
       carbsGrams,
@@ -451,7 +466,7 @@ export async function logPantryItemAction(input: LogPantryItemInput): Promise<{ 
     [
       {
         name: pantryItem.name,
-        quantity: pantryItem.quantity ?? "1 portion",
+        quantity: quantityLabel,
         calories,
         proteinGrams,
         carbsGrams,
