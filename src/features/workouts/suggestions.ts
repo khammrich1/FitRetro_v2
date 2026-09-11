@@ -27,6 +27,7 @@ export type ExerciseSuggestion = z.infer<typeof exerciseSuggestionsSchema>["sugg
 export async function suggestExercisesForMuscleGroups(
   muscleGroups: string[],
   notes?: string,
+  previousSuggestions?: string[],
 ): Promise<ExerciseSuggestion[]> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error(
@@ -36,6 +37,18 @@ export async function suggestExercisesForMuscleGroups(
 
   const client = new Anthropic();
 
+  const notesInstruction = notes?.trim()
+    ? ` The user said: "${notes.trim()}" — treat this as a direct instruction, not just a
+preference to weigh alongside the target: if they name a specific muscle group to focus on, favor
+that over the full target list rather than splitting suggestions evenly across every target
+muscle group; if they name exercises (or types of exercises) they've already done, do not suggest
+those or close variants of them; if they mention equipment constraints, respect them strictly.`
+    : "";
+
+  const avoidRepeatsInstruction = previousSuggestions?.length
+    ? ` Do not repeat any of these exercises already suggested in this session: ${previousSuggestions.join(", ")}. Pick different ones this time.`
+    : "";
+
   const response = await client.messages.parse({
     model: SUGGESTIONS_MODEL,
     max_tokens: 1024,
@@ -43,15 +56,12 @@ export async function suggestExercisesForMuscleGroups(
     messages: [
       {
         role: "user",
-        content: `Suggest 4-6 effective, realistic gym exercises for a workout targeting these
-muscle groups: ${muscleGroups.join(", ")}. Mix compound and isolation movements, suggest a
-reasonable sets x reps scheme for each, and give a short one-sentence reason for each pick tying
-it to the target muscle group(s). For each suggestion's muscleGroup field, pick the single closest
-match from: ${muscleGroupEnum.enumValues.join(", ")}.${
-          notes?.trim()
-            ? ` The user also said: "${notes.trim()}" — factor this in (equipment available, an exercise they want to avoid or include, etc.).`
-            : ""
-        }`,
+        content: `Suggest 4-6 effective, realistic gym exercises for a workout. Today's target
+muscle groups are: ${muscleGroups.join(", ")}.${notesInstruction}${avoidRepeatsInstruction} Mix
+compound and isolation movements, suggest a reasonable sets x reps scheme for each, and give a
+short one-sentence reason for each pick tying it to the target muscle group(s). For each
+suggestion's muscleGroup field, pick the single closest match from:
+${muscleGroupEnum.enumValues.join(", ")}.`,
       },
     ],
   });

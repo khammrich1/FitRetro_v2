@@ -269,6 +269,7 @@ export type SuggestionsState =
 export async function getExerciseSuggestionsAction(
   muscleGroups: string[],
   notes?: string,
+  previousSuggestions?: string[],
 ): Promise<SuggestionsState> {
   const { userId } = await verifySession();
 
@@ -282,7 +283,11 @@ export async function getExerciseSuggestionsAction(
   }
 
   try {
-    const suggestions = await suggestExercisesForMuscleGroups(muscleGroups, notes);
+    const suggestions = await suggestExercisesForMuscleGroups(
+      muscleGroups,
+      notes,
+      previousSuggestions,
+    );
     return { suggestions };
   } catch (error) {
     return {
