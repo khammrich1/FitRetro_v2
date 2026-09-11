@@ -4,6 +4,7 @@ import { getGoals } from "@/features/nutrition";
 import { parseMacroOrder } from "@/lib/macro-order";
 import { GoalsForm } from "./_components/goals-form";
 import { MacroOrderCard } from "./_components/macro-order-card";
+import { SuggestedGoalCard } from "./_components/suggested-goal-card";
 
 export default async function NutritionSettingsPage() {
   const { userId } = await verifySession();
@@ -20,6 +21,7 @@ export default async function NutritionSettingsPage() {
         page.
       </p>
       <GoalsForm goal={goal} macroOrder={parseMacroOrder(user?.macroOrder)} />
+      <SuggestedGoalCard />
       <MacroOrderCard initialOrder={parseMacroOrder(user?.macroOrder)} />
     </div>
   );

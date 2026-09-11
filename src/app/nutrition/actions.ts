@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { verifySession, setUserMacroOrder } from "@/features/auth";
+import { verifySession, setUserMacroOrder, setUserBodyStats } from "@/features/auth";
 import { checkAiUsageAllowed } from "@/features/ai-usage";
+import { recordMeasurement } from "@/features/measurements";
 import { MACRO_KEYS, macroOrderToString, type MacroKey } from "@/lib/macro-order";
+import { lbsToKg, feetInchesToCm } from "@/lib/units";
 import {
   logNutritionEntry,
   updateNutritionEntry,
@@ -20,6 +22,7 @@ import {
   moveMealTemplate,
   getMealTemplateWithItems,
   summarizeMacros,
+  calculateDefaultMacroGoals,
   SUPPORTED_IMAGE_MEDIA_TYPES,
   type SupportedImageMediaType,
   type FoodSuggestion,
@@ -500,5 +503,50 @@ export async function setMacroOrderAction(order: MacroKey[]): Promise<{ error?: 
   revalidatePath("/meal-prep");
   revalidatePath("/settings/nutrition");
   revalidatePath("/settings/meal-templates");
+  return {};
+}
+
+const suggestGoalsSchema = z.object({
+  sex: z.enum(["male", "female"], { message: "Select a sex." }),
+  age: z.coerce.number().int().positive("Enter a valid age."),
+  heightFeet: z.coerce.number().int().min(0, "Enter a valid height."),
+  heightInches: z.coerce.number().min(0).max(11.9, "Enter a valid height."),
+  weightLbs: z.coerce.number().positive("Enter a valid weight."),
+});
+
+export type SuggestGoalsState = { errors?: Record<string, string[]> } | undefined;
+
+/** Calculates a starting macro goal via Mifflin-St Jeor from body stats and applies it
+ * immediately, overwriting any existing daily targets — same one-shot convenience this used to
+ * be at signup, just moved to where the user actually fills it in. Also records a body
+ * measurement and saves sex/age on the user for reference. */
+export async function suggestGoalsFromBodyStatsAction(
+  _state: SuggestGoalsState,
+  formData: FormData,
+): Promise<SuggestGoalsState> {
+  const { userId } = await verifySession();
+
+  const validatedFields = suggestGoalsSchema.safeParse({
+    sex: formData.get("sex"),
+    age: formData.get("age"),
+    heightFeet: formData.get("heightFeet"),
+    heightInches: formData.get("heightInches"),
+    weightLbs: formData.get("weightLbs"),
+  });
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors };
+  }
+
+  const { sex, age, heightFeet, heightInches, weightLbs } = validatedFields.data;
+  const heightCm = feetInchesToCm(heightFeet, heightInches);
+  const weightKg = lbsToKg(weightLbs);
+
+  await setUserBodyStats(userId, { sex, age });
+  await recordMeasurement({ userId, recordedAt: new Date(), weightKg, heightCm });
+  const goals = calculateDefaultMacroGoals({ sex, age, heightCm, weightKg });
+  await upsertGoals({ userId, ...goals });
+
+  revalidatePath("/settings/nutrition");
+  revalidatePath("/today");
   return {};
 }

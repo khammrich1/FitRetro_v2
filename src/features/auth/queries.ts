@@ -23,3 +23,13 @@ export async function createUser(input: NewUser) {
 export async function setUserMacroOrder(userId: string, macroOrder: string) {
   await db.update(users).set({ macroOrder, updatedAt: new Date() }).where(eq(users.id, userId));
 }
+
+export async function setUserBodyStats(
+  userId: string,
+  input: { sex: "male" | "female"; age: number },
+) {
+  await db
+    .update(users)
+    .set({ ...input, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+}
