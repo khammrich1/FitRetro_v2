@@ -3,7 +3,6 @@ import { toIsoDate, parseDayParam } from "@/lib/date";
 import { computeDailyScore } from "@/lib/daily-score";
 import { parseMacroOrder } from "@/lib/macro-order";
 import { DayNav } from "@/components/ui/day-nav";
-import { DailyScoreCard } from "./_components/daily-score-card";
 import {
   getGoals,
   getEntriesForDay,
@@ -30,19 +29,10 @@ import {
 import { getWaterIntakeForDay } from "@/features/water";
 import { getDailyNoteForDay } from "@/features/daily-note";
 import { listPantryItems } from "@/features/pantry";
-import { MacroProgress } from "./_components/nutrition/macro-progress";
-import { MealList } from "./_components/nutrition/meal-list";
-import { MealLogging } from "./_components/nutrition/meal-logging";
-import { WaterTracker } from "./_components/nutrition/water-tracker";
-import { RoutineChecklistCard } from "./_components/routine/routine-checklist-card";
-import { DailyMissionCard } from "./_components/daily-mission-card";
-import { DailyNoteCard } from "./_components/daily-note-card";
-import { WorkoutList } from "./_components/workouts/workout-list";
-import { WorkoutLogging } from "./_components/workouts/workout-logging";
-import { SplitTargetCard } from "./_components/workouts/split-target-card";
-import { InProgressWorkoutCard } from "./_components/workouts/in-progress-workout-card";
-import { PeptideSection } from "./_components/peptides/peptide-section";
-import { SupplementSection } from "./_components/supplements/supplement-section";
+import { TodayTabs } from "./_components/today-tabs";
+import { NutritionTab } from "./_components/tabs/nutrition-tab";
+import { MoveTab } from "./_components/tabs/move-tab";
+import { RoutineTab } from "./_components/tabs/routine-tab";
 
 export default async function TodayPage({
   searchParams,
@@ -126,96 +116,50 @@ export default async function TodayPage({
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-6 py-10">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6 sm:px-6 sm:py-8">
       <h1 className="retro-heading text-2xl font-bold text-foreground">Today</h1>
 
       <DayNav dayIso={dayIso} todayIso={todayIso} />
 
-      <DailyScoreCard score={dailyScore} />
-
-      <section className="flex flex-col gap-4">
-        <h2 className="retro-heading text-lg font-semibold text-primary">Nutrition</h2>
-        <MacroProgress consumed={consumed} goal={goal} macroOrder={macroOrder} />
-        <WaterTracker
-          key={dayIso}
-          dayIso={dayIso}
-          initialOunces={waterOunces}
-          goalOunces={goal?.dailyWaterOunces ?? 64}
-        />
-        <MealLogging
-          dayIso={dayIso}
-          templates={mealTemplates}
-          pantryItems={pantryItems}
-          macroOrder={macroOrder}
-        >
-          <div>
-            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-accent">
-              Meals
-            </h3>
-            <MealList entries={entries} macroOrder={macroOrder} />
-          </div>
-        </MealLogging>
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="retro-heading text-lg font-semibold text-primary">Routine</h2>
-        {routines.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No routines yet — create one in Settings &gt; Routine templates.
-          </p>
-        ) : (
-          routines.map((routine) => (
-            <RoutineChecklistCard key={routine.id} routine={routine} dayIso={dayIso} />
-          ))
-        )}
-      </section>
-
-      <DailyMissionCard mission={mission} dayIso={dayIso} />
-
-      <DailyNoteCard dayIso={dayIso} note={dailyNote} />
-
-      <section className="flex flex-col gap-4">
-        <h2 className="retro-heading text-lg font-semibold text-primary">Workouts</h2>
-        <SplitTargetCard target={splitTarget} dayIso={dayIso} />
-        {inProgressWorkouts.length > 0 && (
-          <div className="flex flex-col gap-3">
-            {inProgressWorkouts.map((detail) => (
-              <InProgressWorkoutCard key={detail.workout.id} detail={detail} />
-            ))}
-          </div>
-        )}
-        <div>
-          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-accent">
-            Workouts logged
-          </h3>
-          <WorkoutList details={completedWorkouts} />
-        </div>
-        <WorkoutLogging
-          dayIso={dayIso}
-          targetMuscleGroups={targetMuscleGroups}
-          templates={templates}
-        />
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="retro-heading text-lg font-semibold text-primary">Peptides</h2>
-        <PeptideSection
-          dayIso={dayIso}
-          templates={peptideTemplates}
-          logs={peptideLogs}
-          mostRecentLogDates={mostRecentPeptideLogDatesByTemplateId}
-        />
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="retro-heading text-lg font-semibold text-primary">Supplements</h2>
-        <SupplementSection
-          dayIso={dayIso}
-          templates={supplementTemplates}
-          logs={supplementLogs}
-          mostRecentLogDates={mostRecentSupplementLogDatesByTemplateId}
-        />
-      </section>
+      <TodayTabs
+        nutrition={
+          <NutritionTab
+            score={dailyScore}
+            dayIso={dayIso}
+            consumed={consumed}
+            goal={goal}
+            macroOrder={macroOrder}
+            waterOunces={waterOunces}
+            mealTemplates={mealTemplates}
+            pantryItems={pantryItems}
+            entries={entries}
+          />
+        }
+        move={
+          <MoveTab
+            dayIso={dayIso}
+            splitTarget={splitTarget}
+            inProgressWorkouts={inProgressWorkouts}
+            completedWorkouts={completedWorkouts}
+            targetMuscleGroups={targetMuscleGroups}
+            templates={templates}
+          />
+        }
+        routine={
+          <RoutineTab
+            dayIso={dayIso}
+            routines={routines}
+            mission={mission}
+            note={dailyNote}
+            peptideTemplates={peptideTemplates}
+            peptideLogs={peptideLogs}
+            mostRecentPeptideLogDates={mostRecentPeptideLogDatesByTemplateId}
+            supplementTemplates={supplementTemplates}
+            supplementLogs={supplementLogs}
+            mostRecentSupplementLogDates={mostRecentSupplementLogDatesByTemplateId}
+          />
+        }
+      />
     </div>
   );
 }
