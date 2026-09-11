@@ -17,8 +17,14 @@ export function ExerciseSuggestions({
   const [pending, startTransition] = useTransition();
 
   function handleSuggest() {
+    const previousSuggestions =
+      state && "suggestions" in state ? state.suggestions.map((s) => s.name) : undefined;
     startTransition(async () => {
-      const result = await getExerciseSuggestionsAction(targetMuscleGroups, notes);
+      const result = await getExerciseSuggestionsAction(
+        targetMuscleGroups,
+        notes,
+        previousSuggestions,
+      );
       setState(result);
     });
   }
