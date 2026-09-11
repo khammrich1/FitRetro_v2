@@ -11,12 +11,17 @@ const FEATURES: Feature[] = [
   {
     title: "Workout tracking",
     description:
-      "Log exercises and sets, run a repeating split rotation, save templates, and get AI exercise suggestions for whatever muscle groups are up today.",
+      "Log exercises and sets, run a repeating split rotation, save templates, and get AI exercise suggestions tailored to whatever muscle groups are up today.",
   },
   {
     title: "Nutrition & macros",
     description:
-      "Snap a photo or describe a meal and let AI estimate the macros — or type them in yourself. Get food suggestions based on what's actually left of your daily targets.",
+      "Snap a photo or describe a meal and let AI estimate the macros — or type them in yourself. Arrange fat/carbs/protein in whatever order makes sense to you, and get food suggestions based on what's actually left of today's targets.",
+  },
+  {
+    title: "Pantry & quick log",
+    description:
+      "Keep a running pantry of go-to items — a case of protein shakes, this week's meal-prepped lunches — with their macros on file, so logging one (or several at once) is a single tap.",
   },
   {
     title: "Habits & routines",
