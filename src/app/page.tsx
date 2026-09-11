@@ -86,27 +86,6 @@ export default async function Home() {
           </div>
         ))}
       </section>
-
-      <section className="flex flex-col items-center gap-6 border-t border-border px-6 py-20">
-        <h2 className="retro-heading text-2xl font-bold text-foreground">Pricing</h2>
-        <div className="flex w-full max-w-xs flex-col items-center gap-4 rounded-lg border border-border bg-card p-8 text-center">
-          <p className="text-4xl font-bold text-primary">
-            $8<span className="text-base font-normal text-muted-foreground">/month</span>
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Everything above, unlimited logging, cancel anytime.
-          </p>
-          <p className="text-xs text-muted-foreground/70">
-            Free while billing finishes rolling out — no card required today.
-          </p>
-          <Link
-            href="/signup"
-            className="retro-glow w-full rounded-full bg-primary px-5 py-2 font-medium text-primary-foreground hover:bg-primary-hover"
-          >
-            Get started
-          </Link>
-        </div>
-      </section>
     </div>
   );
 }
