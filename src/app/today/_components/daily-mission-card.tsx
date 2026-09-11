@@ -69,28 +69,38 @@ function MissionFieldRow({
 }
 
 export function DailyMissionCard({ mission, dayIso }: { mission: MissionForDay; dayIso: string }) {
+  const [expanded, setExpanded] = useState(false);
   const completedCount = FIELDS.filter((f) => Boolean(mission[f.completedKey])).length;
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="retro-heading text-lg font-semibold text-primary">Today&apos;s mission</h2>
-        <span className="text-xs text-muted-foreground">{completedCount}/3</span>
-      </div>
-      <div className="flex flex-col gap-2 rounded-lg border-2 border-accent bg-card p-4">
-        {FIELDS.map((f) => (
-          // Keying on dayIso remounts the row on day navigation, so the text input
-          // re-initializes from the fresh mission instead of keeping stale local state
-          // from a previously viewed day (which would otherwise get saved onto the new day).
-          <MissionFieldRow
-            key={`${dayIso}-${f.index}`}
-            fieldIndex={f.index}
-            text={String(mission[f.textKey] ?? "")}
-            completed={Boolean(mission[f.completedKey])}
-            dayIso={dayIso}
-          />
-        ))}
-      </div>
+    <section className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => setExpanded((current) => !current)}
+        aria-expanded={expanded}
+        className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2 text-sm hover:border-accent"
+      >
+        <span className="font-medium text-foreground">Today&apos;s mission</span>
+        <span className="text-xs text-muted-foreground">
+          {completedCount}/3 {expanded ? "▲" : "▼"}
+        </span>
+      </button>
+      {expanded && (
+        <div className="flex flex-col gap-2 rounded-lg border-2 border-accent bg-card p-4">
+          {FIELDS.map((f) => (
+            // Keying on dayIso remounts the row on day navigation, so the text input
+            // re-initializes from the fresh mission instead of keeping stale local state
+            // from a previously viewed day (which would otherwise get saved onto the new day).
+            <MissionFieldRow
+              key={`${dayIso}-${f.index}`}
+              fieldIndex={f.index}
+              text={String(mission[f.textKey] ?? "")}
+              completed={Boolean(mission[f.completedKey])}
+              dayIso={dayIso}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 }

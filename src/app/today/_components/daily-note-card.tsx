@@ -100,12 +100,31 @@ function NoteEditor({ dayIso, initialNote }: { dayIso: string; initialNote: stri
 }
 
 export function DailyNoteCard({ dayIso, note }: { dayIso: string; note: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const trimmed = note.trim();
+  const preview = trimmed
+    ? trimmed.length > 40
+      ? `${trimmed.slice(0, 40)}…`
+      : trimmed
+    : "No note yet";
+
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="retro-heading text-lg font-semibold text-primary">Daily note</h2>
+    <section className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => setExpanded((current) => !current)}
+        aria-expanded={expanded}
+        className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm hover:border-accent"
+      >
+        <span className="min-w-0 flex-1 truncate text-left">
+          <span className="font-medium text-foreground">Daily note</span>{" "}
+          <span className="text-muted-foreground">— {preview}</span>
+        </span>
+        <span className="shrink-0 text-xs text-muted-foreground">{expanded ? "▲" : "▼"}</span>
+      </button>
       {/* Keying on dayIso remounts on day navigation, same fix as the mission card — otherwise
           local textarea state would keep showing a previously-viewed day's note. */}
-      <NoteEditor key={dayIso} dayIso={dayIso} initialNote={note} />
+      {expanded && <NoteEditor key={dayIso} dayIso={dayIso} initialNote={note} />}
     </section>
   );
 }

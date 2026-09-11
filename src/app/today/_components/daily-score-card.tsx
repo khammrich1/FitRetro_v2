@@ -14,7 +14,7 @@ export function DailyScoreCard({ score }: { score: DailyScore }) {
   const loggedRows = score.breakdown.filter((row) => row.count > 0);
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
+    <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-3">
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">
           Today&apos;s Score
