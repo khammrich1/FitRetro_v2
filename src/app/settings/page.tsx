@@ -31,6 +31,11 @@ const SETTINGS_SECTIONS = [
     title: "Supplements",
     description: "Supplements you take, their dose, and frequency.",
   },
+  {
+    href: "/settings/daily-reading",
+    title: "Daily Reader",
+    description: "Topics for a short daily read, shown on Today's Routine tab.",
+  },
 ];
 
 export default function SettingsPage() {
