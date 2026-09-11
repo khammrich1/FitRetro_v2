@@ -1,4 +1,4 @@
-import type { PeptideTemplate, SupplementTemplate } from "@/db/schema";
+import type { DailyReading, PeptideTemplate, SupplementTemplate } from "@/db/schema";
 import type { RoutineWithItems } from "@/features/routines";
 import type { MissionForDay } from "@/features/daily-mission";
 import type { PeptideLogWithTemplate } from "@/features/peptides";
@@ -6,6 +6,7 @@ import type { SupplementLogWithTemplate } from "@/features/supplements";
 import { RoutineChecklistCard } from "../routine/routine-checklist-card";
 import { DailyMissionCard } from "../daily-mission-card";
 import { DailyNoteCard } from "../daily-note-card";
+import { DailyReadingCard } from "../daily-reading-card";
 import { PeptideSection } from "../peptides/peptide-section";
 import { SupplementSection } from "../supplements/supplement-section";
 
@@ -14,6 +15,7 @@ export function RoutineTab({
   routines,
   mission,
   note,
+  readings,
   peptideTemplates,
   peptideLogs,
   mostRecentPeptideLogDates,
@@ -25,6 +27,7 @@ export function RoutineTab({
   routines: RoutineWithItems[];
   mission: MissionForDay;
   note: string;
+  readings: DailyReading[];
   peptideTemplates: PeptideTemplate[];
   peptideLogs: PeptideLogWithTemplate[];
   mostRecentPeptideLogDates: Record<string, string>;
@@ -46,6 +49,7 @@ export function RoutineTab({
 
       <DailyMissionCard mission={mission} dayIso={dayIso} />
       <DailyNoteCard dayIso={dayIso} note={note} />
+      <DailyReadingCard readings={readings} />
 
       {hasDoses && (
         <section className="flex flex-col gap-3">

@@ -2,6 +2,8 @@ import { verifySession, getCurrentUser } from "@/features/auth";
 import { toIsoDate, parseDayParam } from "@/lib/date";
 import { computeDailyScore } from "@/lib/daily-score";
 import { parseMacroOrder } from "@/lib/macro-order";
+import { parseReadingTopics } from "@/lib/reading-topics";
+import { getReadingsForDay, ensureTodaysReadings } from "@/features/daily-reading";
 import { DayNav } from "@/components/ui/day-nav";
 import {
   getGoals,
@@ -45,6 +47,13 @@ export default async function TodayPage({
   const dayIso = toIsoDate(day);
   const todayIso = toIsoDate(new Date());
 
+  const user = await getCurrentUser();
+  const readingTopics = parseReadingTopics(user?.readingTopics);
+  // Only ever generate for the actual current day, never a past/future day reached via DayNav.
+  if (dayIso === todayIso) {
+    await ensureTodaysReadings(readingTopics);
+  }
+
   const [
     goal,
     entries,
@@ -63,7 +72,7 @@ export default async function TodayPage({
     waterOunces,
     dailyNote,
     pantryItems,
-    user,
+    readings,
   ] = await Promise.all([
     getGoals(userId),
     getEntriesForDay(userId, day),
@@ -82,7 +91,7 @@ export default async function TodayPage({
     getWaterIntakeForDay(userId, day),
     getDailyNoteForDay(userId, day),
     listPantryItems(userId),
-    getCurrentUser(),
+    getReadingsForDay(day, readingTopics),
   ]);
 
   const macroOrder = parseMacroOrder(user?.macroOrder);
@@ -151,6 +160,7 @@ export default async function TodayPage({
             routines={routines}
             mission={mission}
             note={dailyNote}
+            readings={readings}
             peptideTemplates={peptideTemplates}
             peptideLogs={peptideLogs}
             mostRecentPeptideLogDates={mostRecentPeptideLogDatesByTemplateId}
