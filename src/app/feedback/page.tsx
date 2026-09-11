@@ -1,6 +1,7 @@
 import { verifySession } from "@/features/auth";
 import { getFeedbackForUser } from "@/features/feedback";
 import { FeedbackForm } from "./_components/feedback-form";
+import { CHANGELOG_ENTRIES, formatChangelogDate } from "./changelog-entries";
 
 const CATEGORY_LABELS: Record<string, string> = {
   bug: "Bug report",
@@ -21,6 +22,32 @@ export default async function FeedbackPage() {
       </p>
 
       <FeedbackForm />
+
+      {CHANGELOG_ENTRIES.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">
+            What&apos;s new
+          </h2>
+          <ul className="flex flex-col gap-2">
+            {CHANGELOG_ENTRIES.map((entry) => (
+              <li
+                key={entry.date + entry.title}
+                className="flex flex-col gap-1 rounded-md border border-border bg-background p-3 text-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <span className="font-medium">{entry.title}</span>
+                  <span className="whitespace-nowrap text-xs text-muted-foreground">
+                    {formatChangelogDate(entry.date)}
+                  </span>
+                </div>
+                {entry.description && (
+                  <p className="text-xs text-muted-foreground">{entry.description}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {submissions.length > 0 && (
         <div className="flex flex-col gap-2">
