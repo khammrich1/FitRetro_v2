@@ -28,3 +28,21 @@ export function parseReadingTopics(value: string | null | undefined): ReadingTop
 export function readingTopicsToString(topics: ReadingTopicKey[]): string {
   return topics.join(",");
 }
+
+/** Deterministically picks exactly one of `subscribedTopics` for `dayIso` — stateless, so it's
+ * recomputed fresh from whatever the user is *currently* subscribed to rather than referencing
+ * anything stored. That's what makes deselecting a topic safe: it's simply removed from this
+ * list from that point on, so it can never come up again — no stale "day N was assigned to X"
+ * record to go wrong, and no day is ever skipped. Null when there's nothing subscribed. */
+export function pickTodaysTopic(
+  subscribedTopics: ReadingTopicKey[],
+  dayIso: string,
+): ReadingTopicKey | null {
+  if (subscribedTopics.length === 0) return null;
+  const [year, month, day] = dayIso.split("-").map(Number);
+  const daysSinceEpoch = Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
+  const index =
+    ((daysSinceEpoch % subscribedTopics.length) + subscribedTopics.length) %
+    subscribedTopics.length;
+  return subscribedTopics[index];
+}
