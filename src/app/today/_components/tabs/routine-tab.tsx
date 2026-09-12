@@ -15,7 +15,7 @@ export function RoutineTab({
   routines,
   mission,
   note,
-  readings,
+  reading,
   peptideTemplates,
   peptideLogs,
   mostRecentPeptideLogDates,
@@ -27,7 +27,7 @@ export function RoutineTab({
   routines: RoutineWithItems[];
   mission: MissionForDay;
   note: string;
-  readings: DailyReading[];
+  reading: DailyReading | null;
   peptideTemplates: PeptideTemplate[];
   peptideLogs: PeptideLogWithTemplate[];
   mostRecentPeptideLogDates: Record<string, string>;
@@ -49,7 +49,7 @@ export function RoutineTab({
 
       <DailyMissionCard mission={mission} dayIso={dayIso} />
       <DailyNoteCard dayIso={dayIso} note={note} />
-      <DailyReadingCard readings={readings} />
+      <DailyReadingCard reading={reading} />
 
       {hasDoses && (
         <section className="flex flex-col gap-3">

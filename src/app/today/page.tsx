@@ -1,9 +1,10 @@
+import { after } from "next/server";
 import { verifySession, getCurrentUser } from "@/features/auth";
 import { toIsoDate, parseDayParam } from "@/lib/date";
 import { computeDailyScore } from "@/lib/daily-score";
 import { parseMacroOrder } from "@/lib/macro-order";
-import { parseReadingTopics } from "@/lib/reading-topics";
-import { getReadingsForDay, ensureTodaysReadings } from "@/features/daily-reading";
+import { parseReadingTopics, pickTodaysTopic } from "@/lib/reading-topics";
+import { getReadingForDayAndTopic, generateAndCacheReading } from "@/features/daily-reading";
 import { DayNav } from "@/components/ui/day-nav";
 import {
   getGoals,
@@ -49,10 +50,7 @@ export default async function TodayPage({
 
   const user = await getCurrentUser();
   const readingTopics = parseReadingTopics(user?.readingTopics);
-  // Only ever generate for the actual current day, never a past/future day reached via DayNav.
-  if (dayIso === todayIso) {
-    await ensureTodaysReadings(readingTopics);
-  }
+  const todaysTopic = pickTodaysTopic(readingTopics, dayIso);
 
   const [
     goal,
@@ -72,7 +70,7 @@ export default async function TodayPage({
     waterOunces,
     dailyNote,
     pantryItems,
-    readings,
+    reading,
   ] = await Promise.all([
     getGoals(userId),
     getEntriesForDay(userId, day),
@@ -91,8 +89,15 @@ export default async function TodayPage({
     getWaterIntakeForDay(userId, day),
     getDailyNoteForDay(userId, day),
     listPantryItems(userId),
-    getReadingsForDay(day, readingTopics),
+    getReadingForDayAndTopic(dayIso, todaysTopic),
   ]);
+
+  // Only the actual current day ever generates — a cache miss on a past/future day reached via
+  // DayNav just means nothing to show, never a retroactive generation. Scheduled via after() so
+  // a miss never blocks this response; whoever hits /today next that day sees the cached result.
+  if (dayIso === todayIso && todaysTopic && !reading) {
+    after(() => generateAndCacheReading(dayIso, todaysTopic));
+  }
 
   const macroOrder = parseMacroOrder(user?.macroOrder);
   const consumed = summarizeMacros(entries);
@@ -160,7 +165,7 @@ export default async function TodayPage({
             routines={routines}
             mission={mission}
             note={dailyNote}
-            readings={readings}
+            reading={reading}
             peptideTemplates={peptideTemplates}
             peptideLogs={peptideLogs}
             mostRecentPeptideLogDates={mostRecentPeptideLogDatesByTemplateId}

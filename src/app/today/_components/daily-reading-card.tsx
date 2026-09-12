@@ -4,12 +4,15 @@ import { useState } from "react";
 import type { DailyReading } from "@/db/schema";
 import { READING_TOPIC_LABELS } from "@/lib/reading-topics";
 
-function ReadingChip({ reading }: { reading: DailyReading }) {
+export function DailyReadingCard({ reading }: { reading: DailyReading | null }) {
   const [expanded, setExpanded] = useState(false);
+  if (!reading) return null;
+
   const paragraphs = reading.body.split(/\n+/).filter((paragraph) => paragraph.trim() !== "");
 
   return (
-    <li>
+    <section className="flex flex-col gap-2">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Daily Reader</h2>
       <button
         type="button"
         onClick={() => setExpanded((current) => !current)}
@@ -25,27 +28,12 @@ function ReadingChip({ reading }: { reading: DailyReading }) {
         <span className="shrink-0 text-xs text-muted-foreground">{expanded ? "▲" : "▼"}</span>
       </button>
       {expanded && (
-        <div className="mt-2 flex flex-col gap-3 rounded-lg border-2 border-accent bg-card p-4 text-sm leading-6">
+        <div className="flex flex-col gap-3 rounded-lg border-2 border-accent bg-card p-4 text-sm leading-6">
           {paragraphs.map((paragraph, index) => (
             <p key={index}>{paragraph}</p>
           ))}
         </div>
       )}
-    </li>
-  );
-}
-
-export function DailyReadingCard({ readings }: { readings: DailyReading[] }) {
-  if (readings.length === 0) return null;
-
-  return (
-    <section className="flex flex-col gap-2">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Daily Reader</h2>
-      <ul className="flex flex-col gap-2">
-        {readings.map((reading) => (
-          <ReadingChip key={reading.id} reading={reading} />
-        ))}
-      </ul>
     </section>
   );
 }
