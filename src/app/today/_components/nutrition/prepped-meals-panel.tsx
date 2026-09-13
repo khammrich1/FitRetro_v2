@@ -157,8 +157,11 @@ export function PreppedMealsPanel({
       </p>
       <ul className="flex flex-col gap-2">
         {prepped.map((item) => (
+          // Keying on dayIso remounts the row on day navigation, so "Logged" resets instead of
+          // carrying over from whatever day it was last logged on (same fix as WaterTracker/
+          // NoteEditor elsewhere on this page).
           <PreppedMealRow
-            key={item.id}
+            key={`${item.id}-${dayIso}`}
             item={item}
             dayIso={dayIso}
             onAdjustAndLog={onAdjustAndLog}
