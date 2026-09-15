@@ -32,6 +32,7 @@ import {
 import { getWaterIntakeForDay } from "@/features/water";
 import { getDailyNoteForDay } from "@/features/daily-note";
 import { listPantryItems } from "@/features/pantry";
+import { DailyScoreCard } from "./_components/daily-score-card";
 import { TodayTabs } from "./_components/today-tabs";
 import { NutritionTab } from "./_components/tabs/nutrition-tab";
 import { MoveTab } from "./_components/tabs/move-tab";
@@ -135,10 +136,11 @@ export default async function TodayPage({
 
       <DayNav dayIso={dayIso} todayIso={todayIso} />
 
+      <DailyScoreCard score={dailyScore} />
+
       <TodayTabs
         nutrition={
           <NutritionTab
-            score={dailyScore}
             dayIso={dayIso}
             consumed={consumed}
             goal={goal}
