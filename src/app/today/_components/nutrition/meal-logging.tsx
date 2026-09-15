@@ -39,16 +39,16 @@ export function MealLogging({
         onAdjustAndLog={setPrefill}
         macroOrder={macroOrder}
       />
-      <PreppedMealsPanel
-        dayIso={dayIso}
-        items={pantryItems}
-        onAdjustAndLog={setPrefill}
-        macroOrder={macroOrder}
-      />
       <MealForm
         dayIso={dayIso}
         prefill={prefill}
         onPrefillConsumed={() => setPrefill(null)}
+        macroOrder={macroOrder}
+      />
+      <PreppedMealsPanel
+        dayIso={dayIso}
+        items={pantryItems}
+        onAdjustAndLog={setPrefill}
         macroOrder={macroOrder}
       />
     </>
