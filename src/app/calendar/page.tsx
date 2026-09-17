@@ -53,7 +53,10 @@ export default async function CalendarPage({
         <Link href="/today" className="text-accent underline">
           Today
         </Link>
-        .
+        . The small numbers below each total are that day&apos;s{" "}
+        <span className="text-yellow-400">Nutrition</span>,{" "}
+        <span className="text-green-400">Move</span>, and{" "}
+        <span className="text-purple-400">Routine</span> scores.
       </p>
 
       <MonthNav
@@ -77,17 +80,31 @@ export default async function CalendarPage({
         {days.map((day, i) => {
           const dayIso = toIsoDate(day);
           const isToday = dayIso === todayIso;
+          const { byTab } = scores[i];
           return (
             <Link
               key={dayIso}
               href={`/today?date=${dayIso}`}
               className={
-                "flex flex-col items-center gap-1 rounded-md border p-2 text-sm hover:border-accent " +
+                "flex flex-col items-center gap-0.5 rounded-md border p-2 text-sm hover:border-accent " +
                 (isToday ? "border-2 border-accent" : "border-border")
               }
             >
               <span className="text-muted-foreground">{i + 1}</span>
               <span className="retro-heading font-bold text-primary">{scores[i].total}</span>
+              <span className="flex items-center gap-1 text-[10px] leading-none">
+                <span className="text-yellow-400" title="Nutrition">
+                  {byTab.nutrition}
+                </span>
+                <span className="text-muted-foreground">|</span>
+                <span className="text-green-400" title="Move">
+                  {byTab.move}
+                </span>
+                <span className="text-muted-foreground">|</span>
+                <span className="text-purple-400" title="Routine">
+                  {byTab.routine}
+                </span>
+              </span>
             </Link>
           );
         })}
