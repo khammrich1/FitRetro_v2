@@ -122,12 +122,12 @@ export default async function TodayPage({
     workoutsCompleted: completedWorkouts.length,
     peptideDosesLogged: peptideLogs.length,
     supplementDosesLogged: supplementLogs.length,
-    notesAdded:
-      routines.reduce(
-        (sum, routine) =>
-          sum + routine.items.filter((item) => Boolean(item.completionNotes?.trim())).length,
-        0,
-      ) + workoutList.filter((detail) => Boolean(detail.workout.notes?.trim())).length,
+    routineNotesAdded: routines.reduce(
+      (sum, routine) =>
+        sum + routine.items.filter((item) => Boolean(item.completionNotes?.trim())).length,
+      0,
+    ),
+    workoutNotesAdded: workoutList.filter((detail) => Boolean(detail.workout.notes?.trim())).length,
   });
 
   return (
