@@ -1,6 +1,6 @@
 # FitRetro — Live Status
 
-_Last updated: 2026-09-21 (Stripe framework pushed, PR opened)_
+_Last updated: 2026-09-21 (both PRs open, both tasks done)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
@@ -50,13 +50,34 @@ Not done (intentionally out of scope for this pass): no paywall/gating anywhere,
 
 **Note:** this work was originally built in a prior container session but never committed before that container was reclaimed (idle timeout) — it had to be rebuilt from scratch in this fresh container. Lesson: commit/push working state more eagerly instead of batching everything to the end of a long task.
 
-### 2. Mobile formatting issues — **not started**
+### 2. Mobile formatting issues — **done, PR open**
 
-User flagged "weird formatting issues on the web for mobile" with no screenshot or specific
-page given yet. Plan: once Stripe is pushed/PR'd, either ask the user for specifics/a screenshot,
-or proactively run a mobile-viewport visual QA pass (playwright-core scratchpad tooling already
-set up earlier this session) across recently-changed pages (`/today`, `/calendar`, Daily Reader,
-now also `/subscribe` and `/settings/billing`) to look for obvious breakage.
+User sent two screenshots (Calendar, and the Quick Log area of `/today`). Root-caused both to
+real overflow bugs (not just "narrow viewport" guesses — reproduced with Playwright before/after):
+
+- **Calendar**: the per-tab score row (added in #23) was a single-line flex row with no wrap
+  inside a ~30px-wide `grid-cols-7` day cell. Real multi-digit scores overflowed the cell and
+  visually bled into the neighboring day — that's the garbled/overlapping numbers in the
+  screenshot. Fixed: row now wraps within the cell, cell has `overflow-hidden` as a backstop.
+- **Workout log form (Move tab) + in-progress workout card**: exercise-name input + muscle-group
+  `<select>` + action button(s) in a plain `flex gap-2` row, no wrap. A `<select>` won't shrink
+  below its content width, so on a narrow phone the trailing button got pushed off the right
+  edge of the screen entirely — once that happens the whole page becomes horizontally
+  scrollable, which is why unrelated text elsewhere on `/today` also looked cut off in the second
+  screenshot (viewport was scrolled). Fixed: these rows now wrap instead of overflowing.
+
+Done:
+
+- [x] Reproduced both bugs with Playwright (seeded realistic data, multi-digit scores) at
+      375–390px viewports, confirmed via `document.documentElement.scrollWidth` and screenshots
+- [x] Fixed `src/app/calendar/page.tsx`, `src/app/today/_components/workouts/workout-log-form.tsx`,
+      `src/app/today/_components/workouts/in-progress-workout-card.tsx`
+- [x] Re-verified fix with Playwright — no overflow anywhere on `/today` (all 3 tabs), `/calendar`,
+      `/pantry`, `/meal-prep` at 375px
+- [x] `npm run typecheck` / `lint` / `test` (33/33) / `format:check` — all clean
+- [x] Committed + pushed to `claude/fix-mobile-overflow` (branched fresh off `main`, kept separate
+      from the Stripe branch since they're unrelated changes)
+- [x] PR opened into `main`: https://github.com/khammrich1/FitRetro_v2/pull/25
 
 ### Open, unresolved (not actioned)
 
