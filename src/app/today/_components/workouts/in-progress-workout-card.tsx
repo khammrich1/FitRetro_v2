@@ -176,12 +176,12 @@ function AddExerciseForm({ workoutId }: { workoutId: string }) {
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       <input
         value={name}
         onChange={(event) => setName(event.target.value)}
         placeholder="Add another exercise"
-        className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+        className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
       />
       <select
         value={muscleGroup}
