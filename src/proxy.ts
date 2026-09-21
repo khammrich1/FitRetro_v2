@@ -3,7 +3,15 @@ import type { NextFetchEvent, NextRequest } from "next/server";
 import { verifySessionToken } from "@/lib/session";
 import { matchTrackedPath, logPageView } from "@/features/ops";
 
-const protectedRoutes = ["/today", "/pantry", "/meal-prep", "/settings", "/wake-up", "/ops"];
+const protectedRoutes = [
+  "/today",
+  "/pantry",
+  "/meal-prep",
+  "/settings",
+  "/wake-up",
+  "/ops",
+  "/subscribe",
+];
 const authRoutes = ["/login", "/signup"];
 
 export async function proxy(request: NextRequest, event: NextFetchEvent) {
