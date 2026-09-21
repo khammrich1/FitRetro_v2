@@ -42,7 +42,7 @@ Done:
 - [x] Sandbox DB backed up (`pg_dump`) then migration applied (`npm run db:migrate`) — succeeded
 - [x] Live smoke test (dev server + minted session cookie): `/settings/billing` → "No subscription yet"; `/subscribe` → plan UI, and `?promo=FREEMONTH` shows the applied-code banner + "Redeem free month" button; `/subscribe` with no cookie → 307 redirect to `/login`; `/settings` index lists "Billing". Test user cleaned up afterward.
 - [x] Committed + pushed to `claude/stripe-billing-framework`
-- [x] PR opened into `main`
+- [x] PR opened into `main`: https://github.com/khammrich1/FitRetro_v2/pull/24
 
 Not testable live in this sandbox: real Stripe checkout/webhook round-trip (no real `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` configured here) — noted in the PR body.
 
