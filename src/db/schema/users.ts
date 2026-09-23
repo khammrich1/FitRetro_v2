@@ -21,6 +21,10 @@ export const users = pgTable("users", {
    * parse/stringify convention as macroOrder — see @/lib/reading-topics. Null/empty means not
    * subscribed to anything, so the Daily Reader is hidden entirely rather than defaulting on. */
   readingTopics: text("reading_topics"),
+  /** Stripe Customer ID, created lazily the first time this user starts a checkout — null until
+   * then. Independent of whether they ever complete a subscription (see subscriptions table),
+   * so a customer can be reused across multiple checkout attempts. */
+  stripeCustomerId: text("stripe_customer_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

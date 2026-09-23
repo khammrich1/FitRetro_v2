@@ -36,6 +36,11 @@ const SETTINGS_SECTIONS = [
     title: "Daily Reader",
     description: "Topics for a short daily read, shown on Today's Routine tab.",
   },
+  {
+    href: "/settings/billing",
+    title: "Billing",
+    description: "Manage your subscription.",
+  },
 ];
 
 export default function SettingsPage() {

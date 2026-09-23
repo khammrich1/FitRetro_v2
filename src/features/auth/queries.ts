@@ -37,3 +37,10 @@ export async function setUserBodyStats(
 export async function setUserReadingTopics(userId: string, readingTopics: string) {
   await db.update(users).set({ readingTopics, updatedAt: new Date() }).where(eq(users.id, userId));
 }
+
+export async function setUserStripeCustomerId(userId: string, stripeCustomerId: string) {
+  await db
+    .update(users)
+    .set({ stripeCustomerId, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+}
