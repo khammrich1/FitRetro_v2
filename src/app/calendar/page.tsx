@@ -86,21 +86,19 @@ export default async function CalendarPage({
               key={dayIso}
               href={`/today?date=${dayIso}`}
               className={
-                "flex flex-col items-center gap-0.5 rounded-md border p-2 text-sm hover:border-accent " +
+                "flex flex-col items-center gap-0.5 overflow-hidden rounded-md border p-1 text-sm hover:border-accent " +
                 (isToday ? "border-2 border-accent" : "border-border")
               }
             >
               <span className="text-muted-foreground">{i + 1}</span>
               <span className="retro-heading font-bold text-primary">{scores[i].total}</span>
-              <span className="flex items-center gap-1 text-[10px] leading-none">
+              <span className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0 text-[9px] leading-tight">
                 <span className="text-yellow-400" title="Nutrition">
                   {byTab.nutrition}
                 </span>
-                <span className="text-muted-foreground">|</span>
                 <span className="text-green-400" title="Move">
                   {byTab.move}
                 </span>
-                <span className="text-muted-foreground">|</span>
                 <span className="text-purple-400" title="Routine">
                   {byTab.routine}
                 </span>
