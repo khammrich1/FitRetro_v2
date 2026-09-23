@@ -1,5 +1,5 @@
 import type Stripe from "stripe";
-import { getStripeClient } from "@/lib/stripe";
+import { getStripeClient, getStripeWebhookSecret } from "@/lib/stripe";
 import { upsertSubscriptionFromStripe } from "@/features/billing";
 import { subscriptionStatusEnum, type SubscriptionStatus } from "@/db/schema";
 
@@ -37,10 +37,10 @@ async function handleSubscriptionEvent(subscription: Stripe.Subscription): Promi
 }
 
 export async function POST(request: Request): Promise<Response> {
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
-    console.error("STRIPE_WEBHOOK_SECRET is not configured — rejecting webhook delivery.");
-    return new Response("Webhook not configured.", { status: 500 });
-  }
+  // Outside the try below on purpose: missing/invalid config should surface as a 500 (and be
+  // retried by Stripe once fixed), not be misreported as a bad signature.
+  const stripe = getStripeClient();
+  const webhookSecret = getStripeWebhookSecret();
 
   const signature = request.headers.get("stripe-signature");
   if (!signature) {
@@ -51,10 +51,12 @@ export async function POST(request: Request): Promise<Response> {
 
   let event: Stripe.Event;
   try {
-    const stripe = getStripeClient();
-    event = stripe.webhooks.constructEvent(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
   } catch (error) {
-    console.error("Stripe webhook signature verification failed:", error);
+    // Message only: Stripe's verification error object also carries the raw payload (customer
+    // details) and the signature header, neither of which belongs in logs.
+    const message = error instanceof Error ? error.message : "unknown error";
+    console.error(`Stripe webhook signature verification failed: ${message}`);
     return new Response("Invalid signature.", { status: 400 });
   }
 

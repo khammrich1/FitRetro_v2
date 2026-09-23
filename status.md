@@ -136,12 +136,22 @@ Done:
 User asked for short clips of macro estimation + recipe-from-pantry/remaining-macros for the
 landing page. **User is recording these themselves — no action needed from me.**
 
-## Task: Stripe live smoke test
+## Task: Stripe test-mode hardening — **done, PR #27 open**
 
-User is providing real test-mode Stripe keys (`STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, optionally
-`STRIPE_PROMO_CODE`) so the actual checkout → webhook → `subscriptions` row round trip can be
-tested live in this sandbox, using `stripe listen` to forward webhook events locally if the
-Stripe CLI can reach out from here. **Waiting on the user to paste the keys — not started.**
+Credential rules from the user: read only `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
+`STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID` from env. Never hardcode, print, log or commit a
+credential, and never ask for keys to be pasted into chat. Secret key and webhook secret stay
+server-only.
+
+- All secret reads go through server-only `src/lib/stripe.ts`. Live keys are refused
+  (`src/lib/stripe-mode.ts`). The webhook logs only the error message on signature failure.
+- `.env.example` has exactly the four names, empty values. Removed the unused `STRIPE_PROMO_CODE`.
+- The publishable key isn't read by any code yet (hosted Checkout doesn't need it).
+- Verified: canary build shows no secrets in the client bundle. A local fake signing secret
+  exercised real signature verification (valid → 200 + row written, tampered/missing/wrong
+  secret → 400). A live key and a missing webhook secret each → 500, with no values in logs.
+- **Still open:** real Checkout → webhook round trip. Needs the user's real test keys in `.env`
+  on their side plus `stripe listen`. No Stripe values exist in this environment.
 
 ### Open, unresolved (not actioned)
 

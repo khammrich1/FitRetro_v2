@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { verifySession } from "@/features/auth";
 import { getOrCreateStripeCustomer } from "@/features/billing";
-import { getStripeClient } from "@/lib/stripe";
+import { getStripeClient, getStripePriceId } from "@/lib/stripe";
 
 /** Falls back to the production domain only if the Origin header is missing (rare) — reading it
  * from the request means checkout/portal return URLs correctly point at localhost in dev and the
@@ -12,13 +12,6 @@ import { getStripeClient } from "@/lib/stripe";
 async function getSiteUrl(): Promise<string> {
   const origin = (await headers()).get("origin");
   return origin ?? "https://fitretro.app";
-}
-
-function requirePriceId(): string {
-  if (!process.env.STRIPE_PRICE_ID) {
-    throw new Error("STRIPE_PRICE_ID is not configured. Set it in .env to enable billing.");
-  }
-  return process.env.STRIPE_PRICE_ID;
 }
 
 /** Looks up a human-readable Promotion Code (e.g. "FREEMONTH") to the Stripe object ID Checkout
@@ -34,7 +27,7 @@ async function findActivePromotionCodeId(code: string): Promise<string | null> {
 export async function createCheckoutSessionAction(promoCode?: string): Promise<void> {
   const { userId } = await verifySession();
   const stripe = getStripeClient();
-  const priceId = requirePriceId();
+  const priceId = getStripePriceId();
   const siteUrl = await getSiteUrl();
   const customerId = await getOrCreateStripeCustomer(userId);
 
