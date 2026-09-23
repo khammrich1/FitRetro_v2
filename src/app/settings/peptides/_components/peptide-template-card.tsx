@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { peptideDoseUnitEnum, peptideFrequencyEnum, type PeptideTemplate } from "@/db/schema";
 import { updatePeptideTemplateAction, deletePeptideTemplateAction } from "@/app/peptides/actions";
+import { computeDrawVolumeMl, mlToSyringeUnits } from "@/features/peptides/reconstitution";
 
 /** Formats a 24-hour "HH:MM" string (from a native time input) as e.g. "8:00 AM". */
 function formatTime(time: string | null): string | null {
@@ -20,6 +21,15 @@ export function PeptideTemplateCard({ template }: { template: PeptideTemplate })
   const [doseUnit, setDoseUnit] = useState(template.doseUnit);
   const [frequency, setFrequency] = useState(template.frequency);
   const [preferredTime, setPreferredTime] = useState(template.preferredTime ?? "");
+  const [vialAmountMg, setVialAmountMg] = useState(
+    template.vialAmountMg !== null ? String(template.vialAmountMg) : "",
+  );
+  const [bacWaterMl, setBacWaterMl] = useState(
+    template.bacWaterMl !== null ? String(template.bacWaterMl) : "",
+  );
+  const [halfLifeHours, setHalfLifeHours] = useState(
+    template.halfLifeHours !== null ? String(template.halfLifeHours) : "",
+  );
   const [errors, setErrors] = useState<Record<string, string[]> | undefined>(undefined);
   const [pending, startTransition] = useTransition();
   const [deleting, startDeleting] = useTransition();
@@ -31,6 +41,9 @@ export function PeptideTemplateCard({ template }: { template: PeptideTemplate })
     formData.set("doseUnit", doseUnit);
     formData.set("frequency", frequency);
     formData.set("preferredTime", preferredTime);
+    formData.set("vialAmountMg", vialAmountMg);
+    formData.set("bacWaterMl", bacWaterMl);
+    formData.set("halfLifeHours", halfLifeHours);
     startTransition(async () => {
       const result = await updatePeptideTemplateAction(template.id, formData);
       if (result?.errors) {
@@ -105,6 +118,67 @@ export function PeptideTemplateCard({ template }: { template: PeptideTemplate })
             className="w-40 rounded-md border border-border bg-card px-2 py-1 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </label>
+
+        {(doseUnit === "mg" || doseUnit === "mcg") && (
+          <div className="flex flex-col gap-1 rounded-md border border-border bg-card p-2">
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">
+              Reconstitution (optional)
+            </span>
+            <div className="flex gap-2">
+              <label className="flex flex-1 flex-col gap-1 text-xs text-muted-foreground">
+                Vial amount (mg)
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={vialAmountMg}
+                  onChange={(event) => setVialAmountMg(event.target.value)}
+                  className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </label>
+              <label className="flex flex-1 flex-col gap-1 text-xs text-muted-foreground">
+                Bac water added (mL)
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={bacWaterMl}
+                  onChange={(event) => setBacWaterMl(event.target.value)}
+                  className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </label>
+            </div>
+            {(() => {
+              const drawMl = computeDrawVolumeMl({
+                vialAmountMg: Number(vialAmountMg) || null,
+                bacWaterMl: Number(bacWaterMl) || null,
+                doseAmount: Number(doseAmount) || 0,
+                doseUnit,
+              });
+              return (
+                drawMl !== null && (
+                  <span className="text-xs text-accent">
+                    → draw {drawMl.toFixed(2)}mL ({mlToSyringeUnits(drawMl).toFixed(0)} units on a
+                    U-100 syringe) per dose
+                  </span>
+                )
+              );
+            })()}
+          </div>
+        )}
+
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+          Half-life (hours, optional)
+          <input
+            type="number"
+            min={0}
+            step="any"
+            value={halfLifeHours}
+            onChange={(event) => setHalfLifeHours(event.target.value)}
+            className="w-32 rounded-md border border-border bg-card px-2 py-1 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </label>
+
         <div className="flex gap-3">
           <button
             onClick={handleSave}
@@ -126,6 +200,12 @@ export function PeptideTemplateCard({ template }: { template: PeptideTemplate })
   }
 
   const formattedTime = formatTime(template.preferredTime);
+  const drawMl = computeDrawVolumeMl({
+    vialAmountMg: template.vialAmountMg,
+    bacWaterMl: template.bacWaterMl,
+    doseAmount: template.doseAmount,
+    doseUnit: template.doseUnit,
+  });
 
   return (
     <div className="flex items-center justify-between rounded-md border border-border bg-background p-3 text-sm">
@@ -135,6 +215,9 @@ export function PeptideTemplateCard({ template }: { template: PeptideTemplate })
           — {template.doseAmount}
           {template.doseUnit}, {template.frequency.replaceAll("_", " ")}
           {formattedTime ? `, ${formattedTime}` : ""}
+          {drawMl !== null
+            ? ` · draw ${drawMl.toFixed(2)}mL (${mlToSyringeUnits(drawMl).toFixed(0)}u)`
+            : ""}
         </span>
       </div>
       <div className="flex gap-3 text-xs">

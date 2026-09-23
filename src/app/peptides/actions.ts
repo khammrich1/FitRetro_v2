@@ -18,6 +18,11 @@ function revalidatePeptidePaths() {
   revalidatePath("/settings/peptides");
 }
 
+const optionalPositiveNumber = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.coerce.number().positive("Must be greater than 0.").optional(),
+);
+
 const peptideTemplateSchema = z.object({
   name: z.string().trim().min(1, "Name is required."),
   doseAmount: z.coerce.number().positive("Dose must be greater than 0."),
@@ -30,6 +35,9 @@ const peptideTemplateSchema = z.object({
       .regex(/^\d{2}:\d{2}$/, "Invalid time.")
       .optional(),
   ),
+  vialAmountMg: optionalPositiveNumber,
+  bacWaterMl: optionalPositiveNumber,
+  halfLifeHours: optionalPositiveNumber,
 });
 
 export type PeptideTemplateState =
@@ -50,6 +58,9 @@ export async function createPeptideTemplateAction(
     doseUnit: formData.get("doseUnit"),
     frequency: formData.get("frequency"),
     preferredTime: formData.get("preferredTime"),
+    vialAmountMg: formData.get("vialAmountMg"),
+    bacWaterMl: formData.get("bacWaterMl"),
+    halfLifeHours: formData.get("halfLifeHours"),
   });
   if (!validatedFields.success) {
     return { errors: validatedFields.error.flatten().fieldErrors };
@@ -58,6 +69,9 @@ export async function createPeptideTemplateAction(
   await createPeptideTemplate(userId, {
     ...validatedFields.data,
     preferredTime: validatedFields.data.preferredTime ?? null,
+    vialAmountMg: validatedFields.data.vialAmountMg ?? null,
+    bacWaterMl: validatedFields.data.bacWaterMl ?? null,
+    halfLifeHours: validatedFields.data.halfLifeHours ?? null,
   });
   revalidatePeptidePaths();
 }
@@ -74,6 +88,9 @@ export async function updatePeptideTemplateAction(
     doseUnit: formData.get("doseUnit"),
     frequency: formData.get("frequency"),
     preferredTime: formData.get("preferredTime"),
+    vialAmountMg: formData.get("vialAmountMg"),
+    bacWaterMl: formData.get("bacWaterMl"),
+    halfLifeHours: formData.get("halfLifeHours"),
   });
   if (!validatedFields.success) {
     return { errors: validatedFields.error.flatten().fieldErrors };
@@ -82,6 +99,9 @@ export async function updatePeptideTemplateAction(
   await updatePeptideTemplate(id, userId, {
     ...validatedFields.data,
     preferredTime: validatedFields.data.preferredTime ?? null,
+    vialAmountMg: validatedFields.data.vialAmountMg ?? null,
+    bacWaterMl: validatedFields.data.bacWaterMl ?? null,
+    halfLifeHours: validatedFields.data.halfLifeHours ?? null,
   });
   revalidatePeptidePaths();
 }

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   peptideTemplates,
@@ -29,6 +29,9 @@ export type PeptideTemplateInput = {
   doseUnit: PeptideDoseUnit;
   frequency: PeptideFrequency;
   preferredTime: string | null;
+  vialAmountMg: number | null;
+  bacWaterMl: number | null;
+  halfLifeHours: number | null;
 };
 
 export async function createPeptideTemplate(userId: string, input: PeptideTemplateInput) {
@@ -114,6 +117,30 @@ export async function getMostRecentLogDates(
     if (!current || row.loggedOn > current) latest.set(row.peptideTemplateId, row.loggedOn);
   }
   return latest;
+}
+
+/** All logged-dose timestamps for a user's peptide templates that have a half-life set (used for
+ * the "level in body" estimate — see @/features/peptides/decay). Templates without a half-life
+ * are skipped since there's nothing to estimate. Not date-bounded in SQL: log volume for a single
+ * user's peptides is small enough that filtering to each template's own decay window in JS (where
+ * the half-life is available) is simpler than a per-row dynamic date filter in the query. */
+export async function getLogTimestampsForDecay(userId: string): Promise<Map<string, Date[]>> {
+  const rows = await db
+    .select({
+      peptideTemplateId: peptideLogs.peptideTemplateId,
+      loggedAt: peptideLogs.loggedAt,
+    })
+    .from(peptideLogs)
+    .innerJoin(peptideTemplates, eq(peptideLogs.peptideTemplateId, peptideTemplates.id))
+    .where(and(eq(peptideTemplates.userId, userId), isNotNull(peptideTemplates.halfLifeHours)));
+
+  const byTemplate = new Map<string, Date[]>();
+  for (const row of rows) {
+    const existing = byTemplate.get(row.peptideTemplateId);
+    if (existing) existing.push(row.loggedAt);
+    else byTemplate.set(row.peptideTemplateId, [row.loggedAt]);
+  }
+  return byTemplate;
 }
 
 export type PeptideLogWithTemplate = PeptideLog & { template: PeptideTemplate };

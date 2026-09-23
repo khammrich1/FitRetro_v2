@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import type { PeptideTemplate, PeptideFrequency } from "@/db/schema";
 import type { PeptideLogWithTemplate } from "@/features/peptides";
+import { computeDrawVolumeMl, mlToSyringeUnits } from "@/features/peptides/reconstitution";
 import { logPeptideDoseAction, deletePeptideLogAction } from "@/app/peptides/actions";
 
 /** Frequencies with a fixed day-count interval, used to compute when a peptide is next due.
@@ -88,11 +89,13 @@ export function PeptideSection({
   templates,
   logs,
   mostRecentLogDates,
+  currentLevelByTemplate,
 }: {
   dayIso: string;
   templates: PeptideTemplate[];
   logs: PeptideLogWithTemplate[];
   mostRecentLogDates: Record<string, string>;
+  currentLevelByTemplate: Record<string, number>;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -124,6 +127,12 @@ export function PeptideSection({
               </span>
               {dueTemplates.map((template) => {
                 const formattedTime = formatTime(template.preferredTime);
+                const drawMl = computeDrawVolumeMl({
+                  vialAmountMg: template.vialAmountMg,
+                  bacWaterMl: template.bacWaterMl,
+                  doseAmount: template.doseAmount,
+                  doseUnit: template.doseUnit,
+                });
                 return (
                   <button
                     key={template.id}
@@ -134,7 +143,11 @@ export function PeptideSection({
                   >
                     {template.name} ({template.doseAmount}
                     {template.doseUnit}
-                    {formattedTime ? `, ${formattedTime}` : ""})
+                    {formattedTime ? `, ${formattedTime}` : ""}
+                    {drawMl !== null
+                      ? `, draw ${drawMl.toFixed(2)}mL/${mlToSyringeUnits(drawMl).toFixed(0)}u`
+                      : ""}
+                    )
                   </button>
                 );
               })}
@@ -163,6 +176,27 @@ export function PeptideSection({
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {Object.keys(currentLevelByTemplate).length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3 text-sm">
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">
+            Level in body:
+          </span>
+          {templates
+            .filter((template) => template.id in currentLevelByTemplate)
+            .map((template) => (
+              <span
+                key={template.id}
+                className="rounded-full border border-border px-3 py-1 text-xs text-accent"
+              >
+                {template.name} ~{Math.round(currentLevelByTemplate[template.id])}%
+              </span>
+            ))}
+          <span className="w-full text-xs text-muted-foreground">
+            Rough estimate from the half-life you entered — not medical guidance.
+          </span>
         </div>
       )}
 

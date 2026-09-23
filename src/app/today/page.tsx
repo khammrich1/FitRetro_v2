@@ -23,6 +23,8 @@ import {
   getPeptideTemplatesForUser,
   getPeptideLogsForDay,
   getMostRecentLogDates,
+  getLogTimestampsForDecay,
+  currentLevelPercent,
 } from "@/features/peptides";
 import {
   getSupplementTemplatesForUser,
@@ -65,6 +67,7 @@ export default async function TodayPage({
     peptideTemplates,
     peptideLogs,
     mostRecentPeptideLogDates,
+    logTimestampsForDecay,
     supplementTemplates,
     supplementLogs,
     mostRecentSupplementLogDates,
@@ -84,6 +87,7 @@ export default async function TodayPage({
     getPeptideTemplatesForUser(userId),
     getPeptideLogsForDay(userId, day),
     getMostRecentLogDates(userId, day),
+    getLogTimestampsForDecay(userId),
     getSupplementTemplatesForUser(userId),
     getSupplementLogsForDay(userId, day),
     getMostRecentSupplementLogDates(userId, day),
@@ -108,6 +112,25 @@ export default async function TodayPage({
   const targetMuscleGroups = splitTarget?.muscleGroups ?? [];
   const mostRecentPeptideLogDatesByTemplateId = Object.fromEntries(mostRecentPeptideLogDates);
   const mostRecentSupplementLogDatesByTemplateId = Object.fromEntries(mostRecentSupplementLogDates);
+
+  // "Level in body" is a right-now reading, not something that makes sense for a past/future day
+  // viewed via DayNav — only ever computed and shown when looking at the actual current day.
+  const currentLevelByTemplateId: Record<string, number> =
+    dayIso === todayIso
+      ? Object.fromEntries(
+          peptideTemplates
+            .filter((template) => template.halfLifeHours !== null)
+            .map((template) => [
+              template.id,
+              currentLevelPercent(
+                logTimestampsForDecay.get(template.id) ?? [],
+                template.doseAmount,
+                template.halfLifeHours!,
+                new Date(),
+              ),
+            ]),
+        )
+      : {};
 
   const dailyScore = computeDailyScore({
     mealsLogged: entries.length,
@@ -171,6 +194,7 @@ export default async function TodayPage({
             peptideTemplates={peptideTemplates}
             peptideLogs={peptideLogs}
             mostRecentPeptideLogDates={mostRecentPeptideLogDatesByTemplateId}
+            currentLevelByTemplate={currentLevelByTemplateId}
             supplementTemplates={supplementTemplates}
             supplementLogs={supplementLogs}
             mostRecentSupplementLogDates={mostRecentSupplementLogDatesByTemplateId}
