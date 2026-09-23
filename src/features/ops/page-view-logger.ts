@@ -16,6 +16,7 @@ export const TRACKED_PATH_PREFIXES = [
   "/help",
   "/feedback",
   "/calendar",
+  "/promo1",
 ] as const;
 
 /** Maps an incoming pathname to one of the tracked prefixes, or null if it isn't tracked.

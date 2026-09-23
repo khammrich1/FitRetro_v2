@@ -1,6 +1,6 @@
 # FitRetro — Live Status
 
-_Last updated: 2026-09-23 (#24 and #25 merged; #26 open, had a migration-slot conflict, now fixed)_
+_Last updated: 2026-09-23 (#24–#27 merged; `/promo1` sticker route in progress for issue #28)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
@@ -85,7 +85,7 @@ User's instruction: build a reconstitution calculator, plus a "level in your bod
 (clarified: pharmacokinetic decay, not vial-inventory-remaining — I'd guessed wrong initially).
 Scoped it, gave a lift estimate, user said build the MVP (number, no chart) now, chart later.
 
-### Status — **done, PR open**
+### Status — **done, merged (#26)**
 
 - **Reconstitution**: optional vial amount (mg) + bac water (mL) on a peptide template →
   `src/features/peptides/reconstitution.ts` computes draw volume in mL + U-100 syringe units.
@@ -136,7 +136,7 @@ Done:
 User asked for short clips of macro estimation + recipe-from-pantry/remaining-macros for the
 landing page. **User is recording these themselves — no action needed from me.**
 
-## Task: Stripe test-mode hardening — **done, PR #27 open**
+## Task: Stripe test-mode hardening — **done, merged (#27)**
 
 Credential rules from the user: read only `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
 `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID` from env. Never hardcode, print, log or commit a
@@ -152,6 +152,27 @@ server-only.
   secret → 400). A live key and a missing webhook secret each → 500, with no values in logs.
 - **Still open:** real Checkout → webhook round trip. Needs the user's real test keys in `.env`
   on their side plus `stripe listen`. No Stripe values exist in this environment.
+
+## Task: `/promo1` QR sticker route (issue #28) — **PR open, not merged**
+
+The sticker QR code points to `https://fitretro.app/promo1`. That route records campaign `promo1`
+in a first-party `fr_campaign` cookie, then redirects:
+
+- logged-out visitors → `/signup?next=/subscribe`
+- logged-in visitors → `/subscribe`
+
+The existing `createCheckoutSessionAction` then auto-applies `STRIPE_PROMO_CODE` via `discounts`
+and tags the session and subscription metadata with `campaign=promo1` and
+`acquisition_source=sticker`. If the code is missing, inactive, expired, used up, unreachable, or
+rejected, checkout stops on `/subscribe` with a clear message (never a full-price fallback). Normal
+checkout is unchanged. Login and signup gained a validated same-origin `next` parameter.
+`/promo1` is on the first-party page-view allowlist, so scans show on `/ops`. No schema or
+migration changes.
+
+- Owner prerequisites in Stripe test mode: `FREEMONTH` must be an active promotion code whose
+  coupon is 100% off with duration "once", and `STRIPE_PROMO_CODE=FREEMONTH` must be set in `.env`.
+- Known gap: the site header's generic "Log in" link doesn't carry `?next=`. Attribution still
+  survives that path, but the visitor lands on `/today` instead of `/subscribe`.
 
 ### Open, unresolved (not actioned)
 

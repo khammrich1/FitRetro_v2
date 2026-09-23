@@ -39,3 +39,10 @@ export function getStripeWebhookSecret(): string {
 export function getStripePriceId(): string {
   return requireEnv("STRIPE_PRICE_ID");
 }
+
+/** The human-readable promotion code the QR sticker promises (e.g. "FREEMONTH"). Not a secret,
+ * but returns null instead of throwing: sticker checkout must turn a missing code into a clear
+ * "offer unavailable" stop, never a crash or a full-price fallback. */
+export function getStripePromoCode(): string | null {
+  return process.env.STRIPE_PROMO_CODE?.trim() || null;
+}

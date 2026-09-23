@@ -1,19 +1,39 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { verifySession } from "@/features/auth";
-import { getSubscriptionForUser } from "@/features/billing";
-import { createCheckoutSessionAction } from "@/app/billing/actions";
+import { CAMPAIGN_COOKIE_NAME, getSubscriptionForUser, parseCampaign } from "@/features/billing";
+import {
+  createCheckoutSessionAction,
+  dismissStickerOfferAction,
+  type StickerCheckoutError,
+} from "@/app/billing/actions";
+
+const STICKER_ERROR_MESSAGES: Record<StickerCheckoutError, string> = {
+  promo_unavailable:
+    "The free-month sticker offer isn't available right now, so checkout was stopped before anything was charged. Please try again later.",
+  promo_rejected:
+    "Stripe couldn't apply the free-month sticker offer to your account (it may already have been used), so checkout was stopped before anything was charged.",
+};
+
+function isStickerError(value: string | undefined): value is StickerCheckoutError {
+  return value !== undefined && Object.hasOwn(STICKER_ERROR_MESSAGES, value);
+}
 
 export default async function SubscribePage({
   searchParams,
 }: {
-  searchParams: Promise<{ promo?: string }>;
+  searchParams: Promise<{ promo?: string; error?: string }>;
 }) {
   const { userId } = await verifySession();
-  const { promo } = await searchParams;
+  const { promo, error } = await searchParams;
   const subscription = await getSubscriptionForUser(userId);
   const isActive = subscription?.status === "active" || subscription?.status === "trialing";
+  const hasStickerOffer =
+    parseCampaign((await cookies()).get(CAMPAIGN_COOKIE_NAME)?.value) !== null;
+  const stickerError = isStickerError(error) ? STICKER_ERROR_MESSAGES[error] : null;
 
   const startCheckout = createCheckoutSessionAction.bind(null, promo);
+  const offersFreeMonth = hasStickerOffer || Boolean(promo);
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-6 py-16">
@@ -37,19 +57,41 @@ export default async function SubscribePage({
               Everything in FitRetro, unlimited logging, cancel anytime.
             </p>
           </div>
-          {promo && (
-            <p className="rounded-md border border-accent bg-background px-3 py-2 text-sm text-accent">
-              Free month code applied: {promo}
+          {stickerError && (
+            <p
+              role="alert"
+              className="rounded-md border border-danger px-3 py-2 text-sm text-danger"
+            >
+              {stickerError}
             </p>
+          )}
+          {hasStickerOffer ? (
+            <p className="rounded-md border border-accent bg-background px-3 py-2 text-sm text-accent">
+              Sticker offer: your first month is free — applied automatically at checkout, then
+              $8/month.
+            </p>
+          ) : (
+            promo && (
+              <p className="rounded-md border border-accent bg-background px-3 py-2 text-sm text-accent">
+                Free month code applied: {promo}
+              </p>
+            )
           )}
           <form action={startCheckout}>
             <button
               type="submit"
               className="retro-glow w-full rounded-full bg-primary px-5 py-2 font-medium text-primary-foreground hover:bg-primary-hover"
             >
-              {promo ? "Redeem free month" : "Start subscription"}
+              {offersFreeMonth ? "Redeem free month" : "Start subscription"}
             </button>
           </form>
+          {hasStickerOffer && stickerError && (
+            <form action={dismissStickerOfferAction}>
+              <button type="submit" className="w-full text-sm text-muted-foreground underline">
+                Continue without the offer at the regular $8/month
+              </button>
+            </form>
+          )}
         </div>
       )}
     </div>
