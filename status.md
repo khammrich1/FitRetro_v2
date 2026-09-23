@@ -1,6 +1,6 @@
 # FitRetro — Live Status
 
-_Last updated: 2026-09-23 (three PRs open: #24 Stripe, #25 mobile fix, #26 peptide reconstitution/level)_
+_Last updated: 2026-09-23 (#24 and #25 merged; #26 open, had a migration-slot conflict, now fixed)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
@@ -14,7 +14,7 @@ This file tracks in-progress work across sessions so context isn't lost between 
 
 User's instruction: "Finish up stripe and also there's some weird formatting issues on the web for mobile."
 
-### 1. Stripe billing framework — **done, PR open**
+### 1. Stripe billing framework — **done, merged**
 
 Scope (explicitly confirmed with user): **framework only, no paywall yet.** Nothing in the app
 gates access on subscription status. One shared promo code (`FREEMONTH`, 100% off first month)
@@ -42,7 +42,7 @@ Done:
 - [x] Sandbox DB backed up (`pg_dump`) then migration applied (`npm run db:migrate`) — succeeded
 - [x] Live smoke test (dev server + minted session cookie): `/settings/billing` → "No subscription yet"; `/subscribe` → plan UI, and `?promo=FREEMONTH` shows the applied-code banner + "Redeem free month" button; `/subscribe` with no cookie → 307 redirect to `/login`; `/settings` index lists "Billing". Test user cleaned up afterward.
 - [x] Committed + pushed to `claude/stripe-billing-framework`
-- [x] PR opened into `main`: https://github.com/khammrich1/FitRetro_v2/pull/24
+- [x] PR #24 opened into `main`, reviewed, and merged by the user
 
 Not testable live in this sandbox: real Stripe checkout/webhook round-trip (no real `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` configured here) — noted in the PR body.
 
@@ -50,7 +50,7 @@ Not done (intentionally out of scope for this pass): no paywall/gating anywhere,
 
 **Note:** this work was originally built in a prior container session but never committed before that container was reclaimed (idle timeout) — it had to be rebuilt from scratch in this fresh container. Lesson: commit/push working state more eagerly instead of batching everything to the end of a long task.
 
-### 2. Mobile formatting issues — **done, PR open**
+### 2. Mobile formatting issues — **done, merged**
 
 User sent two screenshots (Calendar, and the Quick Log area of `/today`). Root-caused both to
 real overflow bugs (not just "narrow viewport" guesses — reproduced with Playwright before/after):
@@ -77,7 +77,7 @@ Done:
 - [x] `npm run typecheck` / `lint` / `test` (33/33) / `format:check` — all clean
 - [x] Committed + pushed to `claude/fix-mobile-overflow` (branched fresh off `main`, kept separate
       from the Stripe branch since they're unrelated changes)
-- [x] PR opened into `main`: https://github.com/khammrich1/FitRetro_v2/pull/25
+- [x] PR #25 opened into `main`, reviewed, and merged by the user
 
 ## Task: Peptide reconstitution calculator + "level in body" estimate
 
@@ -105,8 +105,9 @@ Scoped it, gave a lift estimate, user said build the MVP (number, no chart) now,
 
 Done:
 
-- [x] Migration `drizzle/0027_lowly_scarecrow.sql` — 3 nullable columns on `peptide_templates`,
-      1 `NOT NULL DEFAULT now()` column on `peptide_logs` (safe backfill, no data loss)
+- [x] Migration originally `drizzle/0027_lowly_scarecrow.sql` — 3 nullable columns on
+      `peptide_templates`, 1 `NOT NULL DEFAULT now()` column on `peptide_logs` (safe backfill,
+      no data loss)
 - [x] `src/features/peptides/reconstitution.ts` + `decay.ts`, both unit-tested (11 new tests)
 - [x] `npm run typecheck` / `lint` / `test` (44/44) / `format:check` — all clean
 - [x] Sandbox DB backed up before migration
@@ -119,15 +120,28 @@ Done:
       bundle and 500'd `/today`. Fixed by importing from `@/features/peptides/reconstitution`
       directly in the three client components that need it.
 - [x] Committed + pushed to `claude/peptide-reconstitution-and-level` (branched fresh off `main`)
-- [x] PR opened into `main`: https://github.com/khammrich1/FitRetro_v2/pull/26
+- [x] PR #26 opened into `main`
+- [x] **Merge conflict found (migration slot collision):** #24 and #25 merged into `main` after
+      this branch was opened; #24 (Stripe) independently claimed migration slot `0027`, same as
+      this branch. Fixed by merging `main` into the branch and regenerating the peptide migration
+      at the next free slot — now `drizzle/0028_lush_the_fallen.sql`, same content, correctly
+      based. Verified by dropping and recreating the sandbox DB and running `db:migrate` from
+      scratch through all 29 migrations (0000–0028); both Stripe's and the peptides' columns
+      present afterward. Re-ran the full check suite post-merge — still clean. Pushed, PR body
+      updated to explain the conflict/fix.
+- [ ] Still open for user review — not yet merged.
 
 ## Task: Landing page feature clips
 
 User asked for short clips of macro estimation + recipe-from-pantry/remaining-macros for the
-landing page, and whether they need to record it. Answered: I can capture real screen recordings
-of the actual app via Playwright (already set up) rather than fabricate anything — need either a
-real `ANTHROPIC_API_KEY` in this sandbox so the AI calls are live on camera, or the OK to stub a
-realistic response just for the recording. **Waiting on user's answer — not started.**
+landing page. **User is recording these themselves — no action needed from me.**
+
+## Task: Stripe live smoke test
+
+User is providing real test-mode Stripe keys (`STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, optionally
+`STRIPE_PROMO_CODE`) so the actual checkout → webhook → `subscriptions` row round trip can be
+tested live in this sandbox, using `stripe listen` to forward webhook events locally if the
+Stripe CLI can reach out from here. **Waiting on the user to paste the keys — not started.**
 
 ### Open, unresolved (not actioned)
 
