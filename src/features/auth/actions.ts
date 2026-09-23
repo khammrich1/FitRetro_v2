@@ -3,6 +3,7 @@
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { createSession, deleteSession } from "@/lib/session";
+import { safeNextPath } from "@/lib/safe-redirect";
 import { signupSchema, loginSchema } from "./validation";
 import { createUser, getUserByEmail } from "./queries";
 
@@ -41,7 +42,7 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
   const user = await createUser({ displayName, email, passwordHash });
 
   await createSession(user.id);
-  redirect("/today");
+  redirect(safeNextPath(formData.get("next")) ?? "/today");
 }
 
 export async function login(_state: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -67,7 +68,7 @@ export async function login(_state: AuthFormState, formData: FormData): Promise<
   }
 
   await createSession(user.id);
-  redirect("/today");
+  redirect(safeNextPath(formData.get("next")) ?? "/today");
 }
 
 export async function logout() {

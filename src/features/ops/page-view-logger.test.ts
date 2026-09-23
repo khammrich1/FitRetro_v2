@@ -25,4 +25,9 @@ describe("matchTrackedPath", () => {
   it("does not treat a prefix as matching an unrelated path that merely starts with it", () => {
     expect(matchTrackedPath("/helper")).toBeNull();
   });
+
+  it("records QR sticker scans, so aggregate /promo1 visits show on /ops", () => {
+    expect(matchTrackedPath("/promo1")).toBe("/promo1");
+    expect(matchTrackedPath("/promo10")).toBeNull();
+  });
 });
