@@ -1,6 +1,6 @@
 # FitRetro — Live Status
 
-_Last updated: 2026-09-21 (both PRs open, both tasks done)_
+_Last updated: 2026-09-23 (three PRs open: #24 Stripe, #25 mobile fix, #26 peptide reconstitution/level)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
@@ -78,6 +78,56 @@ Done:
 - [x] Committed + pushed to `claude/fix-mobile-overflow` (branched fresh off `main`, kept separate
       from the Stripe branch since they're unrelated changes)
 - [x] PR opened into `main`: https://github.com/khammrich1/FitRetro_v2/pull/25
+
+## Task: Peptide reconstitution calculator + "level in body" estimate
+
+User's instruction: build a reconstitution calculator, plus a "level in your body" estimate
+(clarified: pharmacokinetic decay, not vial-inventory-remaining — I'd guessed wrong initially).
+Scoped it, gave a lift estimate, user said build the MVP (number, no chart) now, chart later.
+
+### Status — **done, PR open**
+
+- **Reconstitution**: optional vial amount (mg) + bac water (mL) on a peptide template →
+  `src/features/peptides/reconstitution.ts` computes draw volume in mL + U-100 syringe units.
+  Shown live while editing in Settings, on the template's display line, and next to the
+  dose-log button on Today ("draw 0.10mL/10u").
+- **Level in body (MVP, no chart)**: optional user-entered half-life (hours) →
+  `src/features/peptides/decay.ts` sums `amount × 0.5^(hours since dose ÷ half-life)` across
+  recent logged doses, shown as "~X% of a dose still active" on Today, captioned as a rough
+  estimate / not medical guidance. The app never asserts a peptide's real half-life itself —
+  only computes from whatever the user enters — and the feature just doesn't show when no
+  half-life is set.
+- New `peptide_logs.logged_at` timestamp (alongside the existing `logged_on` day) — needed
+  because day-granularity is too coarse for a sub-day half-life. Existing day-bucketing
+  elsewhere is untouched.
+- Chart/visual-curve version explicitly deferred — flagged to user as a bigger follow-up (new
+  charting dependency, first chart in the whole app) once the half-life-input approach feels right.
+
+Done:
+
+- [x] Migration `drizzle/0027_lowly_scarecrow.sql` — 3 nullable columns on `peptide_templates`,
+      1 `NOT NULL DEFAULT now()` column on `peptide_logs` (safe backfill, no data loss)
+- [x] `src/features/peptides/reconstitution.ts` + `decay.ts`, both unit-tested (11 new tests)
+- [x] `npm run typecheck` / `lint` / `test` (44/44) / `format:check` — all clean
+- [x] Sandbox DB backed up before migration
+- [x] Live smoke test: seeded a peptide (10mg/2mL/1hr half-life) + a dose logged 1 half-life ago,
+      confirmed ~49% level (≈ expected 50%), correct draw volume in both Settings and Today,
+      ~0% level after clearing logs
+- [x] Caught and fixed a real bug mid-build: two client components imported the reconstitution
+      helpers from the feature barrel (`@/features/peptides`), which also re-exports the
+      server-only DB query module — pulled `postgres`'s Node-only `tls` dep into the client
+      bundle and 500'd `/today`. Fixed by importing from `@/features/peptides/reconstitution`
+      directly in the three client components that need it.
+- [x] Committed + pushed to `claude/peptide-reconstitution-and-level` (branched fresh off `main`)
+- [x] PR opened into `main`: https://github.com/khammrich1/FitRetro_v2/pull/26
+
+## Task: Landing page feature clips
+
+User asked for short clips of macro estimation + recipe-from-pantry/remaining-macros for the
+landing page, and whether they need to record it. Answered: I can capture real screen recordings
+of the actual app via Playwright (already set up) rather than fabricate anything — need either a
+real `ANTHROPIC_API_KEY` in this sandbox so the AI calls are live on camera, or the OK to stub a
+realistic response just for the recording. **Waiting on user's answer — not started.**
 
 ### Open, unresolved (not actioned)
 
