@@ -19,6 +19,7 @@ export function RoutineTab({
   peptideTemplates,
   peptideLogs,
   mostRecentPeptideLogDates,
+  currentLevelByTemplate,
   supplementTemplates,
   supplementLogs,
   mostRecentSupplementLogDates,
@@ -31,6 +32,7 @@ export function RoutineTab({
   peptideTemplates: PeptideTemplate[];
   peptideLogs: PeptideLogWithTemplate[];
   mostRecentPeptideLogDates: Record<string, string>;
+  currentLevelByTemplate: Record<string, number>;
   supplementTemplates: SupplementTemplate[];
   supplementLogs: SupplementLogWithTemplate[];
   mostRecentSupplementLogDates: Record<string, string>;
@@ -60,6 +62,7 @@ export function RoutineTab({
               templates={peptideTemplates}
               logs={peptideLogs}
               mostRecentLogDates={mostRecentPeptideLogDates}
+              currentLevelByTemplate={currentLevelByTemplate}
             />
           )}
           {supplementTemplates.length > 0 && (

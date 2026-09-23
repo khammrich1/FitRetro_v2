@@ -28,6 +28,16 @@ export const peptideTemplates = pgTable("peptide_templates", {
   /** Preferred time of day to take it, stored as 24-hour "HH:MM" (from a native time input);
    * reference/label only, same as frequency — not used for reminders. */
   preferredTime: text("preferred_time"),
+  /** Reconstitution inputs, both optional and both in mg/mL — only meaningful (and only shown)
+   * when doseUnit is "mg" or "mcg" (a lyophilized powder peptide), not "iu"/"ml". See
+   * @/features/peptides/reconstitution for the draw-volume math. */
+  vialAmountMg: real("vial_amount_mg"),
+  bacWaterMl: real("bac_water_ml"),
+  /** User-entered elimination half-life in hours, used only to estimate how much of a dose is
+   * still active ("level in body") — see @/features/peptides/decay. Null hides that estimate for
+   * this peptide entirely rather than guessing; FitRetro doesn't assert a half-life on the
+   * user's behalf. */
+  halfLifeHours: real("half_life_hours"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -38,6 +48,10 @@ export const peptideLogs = pgTable("peptide_logs", {
     .references(() => peptideTemplates.id, { onDelete: "cascade" })
     .notNull(),
   loggedOn: date("logged_on").notNull(),
+  /** Actual moment the dose was logged, in addition to the calendar-day `loggedOn` (kept as-is
+   * for day-bucketing everywhere else). Needed for the "level in body" decay estimate — a
+   * calendar day alone is too coarse for a peptide with a half-life measured in hours. */
+  loggedAt: timestamp("logged_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export type PeptideTemplate = typeof peptideTemplates.$inferSelect;
