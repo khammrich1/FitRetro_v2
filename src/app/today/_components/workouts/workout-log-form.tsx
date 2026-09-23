@@ -357,12 +357,12 @@ export function WorkoutLogForm({
             key={exerciseIndex}
             className="flex flex-col gap-2 rounded-md border border-border bg-background p-2"
           >
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <input
                 value={exercise.name}
                 onChange={(event) => updateExerciseField(exerciseIndex, "name", event.target.value)}
                 placeholder="Exercise name"
-                className="flex-1 rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="min-w-0 flex-1 rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <select
                 value={exercise.muscleGroup}
