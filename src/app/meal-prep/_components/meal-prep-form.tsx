@@ -9,24 +9,33 @@ import {
 import { addMealPrepBatchAction } from "@/app/pantry/actions";
 import { useSpeechToText } from "@/lib/hooks/use-speech-to-text";
 import { MACRO_LABELS, GRAM_FIELD, type MacroKey } from "@/lib/macro-order";
+import {
+  appendItems,
+  blankItem,
+  isBlankItem,
+  removeItemAt,
+  type EditableItem,
+} from "./ingredients";
 
-type EditableItem = {
+type EstimatedItem = {
   name: string;
   quantity: string;
-  calories: string;
-  proteinGrams: string;
-  carbsGrams: string;
-  fatGrams: string;
+  calories: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
 };
 
-const blankItem: EditableItem = {
-  name: "",
-  quantity: "",
-  calories: "",
-  proteinGrams: "",
-  carbsGrams: "",
-  fatGrams: "",
-};
+function toEditable(item: EstimatedItem): EditableItem {
+  return {
+    name: item.name,
+    quantity: item.quantity,
+    calories: String(item.calories),
+    proteinGrams: String(item.proteinGrams),
+    carbsGrams: String(item.carbsGrams),
+    fatGrams: String(item.fatGrams),
+  };
+}
 
 export function MealPrepForm({ macroOrder }: { macroOrder: MacroKey[] }) {
   const [state, action, pending] = useActionState(addMealPrepBatchAction, undefined);
@@ -35,6 +44,10 @@ export function MealPrepForm({ macroOrder }: { macroOrder: MacroKey[] }) {
   const [portions, setPortions] = useState("4");
   const [items, setItems] = useState<EditableItem[]>([{ ...blankItem }]);
   const [estimateResult, setEstimateResult] = useState<EstimateMacrosState>(undefined);
+  /** What the most recent estimate added — shown so each ingredient's macros are visible as
+   * it's added, before moving on to the next one. */
+  const [lastAdded, setLastAdded] = useState<EditableItem[]>([]);
+  const estimateInputRef = useRef<HTMLInputElement>(null);
   const [estimating, startEstimating] = useTransition();
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
@@ -58,6 +71,7 @@ export function MealPrepForm({ macroOrder }: { macroOrder: MacroKey[] }) {
       setPortions("4");
       setItems([{ ...blankItem }]);
       setEstimateResult(undefined);
+      setLastAdded([]);
       clearPhoto();
     }
     wasPending.current = pending;
@@ -92,45 +106,30 @@ export function MealPrepForm({ macroOrder }: { macroOrder: MacroKey[] }) {
   }
 
   function removeItem(index: number) {
-    setItems((current) => (current.length > 1 ? current.filter((_, i) => i !== index) : current));
+    setItems((current) => removeItemAt(current, index));
   }
 
+  /** Estimates only what's in the input box and appends it to the batch — ingredients already
+   * on the list (estimated or typed by hand) are never replaced or changed. */
   function handleEstimate() {
     startEstimating(async () => {
+      let result: EstimateMacrosState;
       if (photo) {
         const formData = new FormData();
         formData.append("image", photo);
         formData.append("note", estimatePrompt);
-        const result = await estimateMacrosFromImageAction(formData);
-        setEstimateResult(result);
-        if (result && "estimate" in result) {
-          setItems(
-            result.estimate.items.map((item) => ({
-              name: item.name,
-              quantity: item.quantity,
-              calories: String(item.calories),
-              proteinGrams: String(item.proteinGrams),
-              carbsGrams: String(item.carbsGrams),
-              fatGrams: String(item.fatGrams),
-            })),
-          );
-        }
-        return;
+        result = await estimateMacrosFromImageAction(formData);
+      } else {
+        result = await estimateMacrosAction(estimatePrompt);
       }
-
-      const result = await estimateMacrosAction(estimatePrompt);
       setEstimateResult(result);
       if (result && "estimate" in result) {
-        setItems(
-          result.estimate.items.map((item) => ({
-            name: item.name,
-            quantity: item.quantity,
-            calories: String(item.calories),
-            proteinGrams: String(item.proteinGrams),
-            carbsGrams: String(item.carbsGrams),
-            fatGrams: String(item.fatGrams),
-          })),
-        );
+        const added = result.estimate.items.map(toEditable);
+        setItems((current) => appendItems(current, added));
+        setLastAdded(added);
+        setEstimatePrompt("");
+        clearPhoto();
+        estimateInputRef.current?.focus();
       }
     });
   }
@@ -174,14 +173,16 @@ export function MealPrepForm({ macroOrder }: { macroOrder: MacroKey[] }) {
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        Bulk ingredients
+        Add ingredients
         <p className="text-xs font-normal text-muted-foreground">
-          Describe everything that went into the batch — type it, speak it (🎤), or snap a photo
-          (📷) — then hit &quot;Estimate macros.&quot; Skip this and fill in the items yourself
-          below if you&apos;d rather enter everything manually.
+          Add ingredients one at a time as you build the batch (or several at once) — type it, speak
+          it (🎤), or snap a photo (📷), then hit &quot;Estimate &amp; add.&quot; Each estimate is
+          added to the list below; nothing already on the list changes. You can also fill in or edit
+          any row by hand.
         </p>
         <div className="flex gap-2">
           <input
+            ref={estimateInputRef}
             value={estimatePrompt}
             onChange={(event) => setEstimatePrompt(event.target.value)}
             onKeyDown={(event) => {
@@ -190,7 +191,7 @@ export function MealPrepForm({ macroOrder }: { macroOrder: MacroKey[] }) {
                 if (!estimating && (estimatePrompt.trim() || photo)) handleEstimate();
               }
             }}
-            placeholder="5lb chicken breast, 3 cups rice, 2 cups broccoli"
+            placeholder="e.g. 40g green beans"
             className="flex-1 rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           {micSupported && (
@@ -251,11 +252,29 @@ export function MealPrepForm({ macroOrder }: { macroOrder: MacroKey[] }) {
         disabled={estimating || (!estimatePrompt.trim() && !photo)}
         className="self-start rounded-full border border-border px-4 py-1.5 text-sm hover:border-accent hover:text-accent disabled:opacity-50"
       >
-        {estimating ? "Estimating macros..." : "Estimate macros"}
+        {estimating ? "Estimating..." : "Estimate & add"}
       </button>
 
       {estimateResult && "error" in estimateResult && (
         <p className="text-sm text-danger">{estimateResult.error}</p>
+      )}
+
+      {lastAdded.length > 0 && (
+        <div role="status" className="rounded-md border border-accent px-3 py-2 text-xs">
+          <span className="font-medium text-accent">Added:</span>
+          <ul>
+            {lastAdded.map((item, index) => (
+              <li key={index} className="text-muted-foreground">
+                {item.name}
+                {item.quantity ? ` (${item.quantity})` : ""} — {Math.round(Number(item.calories))}{" "}
+                kcal ·{" "}
+                {macroOrder
+                  .map((key) => `${(Number(item[GRAM_FIELD[key]]) || 0).toFixed(1)}g ${key}`)
+                  .join(" · ")}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="flex flex-col gap-2">
@@ -279,7 +298,7 @@ export function MealPrepForm({ macroOrder }: { macroOrder: MacroKey[] }) {
                 placeholder="Ingredient name"
                 className="flex-1 rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
-              {items.length > 1 && (
+              {(items.length > 1 || !isBlankItem(item)) && (
                 <button
                   type="button"
                   onClick={() => removeItem(index)}
