@@ -20,7 +20,8 @@ const mocks = vi.hoisted(() => {
   };
   const stripe = {
     promotionCodes: { list: vi.fn() },
-    checkout: { sessions: { create: vi.fn() } },
+    subscriptions: { list: vi.fn() },
+    checkout: { sessions: { create: vi.fn(), list: vi.fn(), expire: vi.fn() } },
     billingPortal: { sessions: { create: vi.fn() } },
   };
   return {
@@ -110,6 +111,9 @@ beforeEach(() => {
   mocks.cookieStore.delete.mockClear();
   mocks.stripe.promotionCodes.list.mockReset().mockResolvedValue({ data: [ACTIVE_PROMOTION_CODE] });
   mocks.stripe.checkout.sessions.create.mockReset().mockResolvedValue({ url: CHECKOUT_URL });
+  mocks.stripe.checkout.sessions.list.mockReset().mockResolvedValue({ data: [] });
+  mocks.stripe.checkout.sessions.expire.mockReset().mockResolvedValue({});
+  mocks.stripe.subscriptions.list.mockReset().mockResolvedValue({ data: [] });
   mocks.stripe.billingPortal.sessions.create.mockReset();
   mocks.getOrCreateStripeCustomer.mockReset().mockResolvedValue("cus_test_placeholder");
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -305,6 +309,8 @@ describe("unauthenticated callers are rejected by verifySession()", () => {
     expect(target).toBe("/login");
     expect(mocks.stripe.promotionCodes.list).not.toHaveBeenCalled();
     expect(mocks.stripe.checkout.sessions.create).not.toHaveBeenCalled();
+    expect(mocks.stripe.checkout.sessions.list).not.toHaveBeenCalled();
+    expect(mocks.stripe.subscriptions.list).not.toHaveBeenCalled();
     expect(mocks.stripe.billingPortal.sessions.create).not.toHaveBeenCalled();
     expect(mocks.getOrCreateStripeCustomer).not.toHaveBeenCalled();
     expect(mocks.jar.get("fr_campaign")).toBe("promo1");
@@ -313,6 +319,87 @@ describe("unauthenticated callers are rejected by verifySession()", () => {
   it("rejects a forged session cookie", async () => {
     mocks.jar.set("session", "forged.token.value");
     expect(await redirectTarget(() => createCheckoutSessionAction())).toBe("/login");
+    expect(mocks.stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("double-subscribe guard (asks Stripe, not the webhook-fed table)", () => {
+  beforeEach(async () => {
+    await signIn();
+  });
+
+  it.each([["normal"], ["sticker"]])(
+    "sends an already-subscribed customer to billing instead of a new checkout (%s)",
+    async (path) => {
+      if (path === "sticker") arriveViaSticker();
+      mocks.stripe.subscriptions.list.mockResolvedValue({
+        data: [{ id: "sub_existing_placeholder", status: "active" }],
+      });
+
+      const target = await redirectTarget(() => createCheckoutSessionAction());
+
+      expect(target).toBe("/settings/billing?notice=already_subscribed");
+      expect(mocks.stripe.subscriptions.list).toHaveBeenCalledWith({
+        customer: "cus_test_placeholder",
+        status: "all",
+        limit: 100,
+      });
+      expect(mocks.stripe.checkout.sessions.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["trialing", "past_due", "unpaid", "paused"])(
+    "also blocks a %s subscription",
+    async (status) => {
+      mocks.stripe.subscriptions.list.mockResolvedValue({ data: [{ id: "sub_x", status }] });
+      expect(await redirectTarget(() => createCheckoutSessionAction())).toBe(
+        "/settings/billing?notice=already_subscribed",
+      );
+      expect(mocks.stripe.checkout.sessions.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it("lets a customer whose past subscriptions are canceled or expired subscribe again", async () => {
+    mocks.stripe.subscriptions.list.mockResolvedValue({
+      data: [
+        { id: "sub_old", status: "canceled" },
+        { id: "sub_failed", status: "incomplete_expired" },
+      ],
+    });
+    expect(await redirectTarget(() => createCheckoutSessionAction())).toBe(CHECKOUT_URL);
+  });
+
+  it("expires the customer's other open Checkout Sessions before creating a new one", async () => {
+    mocks.stripe.checkout.sessions.list.mockResolvedValue({
+      data: [{ id: "cs_open_tab_1" }, { id: "cs_open_tab_2" }],
+    });
+
+    await redirectTarget(() => createCheckoutSessionAction());
+
+    expect(mocks.stripe.checkout.sessions.list).toHaveBeenCalledWith({
+      customer: "cus_test_placeholder",
+      status: "open",
+      limit: 100,
+    });
+    expect(mocks.stripe.checkout.sessions.expire).toHaveBeenCalledWith("cs_open_tab_1");
+    expect(mocks.stripe.checkout.sessions.expire).toHaveBeenCalledWith("cs_open_tab_2");
+    const expireOrder = mocks.stripe.checkout.sessions.expire.mock.invocationCallOrder[0];
+    const createOrder = mocks.stripe.checkout.sessions.create.mock.invocationCallOrder[0];
+    expect(expireOrder).toBeLessThan(createOrder);
+  });
+
+  it.each([
+    ["the subscription lookup fails", "subscriptions"],
+    ["an open session can't be expired", "expire"],
+  ])("fails closed when %s", async (_label, failing) => {
+    mocks.stripe.checkout.sessions.list.mockResolvedValue({ data: [{ id: "cs_open" }] });
+    const outage = Object.assign(new Error("connection reset"), { type: "StripeConnectionError" });
+    if (failing === "subscriptions") mocks.stripe.subscriptions.list.mockRejectedValue(outage);
+    else mocks.stripe.checkout.sessions.expire.mockRejectedValue(outage);
+
+    expect(await redirectTarget(() => createCheckoutSessionAction())).toBe(
+      "/subscribe?error=billing_unavailable",
+    );
     expect(mocks.stripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 });

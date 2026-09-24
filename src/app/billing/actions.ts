@@ -7,7 +7,9 @@ import { verifySession } from "@/features/auth";
 import {
   CAMPAIGN_COOKIE_NAME,
   STICKER_CAMPAIGN_METADATA,
+  expireOpenCheckoutSessions,
   getOrCreateStripeCustomer,
+  hasBlockingSubscription,
   parseCampaign,
 } from "@/features/billing";
 import { getStripeClient, getStripePriceId, getStripePromoCode } from "@/lib/stripe";
@@ -30,8 +32,9 @@ async function findActivePromotionCodeId(code: string): Promise<string | null> {
   return results.data[0]?.id ?? null;
 }
 
-/** Why a sticker checkout was stopped — /subscribe maps each code to a fixed message. */
-export type StickerCheckoutError = "promo_unavailable" | "promo_rejected";
+/** Why a checkout was stopped — /subscribe maps each code to a fixed message. The promo_ codes
+ * are sticker-only; billing_unavailable can happen on any checkout. */
+export type CheckoutError = "promo_unavailable" | "promo_rejected" | "billing_unavailable";
 
 /** Type/code only, never the message: Stripe error messages can echo a masked fragment of the
  * API key (e.g. on authentication failures). */
@@ -82,8 +85,29 @@ function isRedeemable(promotionCode: Stripe.PromotionCode): boolean {
   );
 }
 
-function stickerCheckoutStopped(reason: StickerCheckoutError): never {
+function checkoutStopped(reason: CheckoutError): never {
   redirect(`/subscribe?error=${reason}`);
+}
+
+/** Runs right before creating a Checkout Session. Stops (redirects) if the customer already has
+ * a live subscription, or if Stripe can't be asked — failing closed, since the alternative is
+ * risking a second charge. */
+async function ensureCustomerCanStartCheckout(stripe: Stripe, customerId: string): Promise<void> {
+  let alreadySubscribed: boolean;
+  try {
+    // Expire first, then check: if an old session completes in between, its subscription
+    // already exists by the time we look.
+    await expireOpenCheckoutSessions(stripe, customerId);
+    alreadySubscribed = await hasBlockingSubscription(stripe, customerId);
+  } catch (error) {
+    console.error(
+      `Checkout stopped: couldn't verify existing subscriptions (${describeStripeError(error)}).`,
+    );
+    checkoutStopped("billing_unavailable");
+  }
+  if (alreadySubscribed) {
+    redirect("/settings/billing?notice=already_subscribed");
+  }
 }
 
 export async function createCheckoutSessionAction(promoCode?: string): Promise<void> {
@@ -104,9 +128,10 @@ export async function createCheckoutSessionAction(promoCode?: string): Promise<v
     // Resolved before creating any Stripe customer or session: if the promised free month can't
     // be applied, stop here rather than falling through to a full-price checkout.
     const promotionCodeId = await findStickerPromotionCodeId(stripe);
-    if (!promotionCodeId) stickerCheckoutStopped("promo_unavailable");
+    if (!promotionCodeId) checkoutStopped("promo_unavailable");
 
     const customerId = await getOrCreateStripeCustomer(userId);
+    await ensureCustomerCanStartCheckout(stripe, customerId);
     const metadata = { userId, ...STICKER_CAMPAIGN_METADATA };
 
     let checkoutUrl: string | null;
@@ -125,7 +150,7 @@ export async function createCheckoutSessionAction(promoCode?: string): Promise<v
       console.error(
         `Sticker checkout stopped: Stripe rejected the session (${describeStripeError(error)}).`,
       );
-      stickerCheckoutStopped("promo_rejected");
+      checkoutStopped("promo_rejected");
     }
     if (!checkoutUrl) {
       throw new Error("Stripe did not return a checkout URL.");
@@ -134,6 +159,7 @@ export async function createCheckoutSessionAction(promoCode?: string): Promise<v
   }
 
   const customerId = await getOrCreateStripeCustomer(userId);
+  await ensureCustomerCanStartCheckout(stripe, customerId);
   const promotionCodeId = promoCode ? await findActivePromotionCodeId(promoCode) : null;
 
   const session = await stripe.checkout.sessions.create({
