@@ -25,6 +25,10 @@ export const users = pgTable("users", {
    * then. Independent of whether they ever complete a subscription (see subscriptions table),
    * so a customer can be reused across multiple checkout attempts. */
   stripeCustomerId: text("stripe_customer_id"),
+  /** Acquisition campaign active when the account was created (e.g. "promo1" for the QR
+   * sticker), read from the fr_campaign cookie at signup. Null for everyone else, including
+   * existing users who later scan a sticker — this records how the account was acquired. */
+  signupCampaign: text("signup_campaign"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

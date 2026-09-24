@@ -2,8 +2,10 @@
 
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createSession, deleteSession } from "@/lib/session";
 import { safeNextPath } from "@/lib/safe-redirect";
+import { CAMPAIGN_COOKIE_NAME, parseCampaign } from "@/features/billing/campaign";
 import { signupSchema, loginSchema } from "./validation";
 import { createUser, getUserByEmail } from "./queries";
 
@@ -39,7 +41,8 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const user = await createUser({ displayName, email, passwordHash });
+  const signupCampaign = parseCampaign((await cookies()).get(CAMPAIGN_COOKIE_NAME)?.value);
+  const user = await createUser({ displayName, email, passwordHash, signupCampaign });
 
   await createSession(user.id);
   redirect(safeNextPath(formData.get("next")) ?? "/today");

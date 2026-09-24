@@ -146,6 +146,35 @@ describe("signup", () => {
     expect(mocks.cookieStore.set.mock.calls.map(([name]) => name)).toEqual(["session"]);
   });
 
+  it("tags the new account with the sticker campaign it arrived from", async () => {
+    await redirectTarget(() =>
+      signup(
+        undefined,
+        form({ displayName: "Sticker Scanner", email: "new@example.com", password: PASSWORD }),
+      ),
+    );
+    expect(mocks.createUser).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "new@example.com", signupCampaign: "promo1" }),
+    );
+  });
+
+  it.each([
+    ["no campaign cookie", undefined],
+    ["an unrecognized campaign value", "promo9"],
+  ])("leaves signupCampaign null with %s", async (_label, cookieValue) => {
+    mocks.jar.delete("fr_campaign");
+    if (cookieValue) mocks.jar.set("fr_campaign", cookieValue);
+    await redirectTarget(() =>
+      signup(
+        undefined,
+        form({ displayName: "Walk In", email: "walkin@example.com", password: PASSWORD }),
+      ),
+    );
+    expect(mocks.createUser).toHaveBeenCalledWith(
+      expect.objectContaining({ signupCampaign: null }),
+    );
+  });
+
   it("ignores an off-site next destination", async () => {
     const target = await redirectTarget(() =>
       signup(
