@@ -118,9 +118,10 @@ export function MealPrepForm({ macroOrder }: { macroOrder: MacroKey[] }) {
         const formData = new FormData();
         formData.append("image", photo);
         formData.append("note", estimatePrompt);
+        formData.append("purpose", "batch");
         result = await estimateMacrosFromImageAction(formData);
       } else {
-        result = await estimateMacrosAction(estimatePrompt);
+        result = await estimateMacrosAction(estimatePrompt, "batch");
       }
       setEstimateResult(result);
       if (result && "estimate" in result) {
@@ -175,10 +176,11 @@ export function MealPrepForm({ macroOrder }: { macroOrder: MacroKey[] }) {
       <label className="flex flex-col gap-1 text-sm">
         Add ingredients
         <p className="text-xs font-normal text-muted-foreground">
-          Add ingredients one at a time as you build the batch (or several at once) — type it, speak
-          it (🎤), or snap a photo (📷), then hit &quot;Estimate &amp; add.&quot; Each estimate is
-          added to the list below; nothing already on the list changes. You can also fill in or edit
-          any row by hand.
+          Add ingredients one at a time as you build the batch (or several at once) — type it
+          (&quot;40g green beans&quot;), speak it (🎤), or snap a photo (📷) of it on your kitchen
+          scale with the weight showing, or of the package label. Then hit &quot;Estimate &amp;
+          add.&quot; Amounts count as raw and for the whole batch. Each estimate is added to the
+          list below; nothing already on the list changes, and you can edit any row by hand.
         </p>
         <div className="flex gap-2">
           <input

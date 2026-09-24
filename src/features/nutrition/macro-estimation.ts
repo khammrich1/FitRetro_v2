@@ -38,7 +38,99 @@ const macroEstimateSchema = z.object({
 
 export type MacroEstimate = z.infer<typeof macroEstimateSchema>;
 
-export async function estimateMacrosFromDescription(description: string): Promise<MacroEstimate> {
+/** "meal": what someone is eating now (Today, templates, pantry, suggestions) — portions are
+ * scaled to what's eaten. "batch": ingredients going into a meal-prep batch — every ingredient
+ * at its full amount, never scaled to a serving, since /meal-prep divides by portions itself. */
+export const ESTIMATE_PURPOSES = ["meal", "batch"] as const;
+export type EstimatePurpose = (typeof ESTIMATE_PURPOSES)[number];
+
+const VOICE_TRANSCRIPTION_GUIDANCE = `This may come from voice-to-text and can contain transcription
+errors, especially in unit words (e.g. "oz" misheard as "on", "ounce" dropped, "grams" garbled). If a
+quantity's unit looks garbled or nonstandard, infer the most likely intended unit from context — oz,
+cups, grams, and pounds are the common units for food — rather than treating the quantity as
+unspecified or ignoring it.`;
+
+const SPECIFIC_FOOD_SEARCH_GUIDANCE = `If an ingredient is a specific branded or packaged product,
+search the web for that product's actual nutrition label instead of estimating from general
+knowledge — brand-specific values can differ substantially from a typical item of that type. The
+same caution applies to specific cuts of meat or less-common whole foods — e.g. chicken tenderloin,
+breast, and thigh have meaningfully different fat/calorie profiles per pound even though they're all
+"chicken" — if you're not confident of precise reference values (like USDA FoodData Central) for
+the specific cut/type, search to confirm rather than guessing from a generic average.`;
+
+const BATCH_RULES = `List every ingredient separately with the nutrition for its FULL amount going
+into the batch. Never scale anything down to a single serving — the app divides the batch into
+portions itself. Meal-prep amounts are usually weighed or measured raw, so assume raw/uncooked
+weights unless it's stated or clearly shown that something is already cooked.`;
+
+/** Meal-prep batch prompt for typed/spoken ingredients. */
+export function batchDescriptionPrompt(description: string): string {
+  return `These are ingredients going into a meal-prep batch that will be cooked and split into
+portions later — not a meal someone is eating right now.
+
+${BATCH_RULES}
+
+Use each stated quantity exactly as given. If an ingredient has no amount, assume one typical
+package or unit of it and say so in its quantity (e.g. "1 lb (assumed)").
+
+${VOICE_TRANSCRIPTION_GUIDANCE}
+
+${SPECIFIC_FOOD_SEARCH_GUIDANCE}
+
+Ingredients: "${description}"`;
+}
+
+/** Meal-prep batch prompt for a photo — built around weighing produce on a kitchen scale. */
+export function batchImagePrompt(note?: string): string {
+  return `This photo shows ingredients for a meal-prep batch that will be cooked and split into
+portions later — not a plate someone is eating. It may show any mix of:
+
+(a) Food on a kitchen scale: read the weight from the scale's display and use it as that
+ingredient's quantity, with the unit shown (g, oz, lb, kg). Assume the scale was zeroed (tared) with
+any bowl or container already on it, unless the user's note says otherwise. If the display isn't
+readable, estimate the weight visually and mark the quantity as estimated (e.g. "~300g (estimated)").
+(b) Packaged products: read the nutrition label. Unless the user's note says otherwise, assume the
+whole package goes into the batch — servings per container × the per-serving values, or the net
+weight. If the label isn't legible, search for that product's label.
+(c) A written recipe or ingredient list: read every ingredient and quantity and total them for the
+full batch as written.
+(d) Loose ingredients with no scale or label: estimate the amount visually and mark it as
+estimated.
+
+${BATCH_RULES}
+
+The user's note takes precedence over anything read from the photo (e.g. "chicken is 2 lb", "only
+half the bag of rice").
+
+${SPECIFIC_FOOD_SEARCH_GUIDANCE}${
+    note
+      ? `
+
+Note from the user (may be voice-to-text — infer garbled units like "on" for "oz" from context):
+"${note}"`
+      : ""
+  }`;
+}
+
+function requireParsedEstimate(response: {
+  parsed_output: MacroEstimate | null;
+  stop_reason: unknown;
+  content: unknown;
+}): MacroEstimate {
+  if (!response.parsed_output) {
+    console.error(
+      "Macro estimate parse failure",
+      JSON.stringify({ stopReason: response.stop_reason, content: response.content }),
+    );
+    throw new Error("Failed to parse macro estimate from the model response.");
+  }
+  return response.parsed_output;
+}
+
+export async function estimateMacrosFromDescription(
+  description: string,
+  purpose: EstimatePurpose = "meal",
+): Promise<MacroEstimate> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error(
       "ANTHROPIC_API_KEY is not configured. Set it in .env to enable macro estimation, or enter macros manually below.",
@@ -46,6 +138,18 @@ export async function estimateMacrosFromDescription(description: string): Promis
   }
 
   const client = new Anthropic();
+
+  if (purpose === "batch") {
+    return requireParsedEstimate(
+      await client.messages.parse({
+        model: TEXT_ESTIMATION_MODEL,
+        max_tokens: 1024,
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
+        output_config: { format: zodOutputFormat(macroEstimateSchema) },
+        messages: [{ role: "user", content: batchDescriptionPrompt(description) }],
+      }),
+    );
+  }
 
   const response = await client.messages.parse({
     model: TEXT_ESTIMATION_MODEL,
@@ -119,6 +223,7 @@ export async function estimateMacrosFromImage(
   imageBase64: string,
   mediaType: SupportedImageMediaType,
   note?: string,
+  purpose: EstimatePurpose = "meal",
 ): Promise<MacroEstimate> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error(
@@ -127,6 +232,30 @@ export async function estimateMacrosFromImage(
   }
 
   const client = new Anthropic();
+
+  if (purpose === "batch") {
+    return requireParsedEstimate(
+      await client.messages.parse({
+        model: IMAGE_ESTIMATION_MODEL,
+        // Same reasoning budget as the meal photo path below (Sonnet 5 adaptive thinking).
+        max_tokens: 8192,
+        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 2 }],
+        output_config: { format: zodOutputFormat(macroEstimateSchema), effort: "medium" },
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: { type: "base64", media_type: mediaType, data: imageBase64 },
+              },
+              { type: "text", text: batchImagePrompt(note) },
+            ],
+          },
+        ],
+      }),
+    );
+  }
 
   const response = await client.messages.parse({
     model: IMAGE_ESTIMATION_MODEL,
