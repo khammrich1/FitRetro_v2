@@ -27,7 +27,9 @@ export function getStripeClient(): Stripe {
         "STRIPE_SECRET_KEY must be a test-mode key (sk_test_ or rk_test_). Billing runs in test mode only for now.",
       );
     }
-    client = new Stripe(secretKey);
+    // The SDK default is an 80s timeout; someone tapping "Redeem" on a phone shouldn't wait
+    // that long for an outage. Retries reuse an idempotency key, so they can't double-create.
+    client = new Stripe(secretKey, { timeout: 10_000, maxNetworkRetries: 2 });
   }
   return client;
 }

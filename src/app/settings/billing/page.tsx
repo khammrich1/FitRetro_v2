@@ -27,11 +27,18 @@ export default async function BillingSettingsPage({
   const subscription = await getSubscriptionForUser(userId);
   // Set by checkout when Stripe itself reports a live subscription — which can be true even
   // before the webhook has written the local row below.
-  const alreadySubscribed = (await searchParams).notice === "already_subscribed";
+  const { notice } = await searchParams;
+  const alreadySubscribed = notice === "already_subscribed";
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10">
       <h1 className="retro-heading text-2xl font-bold text-foreground">Billing</h1>
+
+      {notice === "portal_unavailable" && (
+        <p role="alert" className="rounded-md border border-danger px-3 py-2 text-sm text-danger">
+          Billing management couldn&apos;t be opened right now. Please try again in a moment.
+        </p>
+      )}
 
       {alreadySubscribed && (
         <p role="status" className="rounded-md border border-accent px-3 py-2 text-sm text-accent">

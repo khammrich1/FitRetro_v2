@@ -403,3 +403,55 @@ describe("double-subscribe guard (asks Stripe, not the webhook-fed table)", () =
     expect(mocks.stripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 });
+
+describe("Stripe failures stop checkout cleanly instead of crashing", () => {
+  const outage = () =>
+    Object.assign(new Error("Invalid JSON received from the Stripe API"), {
+      type: "StripeAPIError",
+    });
+
+  beforeEach(async () => {
+    await signIn();
+  });
+
+  it.each([["normal"], ["sticker"]])("when customer lookup fails (%s)", async (path) => {
+    if (path === "sticker") arriveViaSticker();
+    mocks.getOrCreateStripeCustomer.mockRejectedValue(outage());
+
+    expect(await redirectTarget(() => createCheckoutSessionAction())).toBe(
+      "/subscribe?error=billing_unavailable",
+    );
+    expect(mocks.stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("when creating the normal Checkout Session fails", async () => {
+    mocks.stripe.checkout.sessions.create.mockRejectedValue(outage());
+    expect(await redirectTarget(() => createCheckoutSessionAction())).toBe(
+      "/subscribe?error=billing_unavailable",
+    );
+  });
+
+  it("reports a sticker outage as an outage, not as the offer being rejected", async () => {
+    arriveViaSticker();
+    mocks.stripe.checkout.sessions.create.mockRejectedValue(outage());
+    expect(await redirectTarget(() => createCheckoutSessionAction())).toBe(
+      "/subscribe?error=billing_unavailable",
+    );
+  });
+
+  it("when billing isn't configured", async () => {
+    vi.stubEnv("STRIPE_PRICE_ID", "");
+    expect(await redirectTarget(() => createCheckoutSessionAction())).toBe(
+      "/subscribe?error=billing_unavailable",
+    );
+    const logged = vi.mocked(console.error).mock.calls.flat().join(" ");
+    expect(logged).toContain("STRIPE_PRICE_ID is not configured");
+  });
+
+  it("when the billing portal can't be opened", async () => {
+    mocks.stripe.billingPortal.sessions.create.mockRejectedValue(outage());
+    expect(await redirectTarget(() => createBillingPortalSessionAction())).toBe(
+      "/settings/billing?notice=portal_unavailable",
+    );
+  });
+});
