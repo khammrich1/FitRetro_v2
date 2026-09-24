@@ -25,6 +25,8 @@ import {
   calculateDefaultMacroGoals,
   SUPPORTED_IMAGE_MEDIA_TYPES,
   type SupportedImageMediaType,
+  ESTIMATE_PURPOSES,
+  type EstimatePurpose,
   type FoodSuggestion,
   type MacroEstimate,
 } from "@/features/nutrition";
@@ -210,7 +212,14 @@ export async function getSuggestionsAction(
 
 export type EstimateMacrosState = { estimate: MacroEstimate } | { error: string } | undefined;
 
-export async function estimateMacrosAction(description: string): Promise<EstimateMacrosState> {
+function parsePurpose(value: unknown): EstimatePurpose {
+  return ESTIMATE_PURPOSES.find((purpose) => purpose === value) ?? "meal";
+}
+
+export async function estimateMacrosAction(
+  description: string,
+  purpose: EstimatePurpose = "meal",
+): Promise<EstimateMacrosState> {
   const { userId } = await verifySession();
 
   if (!description.trim()) {
@@ -223,7 +232,7 @@ export async function estimateMacrosAction(description: string): Promise<Estimat
   }
 
   try {
-    const estimate = await estimateMacrosFromDescription(description);
+    const estimate = await estimateMacrosFromDescription(description, parsePurpose(purpose));
     return { estimate };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Failed to estimate macros." };
@@ -263,7 +272,12 @@ export async function estimateMacrosFromImageAction(
 
   try {
     const buffer = Buffer.from(await image.arrayBuffer());
-    const estimate = await estimateMacrosFromImage(buffer.toString("base64"), image.type, note);
+    const estimate = await estimateMacrosFromImage(
+      buffer.toString("base64"),
+      image.type,
+      note,
+      parsePurpose(formData.get("purpose")),
+    );
     return { estimate };
   } catch (error) {
     return {
