@@ -7,7 +7,9 @@ import { verifySession } from "@/features/auth";
 import {
   CAMPAIGN_COOKIE_NAME,
   STICKER_CAMPAIGN_METADATA,
+  expireOpenCheckoutSessions,
   getOrCreateStripeCustomer,
+  hasBlockingSubscription,
   parseCampaign,
 } from "@/features/billing";
 import { getStripeClient, getStripePriceId, getStripePromoCode } from "@/lib/stripe";
@@ -30,8 +32,9 @@ async function findActivePromotionCodeId(code: string): Promise<string | null> {
   return results.data[0]?.id ?? null;
 }
 
-/** Why a sticker checkout was stopped — /subscribe maps each code to a fixed message. */
-export type StickerCheckoutError = "promo_unavailable" | "promo_rejected";
+/** Why a checkout was stopped — /subscribe maps each code to a fixed message. The promo_ codes
+ * are sticker-only; billing_unavailable can happen on any checkout. */
+export type CheckoutError = "promo_unavailable" | "promo_rejected" | "billing_unavailable";
 
 /** Type/code only, never the message: Stripe error messages can echo a masked fragment of the
  * API key (e.g. on authentication failures). */
@@ -41,6 +44,8 @@ function describeStripeError(error: unknown): string {
     const parts = [type, code].filter((part): part is string => typeof part === "string");
     if (parts.length > 0) return parts.join("/");
   }
+  // Not a Stripe error (no `type`): our own config errors, which name a variable, never a value.
+  if (error instanceof Error) return error.message;
   return "unknown error";
 }
 
@@ -82,16 +87,51 @@ function isRedeemable(promotionCode: Stripe.PromotionCode): boolean {
   );
 }
 
-function stickerCheckoutStopped(reason: StickerCheckoutError): never {
+function checkoutStopped(reason: CheckoutError): never {
   redirect(`/subscribe?error=${reason}`);
+}
+
+/** Runs right before creating a Checkout Session. Stops (redirects) if the customer already has
+ * a live subscription, or if Stripe can't be asked — failing closed, since the alternative is
+ * risking a second charge. */
+async function ensureCustomerCanStartCheckout(stripe: Stripe, customerId: string): Promise<void> {
+  let alreadySubscribed: boolean;
+  try {
+    // Expire first, then check: if an old session completes in between, its subscription
+    // already exists by the time we look.
+    await expireOpenCheckoutSessions(stripe, customerId);
+    alreadySubscribed = await hasBlockingSubscription(stripe, customerId);
+  } catch (error) {
+    console.error(
+      `Checkout stopped: couldn't verify existing subscriptions (${describeStripeError(error)}).`,
+    );
+    checkoutStopped("billing_unavailable");
+  }
+  if (alreadySubscribed) {
+    redirect("/settings/billing?notice=already_subscribed");
+  }
+}
+
+/** Runs one Stripe-backed step of checkout. Any failure — Stripe down, bad config, timeout —
+ * stops checkout with the "try again" message instead of an error page. `step` must not call
+ * redirect() itself, so Next's redirect signal is never swallowed here. */
+async function checkoutStep<T>(label: string, step: () => Promise<T>): Promise<T> {
+  try {
+    return await step();
+  } catch (error) {
+    console.error(`Checkout stopped: ${label} failed (${describeStripeError(error)}).`);
+    checkoutStopped("billing_unavailable");
+  }
 }
 
 export async function createCheckoutSessionAction(promoCode?: string): Promise<void> {
   const { userId } = await verifySession();
   const campaign = parseCampaign((await cookies()).get(CAMPAIGN_COOKIE_NAME)?.value);
-  const stripe = getStripeClient();
-  const priceId = getStripePriceId();
   const siteUrl = await getSiteUrl();
+  const { stripe, priceId } = await checkoutStep("billing configuration", async () => ({
+    stripe: getStripeClient(),
+    priceId: getStripePriceId(),
+  }));
 
   const baseParams = {
     mode: "subscription",
@@ -104,9 +144,12 @@ export async function createCheckoutSessionAction(promoCode?: string): Promise<v
     // Resolved before creating any Stripe customer or session: if the promised free month can't
     // be applied, stop here rather than falling through to a full-price checkout.
     const promotionCodeId = await findStickerPromotionCodeId(stripe);
-    if (!promotionCodeId) stickerCheckoutStopped("promo_unavailable");
+    if (!promotionCodeId) checkoutStopped("promo_unavailable");
 
-    const customerId = await getOrCreateStripeCustomer(userId);
+    const customerId = await checkoutStep("customer lookup", () =>
+      getOrCreateStripeCustomer(userId),
+    );
+    await ensureCustomerCanStartCheckout(stripe, customerId);
     const metadata = { userId, ...STICKER_CAMPAIGN_METADATA };
 
     let checkoutUrl: string | null;
@@ -120,37 +163,37 @@ export async function createCheckoutSessionAction(promoCode?: string): Promise<v
       });
       checkoutUrl = session.url;
     } catch (error) {
-      // e.g. the code's restrictions exclude this customer. No session exists, so nothing can
-      // be charged — surface it instead of an error page.
-      console.error(
-        `Sticker checkout stopped: Stripe rejected the session (${describeStripeError(error)}).`,
-      );
-      stickerCheckoutStopped("promo_rejected");
+      // No session exists either way, so nothing can be charged. An invalid-request error means
+      // Stripe refused the discount itself (e.g. this customer isn't eligible); anything else is
+      // an outage.
+      const rejected = (error as { type?: unknown } | null)?.type === "StripeInvalidRequestError";
+      console.error(`Sticker checkout stopped: ${describeStripeError(error)}.`);
+      checkoutStopped(rejected ? "promo_rejected" : "billing_unavailable");
     }
-    if (!checkoutUrl) {
-      throw new Error("Stripe did not return a checkout URL.");
-    }
+    if (!checkoutUrl) checkoutStopped("billing_unavailable");
     redirect(checkoutUrl);
   }
 
-  const customerId = await getOrCreateStripeCustomer(userId);
-  const promotionCodeId = promoCode ? await findActivePromotionCodeId(promoCode) : null;
+  const customerId = await checkoutStep("customer lookup", () => getOrCreateStripeCustomer(userId));
+  await ensureCustomerCanStartCheckout(stripe, customerId);
+  const promotionCodeId = promoCode
+    ? await checkoutStep("promotion code lookup", () => findActivePromotionCodeId(promoCode))
+    : null;
 
-  const session = await stripe.checkout.sessions.create({
-    ...baseParams,
-    customer: customerId,
-    // Mutually exclusive with allow_promotion_codes: pre-apply a known code, otherwise let the
-    // customer type one in manually.
-    ...(promotionCodeId
-      ? { discounts: [{ promotion_code: promotionCodeId }] }
-      : { allow_promotion_codes: true }),
-    metadata: { userId },
-    subscription_data: { metadata: { userId } },
-  });
-
-  if (!session.url) {
-    throw new Error("Stripe did not return a checkout URL.");
-  }
+  const session = await checkoutStep("checkout session", () =>
+    stripe.checkout.sessions.create({
+      ...baseParams,
+      customer: customerId,
+      // Mutually exclusive with allow_promotion_codes: pre-apply a known code, otherwise let
+      // the customer type one in manually.
+      ...(promotionCodeId
+        ? { discounts: [{ promotion_code: promotionCodeId }] }
+        : { allow_promotion_codes: true }),
+      metadata: { userId },
+      subscription_data: { metadata: { userId } },
+    }),
+  );
+  if (!session.url) checkoutStopped("billing_unavailable");
   redirect(session.url);
 }
 
@@ -165,14 +208,20 @@ export async function dismissStickerOfferAction(): Promise<void> {
 
 export async function createBillingPortalSessionAction(): Promise<void> {
   const { userId } = await verifySession();
-  const stripe = getStripeClient();
   const siteUrl = await getSiteUrl();
-  const customerId = await getOrCreateStripeCustomer(userId);
 
-  const session = await stripe.billingPortal.sessions.create({
-    customer: customerId,
-    return_url: `${siteUrl}/settings/billing`,
-  });
-
-  redirect(session.url);
+  let portalUrl: string;
+  try {
+    const stripe = getStripeClient();
+    const customerId = await getOrCreateStripeCustomer(userId);
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${siteUrl}/settings/billing`,
+    });
+    portalUrl = session.url;
+  } catch (error) {
+    console.error(`Billing portal unavailable: ${describeStripeError(error)}.`);
+    redirect("/settings/billing?notice=portal_unavailable");
+  }
+  redirect(portalUrl);
 }

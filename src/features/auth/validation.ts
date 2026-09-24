@@ -17,3 +17,19 @@ export const loginSchema = z.object({
 
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+
+export const forgotPasswordSchema = z.object({
+  email: z.email("Please enter a valid email.").trim().toLowerCase(),
+});
+
+/** Same password rules as signup, plus a confirmation field. */
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1, "This reset link is missing its token."),
+    password: signupSchema.shape.password,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match.",
+    path: ["confirmPassword"],
+  });
