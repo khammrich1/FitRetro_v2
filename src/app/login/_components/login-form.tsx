@@ -21,6 +21,7 @@ export function LoginForm({ next }: { next: string | null }) {
           <input
             id="email"
             name="email"
+            defaultValue={state?.fields?.email}
             type="email"
             placeholder="jane@example.com"
             className="rounded-md border border-border bg-card px-3 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -41,6 +42,12 @@ export function LoginForm({ next }: { next: string | null }) {
           {state?.errors?.password && (
             <p className="text-sm text-danger">{state.errors.password[0]}</p>
           )}
+          <Link
+            href="/forgot-password"
+            className="self-end text-xs text-muted-foreground underline"
+          >
+            Forgot password?
+          </Link>
         </div>
 
         {state?.message && <p className="text-sm text-danger">{state.message}</p>}

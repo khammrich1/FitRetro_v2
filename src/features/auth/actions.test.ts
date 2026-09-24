@@ -24,6 +24,9 @@ const mocks = vi.hoisted(() => {
     cookieStore,
     getUserByEmail: vi.fn(),
     createUser: vi.fn(),
+    createPasswordResetToken: vi.fn(),
+    resetPasswordWithToken: vi.fn(),
+    sendEmail: vi.fn(),
   };
 });
 
@@ -38,8 +41,14 @@ vi.mock("@/features/auth/queries", () => ({
   getUserByEmail: mocks.getUserByEmail,
   createUser: mocks.createUser,
 }));
+vi.mock("@/features/auth/password-reset", () => ({
+  RESET_TOKEN_TTL_MINUTES: 60,
+  createPasswordResetToken: mocks.createPasswordResetToken,
+  resetPasswordWithToken: mocks.resetPasswordWithToken,
+}));
+vi.mock("@/lib/email", () => ({ sendEmail: mocks.sendEmail }));
 
-const { login, signup } = await import("./actions");
+const { login, signup, requestPasswordReset, resetPassword } = await import("./actions");
 
 async function redirectTarget(run: () => Promise<unknown>): Promise<string> {
   try {
@@ -116,7 +125,11 @@ describe("login", () => {
       undefined,
       form({ email: "a@example.com", password: "wrong-password1", next: "/subscribe" }),
     );
-    expect(result).toEqual({ message: "Invalid email or password." });
+    expect(result).toEqual({
+      message: "Invalid email or password.",
+      // Echoed back so the form keeps the email; the password never is.
+      fields: { email: "a@example.com" },
+    });
     expect(mocks.jar.get("fr_campaign")).toBe("promo1");
   });
 });
@@ -188,5 +201,131 @@ describe("signup", () => {
       ),
     );
     expect(target).toBe("/today");
+  });
+});
+
+describe("requestPasswordReset", () => {
+  const GENERIC_REPLY = expect.stringContaining("If an account exists for that email");
+
+  beforeEach(() => {
+    vi.stubEnv("APP_URL", "https://fitretro.app");
+    mocks.createPasswordResetToken.mockReset().mockResolvedValue("raw-one-time-token");
+    mocks.sendEmail.mockReset().mockResolvedValue(undefined);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("emails a one-time link built from APP_URL", async () => {
+    mocks.getUserByEmail.mockResolvedValue({ id: "user-1", email: "member@example.com" });
+
+    const result = await requestPasswordReset(undefined, form({ email: "Member@Example.com" }));
+
+    expect(result).toEqual({ sent: true, message: GENERIC_REPLY });
+    expect(mocks.getUserByEmail).toHaveBeenCalledWith("member@example.com");
+    expect(mocks.createPasswordResetToken).toHaveBeenCalledWith("user-1");
+    const email = mocks.sendEmail.mock.calls[0][0];
+    expect(email.to).toBe("member@example.com");
+    expect(email.text).toContain("https://fitretro.app/reset-password?token=raw-one-time-token");
+    expect(email.html).toContain(
+      'href="https://fitretro.app/reset-password?token=raw-one-time-token"',
+    );
+  });
+
+  it("gives the identical reply for an unknown email and sends nothing", async () => {
+    mocks.getUserByEmail.mockResolvedValue(null);
+
+    const result = await requestPasswordReset(undefined, form({ email: "nobody@example.com" }));
+
+    expect(result).toEqual({ sent: true, message: GENERIC_REPLY });
+    expect(mocks.createPasswordResetToken).not.toHaveBeenCalled();
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("sends no second email inside the cooldown, with the same reply", async () => {
+    mocks.getUserByEmail.mockResolvedValue({ id: "user-1", email: "member@example.com" });
+    mocks.createPasswordResetToken.mockResolvedValue(null);
+
+    const result = await requestPasswordReset(undefined, form({ email: "member@example.com" }));
+
+    expect(result).toEqual({ sent: true, message: GENERIC_REPLY });
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("hides an email failure from the requester and doesn't log the token", async () => {
+    mocks.getUserByEmail.mockResolvedValue({ id: "user-1", email: "member@example.com" });
+    mocks.sendEmail.mockRejectedValue(new Error("Email is not configured."));
+
+    const result = await requestPasswordReset(undefined, form({ email: "member@example.com" }));
+
+    expect(result).toEqual({ sent: true, message: GENERIC_REPLY });
+    const logged = vi.mocked(console.error).mock.calls.flat().join(" ");
+    expect(logged).toContain("Password reset email failed");
+    expect(logged).not.toContain("raw-one-time-token");
+  });
+
+  it("validates the email format", async () => {
+    const result = await requestPasswordReset(undefined, form({ email: "not-an-email" }));
+    expect(result?.errors?.email).toBeDefined();
+    expect(mocks.getUserByEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("resetPassword", () => {
+  const NEW_PASSWORD = "newpass456";
+
+  beforeEach(() => {
+    mocks.resetPasswordWithToken.mockReset();
+  });
+
+  it("sets a hash of the new password, signs the user in and goes to /today", async () => {
+    mocks.resetPasswordWithToken.mockResolvedValue("user-1");
+
+    const target = await redirectTarget(() =>
+      resetPassword(
+        undefined,
+        form({
+          token: "raw-one-time-token",
+          password: NEW_PASSWORD,
+          confirmPassword: NEW_PASSWORD,
+        }),
+      ),
+    );
+
+    expect(target).toBe("/today");
+    const [token, passwordHash] = mocks.resetPasswordWithToken.mock.calls[0];
+    expect(token).toBe("raw-one-time-token");
+    expect(passwordHash).not.toBe(NEW_PASSWORD);
+    expect(await bcrypt.compare(NEW_PASSWORD, passwordHash)).toBe(true);
+    expect(mocks.jar.has("session")).toBe(true);
+  });
+
+  it("rejects an invalid, expired or already-used token without signing in", async () => {
+    mocks.resetPasswordWithToken.mockResolvedValue(null);
+
+    const result = await resetPassword(
+      undefined,
+      form({ token: "spent-token", password: NEW_PASSWORD, confirmPassword: NEW_PASSWORD }),
+    );
+
+    expect(result?.message).toContain("invalid, expired, or already used");
+    expect(mocks.jar.has("session")).toBe(false);
+  });
+
+  it("rejects mismatched or weak passwords before touching the token", async () => {
+    const mismatch = await resetPassword(
+      undefined,
+      form({ token: "t", password: NEW_PASSWORD, confirmPassword: "different1" }),
+    );
+    const weak = await resetPassword(
+      undefined,
+      form({ token: "t", password: "short", confirmPassword: "short" }),
+    );
+
+    expect(mismatch?.errors?.confirmPassword).toBeDefined();
+    expect(weak?.errors?.password).toBeDefined();
+    expect(mocks.resetPasswordWithToken).not.toHaveBeenCalled();
   });
 });
