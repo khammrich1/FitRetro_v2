@@ -1,6 +1,6 @@
 # FitRetro — Live Status
 
-_Last updated: 2026-09-23 (#24–#27 merged; `/promo1` sticker route in progress for issue #28)_
+_Last updated: 2026-09-24 (#28/#29 merged; sticker launch-readiness PR open; meal-prep per-ingredient estimate queued)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
@@ -153,7 +153,7 @@ server-only.
 - **Still open:** real Checkout → webhook round trip. Needs the user's real test keys in `.env`
   on their side plus `stripe listen`. No Stripe values exist in this environment.
 
-## Task: `/promo1` QR sticker route (issue #28) — **PR open, not merged**
+## Task: `/promo1` QR sticker route (issue #28) — **done, merged (#29)**
 
 The sticker QR code points to `https://fitretro.app/promo1`. That route records campaign `promo1`
 in a first-party `fr_campaign` cookie, then redirects:
@@ -173,6 +173,99 @@ migration changes.
   coupon is 100% off with duration "once", and `STRIPE_PROMO_CODE=FREEMONTH` must be set in `.env`.
 - Known gap: the site header's generic "Log in" link doesn't carry `?next=`. Attribution still
   survives that path, but the visitor lands on `/today` instead of `/subscribe`.
+
+## Task: Sticker launch readiness (stickers go out at the gym next week) — **PR open**
+
+Branch `claude/sticker-launch-readiness`. Everything is in one PR because two parts add migrations
+(0029, 0030), and separate PRs would collide on migration slots, as #24/#26 did.
+
+- **Double-subscribe guard:** before every checkout, expire the customer's other open Checkout
+  Sessions, then ask Stripe (not the webhook table) whether a live subscription already exists.
+  If one does → `/settings/billing?notice=already_subscribed`. If Stripe can't be checked →
+  `billing_unavailable`.
+- **Sticker attribution:** `users.signup_campaign` is set at signup; `subscriptions.campaign` is
+  set from subscription metadata by the webhook. `/ops` shows scans → signups → subscriptions
+  started → currently subscribed. Migration 0029: two nullable columns.
+- **Password reset:** `/forgot-password` → emailed one-time link → `/reset-password`.
+  - Tokens are hashed, single-use, 1-hour expiry, claimed atomically.
+  - No account enumeration; 2-minute per-account cooldown.
+  - Links are built from `APP_URL`, never request headers.
+  - Sent via Resend (`RESEND_API_KEY`, `EMAIL_FROM`). In development the email prints to the
+    console; in production nothing is logged.
+  - Migration 0030: new `password_reset_tokens` table.
+- **Found by the regression pass and fixed:**
+  - Failed login/signup wiped the form (React 19 form reset).
+  - Stripe failures crashed checkout and the portal (now fail closed; 10s Stripe timeout).
+  - Settings forms overflowed phone screens, including the #26 reconstitution fields.
+- **Verified:**
+  - 137 unit tests.
+  - All 31 migrations applied to an empty DB.
+  - Production-build crawl of every page at 375px and 320px.
+  - Sticker suite (26 checks) and reset suite (14 checks, real Postgres).
+- **Still needs the owner:**
+  - Live-mode decision (the app is test-mode only; real cards fail in test mode).
+  - A Resend account with a verified domain, plus `RESEND_API_KEY`, `EMAIL_FROM` and `APP_URL`.
+  - Run migrations 0029 and 0030 on deploy.
+- **Known limitation:** sessions are stateless JWTs, so a password reset doesn't sign out other
+  devices.
+
+## Task: Meal prep per-ingredient macro estimates — **PR open (#32)**
+
+Branch `claude/meal-prep-per-ingredient`. No migration.
+
+- Each "Estimate & add" appends its ingredients to the batch. Nothing already there, including
+  hand edits, is overwritten.
+- One line can still hold several ingredients.
+- Photos work: food on a scale (reads the display), package labels, and recipes.
+- Batch-aware prompts assume raw weights and whole packages.
+- The 20/day AI limit per member still applies (the owner is exempt).
+- Verified with a fake AI server only. Accuracy on real photos is untested (no API key in the
+  sandbox).
+
+## Task: Progress pics (PR 1 of 2) — **PR open**
+
+Branch `claude/progress-pics`. It is stacked on `claude/sticker-launch-readiness` because its
+migrations (0031, 0032) come after that PR's 0029/0030. **Merge #31 first.**
+
+- `/progress` (nav: "Progress"):
+  - A check-in has a date and front/side/back photo slots, plus optional weight, waist and body
+    fat.
+  - Weight, waist and body fat go into the existing `body_measurements` table (lb/in in the UI,
+    kg/cm in the table).
+  - The timeline is newest first, with thumbnails and that day's measurements.
+  - Photos can be removed one at a time, or a whole check-in at once. Both ask for confirmation,
+    and measurements are kept.
+  - **Every photo is kept** (user: "save every one — it's critical to see progress"). Retaking
+    a pose on the same date adds another photo; nothing is ever replaced. Photos are only deleted
+    by an explicit, confirmed Remove or Delete check-in.
+- Storage is a private DigitalOcean Spaces bucket (any S3-compatible store works):
+  - Env vars: `SPACES_ENDPOINT`, `SPACES_BUCKET`, `SPACES_KEY`, `SPACES_SECRET`.
+  - Until they're set, `/progress` shows a notice and accepts no uploads. Nothing else is
+    affected.
+- Privacy:
+  - The phone shrinks each photo before upload, and the server re-encodes it with `sharp`. Both
+    steps strip EXIF, GPS and camera data; only pixels are stored.
+  - Stored sizes: full photo 1600px max (~0.5MB), thumbnail 480px (~15KB).
+  - Photos are only served through `/progress/photos/[id]`, which checks ownership:
+    - Anyone else gets a 404.
+    - Responses are `private, no-store` and `noindex`.
+    - There are no public or pre-signed URLs.
+    - Photos are never sent to AI.
+- Migration 0031: new `progress_photos` table only (additive). Migration 0032 drops 0031's
+  one-photo-per-pose-per-day unique index (no data change). It's a new migration rather than an
+  edit to 0031, because 0031 had already been pushed.
+- Verified:
+  - 171 unit tests, including a mutation check that the EXIF test catches leaks.
+  - 42-check browser run against a production build with a fake S3 server, using three 8MB
+    phone photos with GPS data.
+  - All 33 migrations applied to an empty DB.
+- Owner setup:
+  1. Create a Spaces bucket with no public access.
+  2. Create an access key limited to that bucket.
+  3. Set the `SPACES_*` values in `/opt/fitretro/.env`.
+  4. Run migrations 0031 and 0032 on deploy (backup first).
+- Next, PR 2: compare two check-ins side by side with deltas, a weekly "Progress pic day"
+  reminder on Today (Sunday by default), and last week's same-pose photo shown as a reference.
 
 ### Open, unresolved (not actioned)
 
