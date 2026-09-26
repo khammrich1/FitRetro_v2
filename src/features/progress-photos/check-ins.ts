@@ -23,7 +23,8 @@ type MeasurementLike = {
 
 export type CheckIn<P extends PhotoLike> = {
   day: string;
-  photos: Partial<Record<ProgressPhotoPose, P>>;
+  /** Every photo of each pose that day, in the order given (callers pass oldest first). */
+  photos: Partial<Record<ProgressPhotoPose, P[]>>;
   measurement: Omit<MeasurementLike, "day"> | null;
 };
 
@@ -41,7 +42,7 @@ export function groupCheckIns<P extends PhotoLike>(
       photos: {},
       measurement: null,
     };
-    checkIn.photos[photo.pose] = photo;
+    (checkIn.photos[photo.pose] ??= []).push(photo);
     byDay.set(photo.takenOn, checkIn);
   }
 

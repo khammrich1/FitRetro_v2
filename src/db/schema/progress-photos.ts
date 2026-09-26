@@ -1,20 +1,11 @@
-import {
-  pgTable,
-  uuid,
-  text,
-  integer,
-  date,
-  pgEnum,
-  timestamp,
-  uniqueIndex,
-} from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, date, pgEnum, timestamp, index } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 export const progressPhotoPoseEnum = pgEnum("progress_photo_pose", ["front", "side", "back"]);
 export type ProgressPhotoPose = (typeof progressPhotoPoseEnum.enumValues)[number];
 
-/** One progress photo — at most one per pose per day, so a retake replaces the earlier shot.
- * The image itself lives in private object storage (see @/lib/object-storage); these rows only
+/** One progress photo. Every photo is kept — several of the same pose on one day (retakes) all
+ * stay until the user explicitly removes one. The image itself lives in private object storage (see @/lib/object-storage); these rows only
  * hold its keys. Photos are only ever served back to their owner via /progress/photos/[id]. */
 export const progressPhotos = pgTable(
   "progress_photos",
@@ -35,9 +26,7 @@ export const progressPhotos = pgTable(
     bytes: integer("bytes").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [
-    uniqueIndex("progress_photos_user_day_pose_idx").on(table.userId, table.takenOn, table.pose),
-  ],
+  (table) => [index("progress_photos_user_day_idx").on(table.userId, table.takenOn)],
 );
 
 export type ProgressPhoto = typeof progressPhotos.$inferSelect;

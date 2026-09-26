@@ -108,7 +108,7 @@ beforeEach(async () => {
   ]) {
     fn.mockReset();
   }
-  mocks.saveProgressPhoto.mockResolvedValue({ replaced: null });
+  mocks.saveProgressPhoto.mockImplementation(async (row) => ({ id: crypto.randomUUID(), ...row }));
   await signIn();
 });
 
@@ -226,19 +226,18 @@ describe("saveCheckInAction", () => {
     expect(mocks.deleteObjects).not.toHaveBeenCalled();
   });
 
-  it("deletes the replaced files when a pose is retaken", async () => {
-    mocks.saveProgressPhoto.mockResolvedValue({
-      replaced: { storageKey: "progress/u/old.jpg", thumbKey: "progress/u/old_thumb.jpg" },
-    });
-    const result = await saveCheckInAction(
-      undefined,
-      form({ takenOn: "2026-09-21", side: await jpegFile() }),
-    );
-    expect(result?.ok).toBe("Saved 1 photo.");
-    expect(mocks.deleteObjects).toHaveBeenCalledWith([
-      "progress/u/old.jpg",
-      "progress/u/old_thumb.jpg",
-    ]);
+  it("keeps every photo — a retake of the same pose and day never deletes anything", async () => {
+    for (let take = 0; take < 2; take++) {
+      const result = await saveCheckInAction(
+        undefined,
+        form({ takenOn: "2026-09-21", side: await jpegFile() }),
+      );
+      expect(result?.ok).toBe("Saved 1 photo.");
+    }
+    expect(mocks.saveProgressPhoto).toHaveBeenCalledTimes(2);
+    const [first, second] = mocks.saveProgressPhoto.mock.calls.map(([row]) => row);
+    expect(first.storageKey).not.toBe(second.storageKey);
+    expect(mocks.deleteObjects).not.toHaveBeenCalled();
   });
 
   it("reports a storage outage without crashing", async () => {

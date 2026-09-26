@@ -37,9 +37,21 @@ describe("groupCheckIns", () => {
       [],
     );
     expect(checkIns.map((c) => c.day)).toEqual(["2026-09-21", "2026-09-14", "2026-09-07"]);
-    expect(checkIns[0].photos.front?.id).toBe("c");
-    expect(checkIns[0].photos.side?.id).toBe("b");
+    expect(checkIns[0].photos.front?.map((p) => p.id)).toEqual(["c"]);
+    expect(checkIns[0].photos.side?.map((p) => p.id)).toEqual(["b"]);
     expect(checkIns[0].photos.back).toBeUndefined();
+  });
+
+  it("keeps every take of a pose on the same day, in order", () => {
+    const [checkIn] = groupCheckIns(
+      [
+        photo("first", "2026-09-21", "front"),
+        photo("side", "2026-09-21", "side"),
+        photo("retake", "2026-09-21", "front"),
+      ],
+      [],
+    );
+    expect(checkIn.photos.front?.map((p) => p.id)).toEqual(["first", "retake"]);
   });
 
   it("attaches the day's measurements, preferring the newest entry per value", () => {

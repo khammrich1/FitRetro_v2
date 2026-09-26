@@ -194,8 +194,8 @@ export function CheckInForm({ todayIso }: { todayIso: string }) {
       </fieldset>
 
       <p className="text-xs text-muted-foreground">
-        Same spot, same lighting, same time of day makes changes easiest to see. Retaking a pose on
-        the same date replaces that photo.
+        Same spot, same lighting, same time of day makes changes easiest to see. Every photo is kept
+        — retake as often as you like and nothing is replaced.
       </p>
 
       <div className="flex flex-wrap items-center gap-3">

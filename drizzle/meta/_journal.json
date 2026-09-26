@@ -225,6 +225,13 @@
       "when": 1790304931473,
       "tag": "0031_special_fat_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790448012364,
+      "tag": "0032_woozy_guardsmen",
+      "breakpoints": true
     }
   ]
 }

@@ -67,9 +67,9 @@ export default async function ProgressPage() {
     label: formatDay(checkIn.day),
     measurementSummary: summarize(checkIn.measurement),
     photos: Object.fromEntries(
-      Object.entries(checkIn.photos).map(([pose, photo]) => [
+      Object.entries(checkIn.photos).map(([pose, list]) => [
         pose,
-        { id: photo.id, version: photo.createdAt.getTime() },
+        list.map((photo) => ({ id: photo.id })),
       ]),
     ),
   }));

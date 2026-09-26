@@ -127,14 +127,13 @@ export async function saveCheckInAction(
     throw error;
   }
 
-  const saved: StoredKeys[] = [];
-  const replaced: StoredKeys[] = [];
+  let savedCount = 0;
   try {
     for (const { pose, photo } of processed) {
       const keys = buildPhotoKeys(userId);
       await putObject(keys.thumbKey, photo.thumb, "image/jpeg");
       await putObject(keys.storageKey, photo.full, "image/jpeg");
-      const result = await saveProgressPhoto({
+      await saveProgressPhoto({
         userId,
         takenOn,
         pose,
@@ -143,8 +142,7 @@ export async function saveCheckInAction(
         height: photo.height,
         bytes: photo.full.length + photo.thumb.length,
       });
-      saved.push(keys);
-      if (result.replaced) replaced.push(result.replaced);
+      savedCount++;
     }
   } catch (error) {
     console.error("Progress photo upload failed", error instanceof Error ? error.name : "");
@@ -153,13 +151,11 @@ export async function saveCheckInAction(
     revalidatePath("/progress");
     return {
       error:
-        saved.length > 0
+        savedCount > 0
           ? "Some photos were saved, but not all — check below and try the rest again."
           : "Couldn't save your photos right now. Please try again in a minute.",
     };
   }
-
-  if (replaced.length > 0) await deleteFilesQuietly(replaced);
 
   await upsertMeasurementForDay(userId, takenOn, {
     weightKg: weightLbs !== undefined ? lbsToKg(weightLbs) : undefined,

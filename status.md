@@ -225,7 +225,7 @@ Branch `claude/meal-prep-per-ingredient`. No migration.
 ## Task: Progress pics (PR 1 of 2) — **PR open**
 
 Branch `claude/progress-pics`. It is stacked on `claude/sticker-launch-readiness` because its
-migration (0031) comes after that PR's 0029/0030. **Merge #31 first.**
+migrations (0031, 0032) come after that PR's 0029/0030. **Merge #31 first.**
 
 - `/progress` (nav: "Progress"):
   - A check-in has a date and front/side/back photo slots, plus optional weight, waist and body
@@ -235,7 +235,9 @@ migration (0031) comes after that PR's 0029/0030. **Merge #31 first.**
   - The timeline is newest first, with thumbnails and that day's measurements.
   - Photos can be removed one at a time, or a whole check-in at once. Both ask for confirmation,
     and measurements are kept.
-  - Retaking a pose on the same date replaces the old photo and deletes its files.
+  - **Every photo is kept** (user: "save every one — it's critical to see progress"). Retaking
+    a pose on the same date adds another photo; nothing is ever replaced. Photos are only deleted
+    by an explicit, confirmed Remove or Delete check-in.
 - Storage is a private DigitalOcean Spaces bucket (any S3-compatible store works):
   - Env vars: `SPACES_ENDPOINT`, `SPACES_BUCKET`, `SPACES_KEY`, `SPACES_SECRET`.
   - Until they're set, `/progress` shows a notice and accepts no uploads. Nothing else is
@@ -249,17 +251,19 @@ migration (0031) comes after that PR's 0029/0030. **Merge #31 first.**
     - Responses are `private, no-store` and `noindex`.
     - There are no public or pre-signed URLs.
     - Photos are never sent to AI.
-- Migration 0031: new `progress_photos` table only (additive).
+- Migration 0031: new `progress_photos` table only (additive). Migration 0032 drops 0031's
+  one-photo-per-pose-per-day unique index (no data change). It's a new migration rather than an
+  edit to 0031, because 0031 had already been pushed.
 - Verified:
   - 171 unit tests, including a mutation check that the EXIF test catches leaks.
   - 42-check browser run against a production build with a fake S3 server, using three 8MB
     phone photos with GPS data.
-  - All 32 migrations applied to an empty DB.
+  - All 33 migrations applied to an empty DB.
 - Owner setup:
   1. Create a Spaces bucket with no public access.
   2. Create an access key limited to that bucket.
   3. Set the `SPACES_*` values in `/opt/fitretro/.env`.
-  4. Run migration 0031 on deploy (backup first).
+  4. Run migrations 0031 and 0032 on deploy (backup first).
 - Next, PR 2: compare two check-ins side by side with deltas, a weekly "Progress pic day"
   reminder on Today (Sunday by default), and last week's same-pose photo shown as a reference.
 
