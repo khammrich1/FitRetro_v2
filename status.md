@@ -267,6 +267,36 @@ migrations (0031, 0032) come after that PR's 0029/0030. **Merge #31 first.**
 - Next, PR 2: compare two check-ins side by side with deltas, a weekly "Progress pic day"
   reminder on Today (Sunday by default), and last week's same-pose photo shown as a reference.
 
+## Task: Goals & milestones — **PR open**
+
+User: wants milestones/goals. Their example: a New Year's resolution to do a muscle up, which
+they achieved but can't remember the exact day of, and have done ever since.
+
+Branch `claude/goals-milestones`, stacked on `claude/progress-pics` (migration 0033 comes after
+0032). **Merge order: #31 → #33 → this PR.**
+
+- It's a "Goals & milestones" tab on `/progress`, next to Photos, so the nav doesn't get longer.
+- A goal has a title, a start date (defaults to today; e.g. Jan 1 for a resolution), an optional
+  target date, and notes.
+  - Active goals show "Day N · since …" and the days left to their target. A missed target is
+    flagged gently.
+  - "I did it! 🏆" asks when: an exact day, a month ("sometime in March 2026") or just the year.
+- A milestone is the same row with status `achieved`, so the start-to-achievement time is kept
+  ("took about 2 months"). Durations are shown only as precisely as the date is known.
+- Past milestones can be logged directly with "I've already done it", and the start date is
+  optional for them.
+- Edit and delete (with confirmation) on everything. Unchecking "Achieved" moves a milestone back
+  to in progress.
+- Migration 0033: new `goals` table plus the `goal_status` and `date_precision` enums
+  (additive).
+- Verified:
+  - 211 unit tests, including date, validation, display and action tests.
+  - 24-check browser run of the muscle-up flow against a production build, including privacy
+    between accounts and 320/375px layout.
+  - All 34 migrations applied to an empty DB.
+- Ideas not built: auto-suggest a milestone the first time a workout logs a new exercise or a
+  personal best; a photo/video on a milestone; points toward the daily score.
+
 ### Open, unresolved (not actioned)
 
 - Apple App Store distribution was raised as an exploratory question. Flagged tension: Apple

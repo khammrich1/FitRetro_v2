@@ -232,6 +232,13 @@
       "when": 1790448012364,
       "tag": "0032_woozy_guardsmen",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790448292076,
+      "tag": "0033_green_wild_pack",
+      "breakpoints": true
     }
   ]
 }
