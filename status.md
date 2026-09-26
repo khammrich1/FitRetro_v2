@@ -294,8 +294,11 @@ Branch `claude/goals-milestones`, stacked on `claude/progress-pics` (migration 0
   - 24-check browser run of the muscle-up flow against a production build, including privacy
     between accounts and 320/375px layout.
   - All 34 migrations applied to an empty DB.
-- Ideas not built: auto-suggest a milestone the first time a workout logs a new exercise or a
-  personal best; a photo/video on a milestone; points toward the daily score.
+- **Planned next (user approved, not started):**
+  1. Auto-suggest a milestone the first time a workout logs a new exercise or beats a personal
+     best ("First muscle up logged — add it as a milestone?").
+  2. Attach a photo or video to a milestone, stored privately the same way as progress pics.
+- Not planned: points toward the daily score.
 
 ### Open, unresolved (not actioned)
 
