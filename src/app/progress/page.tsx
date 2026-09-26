@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import { verifySession } from "@/features/auth";
+import Link from "next/link";
+import { getCurrentUser, verifySession } from "@/features/auth";
 import { getMeasurementHistory } from "@/features/measurements";
-import { groupCheckIns, listProgressPhotos } from "@/features/progress-photos";
+import { groupCheckIns, latestPhotoByPose, listProgressPhotos } from "@/features/progress-photos";
 import { kgToLbs } from "@/features/workouts/units";
-import { toIsoDate } from "@/lib/date";
+import { formatIsoDay, toIsoDate } from "@/lib/date";
 import { isObjectStorageConfigured } from "@/lib/object-storage";
-import { CheckInForm } from "./_components/check-in-form";
+import { CheckInForm, type PoseReferences } from "./_components/check-in-form";
+import { ReminderDaySelect } from "./_components/reminder-day-select";
 import { ProgressTabs } from "./_components/progress-tabs";
 import { CheckInCard, type CheckInCardData } from "./_components/check-in-card";
 
@@ -15,17 +17,6 @@ export const metadata: Metadata = {
 };
 
 const CM_PER_INCH = 2.54;
-
-function formatDay(day: string) {
-  // Noon UTC + UTC formatting: the label is the stored calendar date, whatever the server's zone.
-  return new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
 
 function summarize(
   measurement: {
@@ -48,10 +39,19 @@ function summarize(
 export default async function ProgressPage() {
   const { userId } = await verifySession();
   const storageReady = isObjectStorageConfigured();
-  const [photos, measurements] = await Promise.all([
+  const [photos, measurements, user] = await Promise.all([
     listProgressPhotos(userId),
     getMeasurementHistory(userId),
+    getCurrentUser(),
   ]);
+
+  // Last time's photo of each pose, shown faded in the empty slots to match stance and framing.
+  const references: PoseReferences = Object.fromEntries(
+    Object.entries(latestPhotoByPose(photos)).map(([pose, photo]) => [
+      pose,
+      { id: photo.id, label: formatIsoDay(photo.takenOn) },
+    ]),
+  );
 
   const checkIns: CheckInCardData[] = groupCheckIns(
     photos,
@@ -65,7 +65,7 @@ export default async function ProgressPage() {
       .reverse(),
   ).map((checkIn) => ({
     day: checkIn.day,
-    label: formatDay(checkIn.day),
+    label: formatIsoDay(checkIn.day, { weekday: true }),
     measurementSummary: summarize(checkIn.measurement),
     photos: Object.fromEntries(
       Object.entries(checkIn.photos).map(([pose, list]) => [
@@ -87,15 +87,24 @@ export default async function ProgressPage() {
       </p>
 
       {storageReady ? (
-        <CheckInForm todayIso={toIsoDate(new Date())} />
+        <CheckInForm todayIso={toIsoDate(new Date())} references={references} />
       ) : (
         <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
           Photo storage isn&apos;t set up on this server yet, so new photos can&apos;t be saved.
         </div>
       )}
 
+      {storageReady && <ReminderDaySelect current={user?.progressPhotoDay ?? null} />}
+
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Timeline</h2>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Timeline</h2>
+          {checkIns.length >= 2 && (
+            <Link href="/progress/compare" className="text-sm font-medium text-accent underline">
+              Compare side by side →
+            </Link>
+          )}
+        </div>
         {checkIns.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No check-ins yet. Take your first set today — future you will be glad you did.

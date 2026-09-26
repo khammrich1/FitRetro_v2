@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, max } from "drizzle-orm";
 import { db } from "@/db/client";
 import { progressPhotos, type NewProgressPhoto, type ProgressPhoto } from "@/db/schema";
 
@@ -56,4 +56,13 @@ export async function deleteProgressPhotosForDay(
     .delete(progressPhotos)
     .where(and(eq(progressPhotos.userId, userId), eq(progressPhotos.takenOn, day)))
     .returning({ storageKey: progressPhotos.storageKey, thumbKey: progressPhotos.thumbKey });
+}
+
+/** The most recent day the user took any progress photo, or null if they never have. */
+export async function getLastProgressPhotoDay(userId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ day: max(progressPhotos.takenOn) })
+    .from(progressPhotos)
+    .where(eq(progressPhotos.userId, userId));
+  return row?.day ?? null;
 }

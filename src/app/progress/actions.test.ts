@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => {
     deleteProgressPhoto: vi.fn(),
     deleteProgressPhotosForDay: vi.fn(),
     upsertMeasurementForDay: vi.fn(),
+    setUserProgressPhotoDay: vi.fn(),
   };
 });
 
@@ -51,12 +52,20 @@ vi.mock("@/features/progress-photos", async (importOriginal) => ({
   deleteProgressPhoto: mocks.deleteProgressPhoto,
   deleteProgressPhotosForDay: mocks.deleteProgressPhotosForDay,
 }));
+vi.mock("@/features/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/features/auth")>()),
+  setUserProgressPhotoDay: mocks.setUserProgressPhotoDay,
+}));
 vi.mock("@/features/measurements", () => ({
   upsertMeasurementForDay: mocks.upsertMeasurementForDay,
 }));
 
-const { saveCheckInAction, deleteProgressPhotoAction, deleteCheckInAction } =
-  await import("./actions");
+const {
+  saveCheckInAction,
+  deleteProgressPhotoAction,
+  deleteCheckInAction,
+  setProgressPhotoDayAction,
+} = await import("./actions");
 
 const SESSION_SECRET = "test-session-secret-not-a-real-credential";
 const USER_ID = "7a1c3f8e-0000-4000-8000-000000000001";
@@ -105,6 +114,7 @@ beforeEach(async () => {
     mocks.deleteProgressPhoto,
     mocks.deleteProgressPhotosForDay,
     mocks.upsertMeasurementForDay,
+    mocks.setUserProgressPhotoDay,
   ]) {
     fn.mockReset();
   }
@@ -294,5 +304,29 @@ describe("delete actions", () => {
     expect(await redirectTarget(() => deleteProgressPhotoAction(PHOTO_ID))).toBe("/login");
     expect(await redirectTarget(() => deleteCheckInAction("2026-09-21"))).toBe("/login");
     expect(mocks.deleteProgressPhoto).not.toHaveBeenCalled();
+  });
+});
+
+describe("setProgressPhotoDayAction", () => {
+  it("saves a weekday or turns the reminder off, for the signed-in user", async () => {
+    await setProgressPhotoDayAction("3");
+    await setProgressPhotoDayAction("off");
+    expect(mocks.setUserProgressPhotoDay.mock.calls).toEqual([
+      [USER_ID, 3],
+      [USER_ID, null],
+    ]);
+  });
+
+  it("ignores anything that isn't a weekday or off", async () => {
+    for (const value of ["7", "-1", "sunday", "", "1; drop table"]) {
+      await setProgressPhotoDayAction(value);
+    }
+    expect(mocks.setUserProgressPhotoDay).not.toHaveBeenCalled();
+  });
+
+  it("requires sign-in", async () => {
+    mocks.jar.clear();
+    expect(await redirectTarget(() => setProgressPhotoDayAction("0"))).toBe("/login");
+    expect(mocks.setUserProgressPhotoDay).not.toHaveBeenCalled();
   });
 });

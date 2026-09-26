@@ -11,7 +11,16 @@ type Picked = { file: File; previewUrl: string };
 const inputClass =
   "w-full rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
 
-export function CheckInForm({ todayIso }: { todayIso: string }) {
+/** Last time's photo of each pose (id + day label), shown faded in the matching empty slot. */
+export type PoseReferences = Partial<Record<ProgressPhotoPose, { id: string; label: string }>>;
+
+export function CheckInForm({
+  todayIso,
+  references = {},
+}: {
+  todayIso: string;
+  references?: PoseReferences;
+}) {
   const [state, formAction, pending] = useActionState<CheckInState, FormData>(
     saveCheckInAction,
     undefined,
@@ -111,6 +120,22 @@ export function CheckInForm({ todayIso }: { todayIso: string }) {
                     alt={`${label} photo preview`}
                     className="h-full w-full object-cover"
                   />
+                ) : references[pose] ? (
+                  // Last time's shot, faded, so the new one can match stance and framing.
+                  <span className="relative block h-full w-full">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/progress/photos/${references[pose].id}?size=thumb`}
+                      alt=""
+                      className="h-full w-full object-cover opacity-30"
+                    />
+                    <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-1 text-center">
+                      <span className="font-medium text-foreground">+ {label}</span>
+                      <span className="rounded bg-background/80 px-1 text-[10px] leading-tight">
+                        Last: {references[pose].label}
+                      </span>
+                    </span>
+                  </span>
                 ) : (
                   <span>+ {label}</span>
                 )}

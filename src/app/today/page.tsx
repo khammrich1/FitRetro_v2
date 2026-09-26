@@ -34,7 +34,10 @@ import {
 import { getWaterIntakeForDay } from "@/features/water";
 import { getDailyNoteForDay } from "@/features/daily-note";
 import { listPantryItems } from "@/features/pantry";
+import { getLastProgressPhotoDay, progressPhotoReminder } from "@/features/progress-photos";
+import { isObjectStorageConfigured } from "@/lib/object-storage";
 import { DailyScoreCard } from "./_components/daily-score-card";
+import { ProgressPhotoReminderCard } from "./_components/progress-photo-reminder-card";
 import { TodayTabs } from "./_components/today-tabs";
 import { NutritionTab } from "./_components/tabs/nutrition-tab";
 import { MoveTab } from "./_components/tabs/move-tab";
@@ -104,6 +107,17 @@ export default async function TodayPage({
     after(() => generateAndCacheReading(dayIso, todaysTopic));
   }
 
+  // Progress-pic reminder: only on the real current day (not a day browsed via DayNav), and only
+  // when photos can actually be saved.
+  const photoReminder =
+    dayIso === todayIso && isObjectStorageConfigured()
+      ? progressPhotoReminder({
+          reminderDay: user?.progressPhotoDay,
+          todayIso,
+          lastPhotoDay: await getLastProgressPhotoDay(userId),
+        })
+      : null;
+
   const macroOrder = parseMacroOrder(user?.macroOrder);
   const consumed = summarizeMacros(entries);
   const workoutList = workoutDetails.filter((detail) => detail !== null);
@@ -160,6 +174,8 @@ export default async function TodayPage({
       <DayNav dayIso={dayIso} todayIso={todayIso} />
 
       <DailyScoreCard score={dailyScore} />
+
+      {photoReminder && <ProgressPhotoReminderCard reminder={photoReminder} />}
 
       <TodayTabs
         nutrition={

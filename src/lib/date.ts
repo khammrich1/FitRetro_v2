@@ -37,3 +37,16 @@ export function shiftMonth(current: MonthParam, delta: 1 | -1): MonthParam {
   const month = ((zeroIndexed % 12) + 12) % 12;
   return { year, month: month + 1 };
 }
+
+/** Display label for a stored "YYYY-MM-DD" day, e.g. "Sep 21, 2026" or, with weekday,
+ * "Sun, Sep 21, 2026". Formatted in UTC so the label is the stored calendar date no matter the
+ * server's or browser's time zone. */
+export function formatIsoDay(iso: string, options: { weekday?: boolean } = {}): string {
+  return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", {
+    ...(options.weekday ? { weekday: "short" as const } : {}),
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
