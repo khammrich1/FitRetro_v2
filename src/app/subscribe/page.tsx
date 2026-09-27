@@ -5,18 +5,21 @@ import { CAMPAIGN_COOKIE_NAME, getSubscriptionForUser, parseCampaign } from "@/f
 import {
   createCheckoutSessionAction,
   dismissStickerOfferAction,
-  type StickerCheckoutError,
+  type CheckoutError,
 } from "@/app/billing/actions";
+import { CheckoutButton } from "./_components/checkout-button";
 
-const STICKER_ERROR_MESSAGES: Record<StickerCheckoutError, string> = {
+const CHECKOUT_ERROR_MESSAGES: Record<CheckoutError, string> = {
   promo_unavailable:
     "The free-month sticker offer isn't available right now, so checkout was stopped before anything was charged. Please try again later.",
   promo_rejected:
     "Stripe couldn't apply the free-month sticker offer to your account (it may already have been used), so checkout was stopped before anything was charged.",
+  billing_unavailable:
+    "We couldn't reach our payment provider to check your account, so checkout was stopped before anything was charged. Please try again in a moment.",
 };
 
-function isStickerError(value: string | undefined): value is StickerCheckoutError {
-  return value !== undefined && Object.hasOwn(STICKER_ERROR_MESSAGES, value);
+function isCheckoutError(value: string | undefined): value is CheckoutError {
+  return value !== undefined && Object.hasOwn(CHECKOUT_ERROR_MESSAGES, value);
 }
 
 export default async function SubscribePage({
@@ -30,7 +33,11 @@ export default async function SubscribePage({
   const isActive = subscription?.status === "active" || subscription?.status === "trialing";
   const hasStickerOffer =
     parseCampaign((await cookies()).get(CAMPAIGN_COOKIE_NAME)?.value) !== null;
-  const stickerError = isStickerError(error) ? STICKER_ERROR_MESSAGES[error] : null;
+  const checkoutError = isCheckoutError(error) ? error : null;
+  // Only a sticker-offer problem justifies offering to drop the offer; a Stripe outage doesn't.
+  const offerCanBeDismissed =
+    hasStickerOffer &&
+    (checkoutError === "promo_unavailable" || checkoutError === "promo_rejected");
 
   const startCheckout = createCheckoutSessionAction.bind(null, promo);
   const offersFreeMonth = hasStickerOffer || Boolean(promo);
@@ -57,12 +64,12 @@ export default async function SubscribePage({
               Everything in FitRetro, unlimited logging, cancel anytime.
             </p>
           </div>
-          {stickerError && (
+          {checkoutError && (
             <p
               role="alert"
               className="rounded-md border border-danger px-3 py-2 text-sm text-danger"
             >
-              {stickerError}
+              {CHECKOUT_ERROR_MESSAGES[checkoutError]}
             </p>
           )}
           {hasStickerOffer ? (
@@ -78,14 +85,9 @@ export default async function SubscribePage({
             )
           )}
           <form action={startCheckout}>
-            <button
-              type="submit"
-              className="retro-glow w-full rounded-full bg-primary px-5 py-2 font-medium text-primary-foreground hover:bg-primary-hover"
-            >
-              {offersFreeMonth ? "Redeem free month" : "Start subscription"}
-            </button>
+            <CheckoutButton label={offersFreeMonth ? "Redeem free month" : "Start subscription"} />
           </form>
-          {hasStickerOffer && stickerError && (
+          {offerCanBeDismissed && (
             <form action={dismissStickerOfferAction}>
               <button type="submit" className="w-full text-sm text-muted-foreground underline">
                 Continue without the offer at the regular $8/month

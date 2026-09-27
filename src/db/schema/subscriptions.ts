@@ -31,6 +31,9 @@ export const subscriptions = pgTable("subscriptions", {
   status: subscriptionStatusEnum("status").notNull(),
   currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
   cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+  /** Campaign from the Stripe subscription's own metadata (set at checkout, e.g. "promo1"), so
+   * /ops can count sticker subscriptions without querying Stripe. Null for normal checkouts. */
+  campaign: text("campaign"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

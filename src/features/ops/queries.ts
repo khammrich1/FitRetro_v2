@@ -1,4 +1,4 @@
-import { eq, gte, sql } from "drizzle-orm";
+import { and, count, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   users,
@@ -14,6 +14,7 @@ import {
   peptideLogs,
   peptideTemplates,
   pageViews,
+  subscriptions,
 } from "@/db/schema";
 
 /** FitRetro has exactly one owner; "today" and "last 7 days" on /ops are measured in the
@@ -251,4 +252,44 @@ export async function getPageViewTrafficLast7Days(): Promise<PathTraffic[]> {
     .from(pageViews)
     .where(gte(pageViews.day, sevenDaysAgo));
   return summarizePageViewTraffic(rows);
+}
+
+export type StickerCampaignFunnel = {
+  /** Every /promo1 hit, including repeat scans — Nginx has the same requests raw. */
+  scans: number;
+  /** Accounts created while the sticker's campaign cookie was set. */
+  signups: number;
+  /** Subscriptions whose Stripe metadata says campaign=promo1, in any status. */
+  subscriptionsStarted: number;
+  /** Of those, the ones currently active or in their free first month. */
+  currentlySubscribed: number;
+};
+
+/** All-time funnel for the QR sticker (campaign "promo1") on /ops: counts only, no per-user
+ * detail. */
+export async function getStickerCampaignFunnel(): Promise<StickerCampaignFunnel> {
+  const campaign = "promo1";
+  const [[scanRow], [signupRow], [startedRow], [currentRow]] = await Promise.all([
+    db
+      .select({ n: count() })
+      .from(pageViews)
+      .where(eq(pageViews.path, `/${campaign}`)),
+    db.select({ n: count() }).from(users).where(eq(users.signupCampaign, campaign)),
+    db.select({ n: count() }).from(subscriptions).where(eq(subscriptions.campaign, campaign)),
+    db
+      .select({ n: count() })
+      .from(subscriptions)
+      .where(
+        and(
+          eq(subscriptions.campaign, campaign),
+          inArray(subscriptions.status, ["active", "trialing"]),
+        ),
+      ),
+  ]);
+  return {
+    scans: scanRow.n,
+    signups: signupRow.n,
+    subscriptionsStarted: startedRow.n,
+    currentlySubscribed: currentRow.n,
+  };
 }

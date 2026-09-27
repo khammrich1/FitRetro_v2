@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 import { getStripeClient, getStripeWebhookSecret } from "@/lib/stripe";
-import { upsertSubscriptionFromStripe } from "@/features/billing";
+import { parseCampaign, upsertSubscriptionFromStripe } from "@/features/billing";
 import { subscriptionStatusEnum, type SubscriptionStatus } from "@/db/schema";
 
 /** Stripe's TS type for subscription status includes an open-ended "OtherString" escape hatch
@@ -33,6 +33,8 @@ async function handleSubscriptionEvent(subscription: Stripe.Subscription): Promi
     status: toSubscriptionStatus(subscription.status),
     currentPeriodEnd: currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : null,
     cancelAtPeriodEnd: subscription.cancel_at_period_end,
+    // Only a known campaign is recorded — metadata can also be edited by hand in the dashboard.
+    campaign: parseCampaign(subscription.metadata.campaign),
   });
 }
 

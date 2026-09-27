@@ -67,3 +67,17 @@ body {
     0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent),
     0 0 20px color-mix(in srgb, var(--primary) 35%, transparent);
 }
+
+/* Form controls default to an intrinsic width (~20 characters) that flex and grid layouts won't
+   shrink below, so a row of two or three fields overflows a phone screen. Let them (and the
+   labels wrapping them) shrink; in the base layer, so width utilities like w-24 still win. */
+@layer base {
+  input,
+  select,
+  textarea {
+    min-width: 0;
+  }
+  label:has(input, select, textarea) {
+    min-width: 0;
+  }
+}

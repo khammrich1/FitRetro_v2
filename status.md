@@ -1,6 +1,6 @@
 # FitRetro — Live Status
 
-_Last updated: 2026-09-23 (#24–#27 merged; `/promo1` sticker route in progress for issue #28)_
+_Last updated: 2026-09-24 (#28/#29 merged; sticker launch-readiness PR open; meal-prep per-ingredient estimate queued)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
@@ -153,7 +153,7 @@ server-only.
 - **Still open:** real Checkout → webhook round trip. Needs the user's real test keys in `.env`
   on their side plus `stripe listen`. No Stripe values exist in this environment.
 
-## Task: `/promo1` QR sticker route (issue #28) — **PR open, not merged**
+## Task: `/promo1` QR sticker route (issue #28) — **done, merged (#29)**
 
 The sticker QR code points to `https://fitretro.app/promo1`. That route records campaign `promo1`
 in a first-party `fr_campaign` cookie, then redirects:
@@ -173,6 +173,47 @@ migration changes.
   coupon is 100% off with duration "once", and `STRIPE_PROMO_CODE=FREEMONTH` must be set in `.env`.
 - Known gap: the site header's generic "Log in" link doesn't carry `?next=`. Attribution still
   survives that path, but the visitor lands on `/today` instead of `/subscribe`.
+
+## Task: Sticker launch readiness (stickers go out at the gym next week) — **PR open**
+
+Branch `claude/sticker-launch-readiness`. Everything is in one PR because two parts add migrations
+(0029, 0030), and separate PRs would collide on migration slots, as #24/#26 did.
+
+- **Double-subscribe guard:** before every checkout, expire the customer's other open Checkout
+  Sessions, then ask Stripe (not the webhook table) whether a live subscription already exists.
+  If one does → `/settings/billing?notice=already_subscribed`. If Stripe can't be checked →
+  `billing_unavailable`.
+- **Sticker attribution:** `users.signup_campaign` is set at signup; `subscriptions.campaign` is
+  set from subscription metadata by the webhook. `/ops` shows scans → signups → subscriptions
+  started → currently subscribed. Migration 0029: two nullable columns.
+- **Password reset:** `/forgot-password` → emailed one-time link → `/reset-password`.
+  - Tokens are hashed, single-use, 1-hour expiry, claimed atomically.
+  - No account enumeration; 2-minute per-account cooldown.
+  - Links are built from `APP_URL`, never request headers.
+  - Sent via Resend (`RESEND_API_KEY`, `EMAIL_FROM`). In development the email prints to the
+    console; in production nothing is logged.
+  - Migration 0030: new `password_reset_tokens` table.
+- **Found by the regression pass and fixed:**
+  - Failed login/signup wiped the form (React 19 form reset).
+  - Stripe failures crashed checkout and the portal (now fail closed; 10s Stripe timeout).
+  - Settings forms overflowed phone screens, including the #26 reconstitution fields.
+- **Verified:**
+  - 137 unit tests.
+  - All 31 migrations applied to an empty DB.
+  - Production-build crawl of every page at 375px and 320px.
+  - Sticker suite (26 checks) and reset suite (14 checks, real Postgres).
+- **Still needs the owner:**
+  - Live-mode decision (the app is test-mode only; real cards fail in test mode).
+  - A Resend account with a verified domain, plus `RESEND_API_KEY`, `EMAIL_FROM` and `APP_URL`.
+  - Run migrations 0029 and 0030 on deploy.
+- **Known limitation:** sessions are stateless JWTs, so a password reset doesn't sign out other
+  devices.
+
+## Task: Meal prep per-ingredient macro estimates — **queued, not started**
+
+User: when building a meal prep, estimate one ingredient at a time ("40g green beans", then "14
+egg whites") and have each estimate append as a new ingredient instead of overriding what's
+already there. Separate branch/PR from the launch work.
 
 ### Open, unresolved (not actioned)
 

@@ -16,6 +16,7 @@ export type SubscriptionUpsertInput = {
   status: SubscriptionStatus;
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
+  campaign: string | null;
 };
 
 /** Called only from the Stripe webhook — this is the single place subscription state gets
@@ -33,6 +34,7 @@ export async function upsertSubscriptionFromStripe(input: SubscriptionUpsertInpu
         status: input.status,
         currentPeriodEnd: input.currentPeriodEnd,
         cancelAtPeriodEnd: input.cancelAtPeriodEnd,
+        campaign: input.campaign,
         updatedAt: new Date(),
       },
     });

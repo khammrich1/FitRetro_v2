@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { requireOwner } from "@/features/auth";
 import { getAllFeedback } from "@/features/feedback";
-import { getOwnerOpsSummary, getPageViewTrafficLast7Days } from "@/features/ops";
+import {
+  getOwnerOpsSummary,
+  getPageViewTrafficLast7Days,
+  getStickerCampaignFunnel,
+} from "@/features/ops";
 
 function formatDay(day: string | undefined): string {
   return day ?? "—";
@@ -10,10 +14,11 @@ function formatDay(day: string | undefined): string {
 export default async function OpsPage() {
   await requireOwner();
 
-  const [summary, traffic, feedback] = await Promise.all([
+  const [summary, traffic, feedback, sticker] = await Promise.all([
     getOwnerOpsSummary(),
     getPageViewTrafficLast7Days(),
     getAllFeedback(),
+    getStickerCampaignFunnel(),
   ]);
   const openFeedbackCount = feedback.filter((item) => item.status === "open").length;
 
@@ -33,6 +38,28 @@ export default async function OpsPage() {
             <p className="text-xs text-muted-foreground">{stat.label}</p>
           </div>
         ))}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">
+          QR sticker (promo1) — all time
+        </h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: "Scans", value: sticker.scans },
+            { label: "Signups", value: sticker.signups },
+            { label: "Subscriptions started", value: sticker.subscriptionsStarted },
+            { label: "Currently subscribed", value: sticker.currentlySubscribed },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-lg border border-border bg-card p-3 text-center"
+            >
+              <p className="text-2xl font-bold text-accent">{stat.value}</p>
+              <p className="text-xs text-muted-foreground">{stat.label}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="flex flex-col gap-3">
