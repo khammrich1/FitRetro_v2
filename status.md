@@ -209,11 +209,63 @@ Branch `claude/sticker-launch-readiness`. Everything is in one PR because two pa
 - **Known limitation:** sessions are stateless JWTs, so a password reset doesn't sign out other
   devices.
 
-## Task: Meal prep per-ingredient macro estimates — **queued, not started**
+## Task: Meal prep per-ingredient macro estimates — **PR open (#32)**
 
-User: when building a meal prep, estimate one ingredient at a time ("40g green beans", then "14
-egg whites") and have each estimate append as a new ingredient instead of overriding what's
-already there. Separate branch/PR from the launch work.
+Branch `claude/meal-prep-per-ingredient`. No migration.
+
+- Each "Estimate & add" appends its ingredients to the batch. Nothing already there, including
+  hand edits, is overwritten.
+- One line can still hold several ingredients.
+- Photos work: food on a scale (reads the display), package labels, and recipes.
+- Batch-aware prompts assume raw weights and whole packages.
+- The 20/day AI limit per member still applies (the owner is exempt).
+- Verified with a fake AI server only. Accuracy on real photos is untested (no API key in the
+  sandbox).
+
+## Task: Progress pics (PR 1 of 2) — **PR open**
+
+Branch `claude/progress-pics`. It is stacked on `claude/sticker-launch-readiness` because its
+migrations (0031, 0032) come after that PR's 0029/0030. **Merge #31 first.**
+
+- `/progress` (nav: "Progress"):
+  - A check-in has a date and front/side/back photo slots, plus optional weight, waist and body
+    fat.
+  - Weight, waist and body fat go into the existing `body_measurements` table (lb/in in the UI,
+    kg/cm in the table).
+  - The timeline is newest first, with thumbnails and that day's measurements.
+  - Photos can be removed one at a time, or a whole check-in at once. Both ask for confirmation,
+    and measurements are kept.
+  - **Every photo is kept** (user: "save every one — it's critical to see progress"). Retaking
+    a pose on the same date adds another photo; nothing is ever replaced. Photos are only deleted
+    by an explicit, confirmed Remove or Delete check-in.
+- Storage is a private DigitalOcean Spaces bucket (any S3-compatible store works):
+  - Env vars: `SPACES_ENDPOINT`, `SPACES_BUCKET`, `SPACES_KEY`, `SPACES_SECRET`.
+  - Until they're set, `/progress` shows a notice and accepts no uploads. Nothing else is
+    affected.
+- Privacy:
+  - The phone shrinks each photo before upload, and the server re-encodes it with `sharp`. Both
+    steps strip EXIF, GPS and camera data; only pixels are stored.
+  - Stored sizes: full photo 1600px max (~0.5MB), thumbnail 480px (~15KB).
+  - Photos are only served through `/progress/photos/[id]`, which checks ownership:
+    - Anyone else gets a 404.
+    - Responses are `private, no-store` and `noindex`.
+    - There are no public or pre-signed URLs.
+    - Photos are never sent to AI.
+- Migration 0031: new `progress_photos` table only (additive). Migration 0032 drops 0031's
+  one-photo-per-pose-per-day unique index (no data change). It's a new migration rather than an
+  edit to 0031, because 0031 had already been pushed.
+- Verified:
+  - 171 unit tests, including a mutation check that the EXIF test catches leaks.
+  - 42-check browser run against a production build with a fake S3 server, using three 8MB
+    phone photos with GPS data.
+  - All 33 migrations applied to an empty DB.
+- Owner setup:
+  1. Create a Spaces bucket with no public access.
+  2. Create an access key limited to that bucket.
+  3. Set the `SPACES_*` values in `/opt/fitretro/.env`.
+  4. Run migrations 0031 and 0032 on deploy (backup first).
+- Next, PR 2: compare two check-ins side by side with deltas, a weekly "Progress pic day"
+  reminder on Today (Sunday by default), and last week's same-pose photo shown as a reference.
 
 ### Open, unresolved (not actioned)
 

@@ -7,6 +7,7 @@ const protectedRoutes = [
   "/today",
   "/pantry",
   "/meal-prep",
+  "/progress",
   "/settings",
   "/wake-up",
   "/ops",

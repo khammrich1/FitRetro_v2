@@ -11,6 +11,7 @@ export const TRACKED_PATH_PREFIXES = [
   "/settings",
   "/pantry",
   "/meal-prep",
+  "/progress",
   "/wake-up",
   "/ops",
   "/help",
