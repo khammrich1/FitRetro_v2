@@ -61,3 +61,16 @@ export function groupCheckIns<P extends PhotoLike>(
 
   return [...byDay.values()].sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0));
 }
+
+/** The most recent photo of each pose — the newest day, and that day's last take. Expects photos
+ * in any day order, but oldest-first within a day (as listProgressPhotos returns them). */
+export function latestPhotoByPose<P extends PhotoLike>(
+  photos: P[],
+): Partial<Record<ProgressPhotoPose, P>> {
+  const latest: Partial<Record<ProgressPhotoPose, P>> = {};
+  for (const photo of photos) {
+    const current = latest[photo.pose];
+    if (!current || photo.takenOn >= current.takenOn) latest[photo.pose] = photo;
+  }
+  return latest;
+}

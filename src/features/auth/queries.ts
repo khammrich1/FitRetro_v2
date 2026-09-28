@@ -38,6 +38,14 @@ export async function setUserReadingTopics(userId: string, readingTopics: string
   await db.update(users).set({ readingTopics, updatedAt: new Date() }).where(eq(users.id, userId));
 }
 
+/** Weekday (0 = Sunday … 6 = Saturday) for the progress-pic reminder, or null to turn it off. */
+export async function setUserProgressPhotoDay(userId: string, progressPhotoDay: number | null) {
+  await db
+    .update(users)
+    .set({ progressPhotoDay, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+}
+
 export async function setUserStripeCustomerId(userId: string, stripeCustomerId: string) {
   await db
     .update(users)

@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "progress_photo_day" integer DEFAULT 0;

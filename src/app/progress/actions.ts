@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { verifySession } from "@/features/auth";
+import { setUserProgressPhotoDay, verifySession } from "@/features/auth";
 import { upsertMeasurementForDay } from "@/features/measurements";
 import {
   PROGRESS_POSES,
@@ -182,4 +182,16 @@ export async function deleteCheckInAction(day: string): Promise<void> {
   const keys = await deleteProgressPhotosForDay(userId, day);
   await deleteFilesQuietly(keys);
   revalidatePath("/progress");
+}
+
+/** Sets the weekday for Today's "Progress pic day" reminder: "0"–"6" (Sunday–Saturday) or "off". */
+export async function setProgressPhotoDayAction(value: string): Promise<void> {
+  const { userId } = await verifySession();
+  let day: number | null;
+  if (value === "off") day = null;
+  else if (/^[0-6]$/.test(value)) day = Number(value);
+  else return;
+  await setUserProgressPhotoDay(userId, day);
+  revalidatePath("/progress");
+  revalidatePath("/today");
 }

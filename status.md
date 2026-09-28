@@ -264,8 +264,40 @@ migrations (0031, 0032) come after that PR's 0029/0030. **Merge #31 first.**
   2. Create an access key limited to that bucket.
   3. Set the `SPACES_*` values in `/opt/fitretro/.env`.
   4. Run migrations 0031 and 0032 on deploy (backup first).
-- Next, PR 2: compare two check-ins side by side with deltas, a weekly "Progress pic day"
-  reminder on Today (Sunday by default), and last week's same-pose photo shown as a reference.
+- PR 2 (compare, reminder, pose reference) is its own PR; see the next section.
+
+## Task: Progress pics PR 2 (compare, reminder, pose reference) — **PR open**
+
+Branch `claude/progress-pics-compare`, stacked on `claude/goals-milestones` (migration 0034
+comes after 0033). **Merge order: #31 → #33 → #34 → this PR.**
+
+- **Compare** (`/progress/compare`, linked from the timeline once there are 2+ check-ins):
+  - Two check-ins side by side for a chosen pose. Defaults to first vs latest; the earlier date
+    is always on the left.
+  - Shows the gap ("3 weeks apart") and before/after/change for weight, waist and body fat.
+    Only values measured on both days are shown, with no good/bad colouring.
+  - Uses the latest take of the pose that day. A missing pose shows a placeholder.
+  - All state is in the URL; junk params fall back to the defaults.
+- **Reminder:** a "Progress pic day 📸" card on Today.
+  - Shown on the chosen weekday (Sunday by default), unless there's a check-in from the last 5
+    days.
+  - After 10+ days without photos it shows on any day ("It's been N days…"). It never nags
+    someone who has never taken any, except on their reminder day.
+  - Only when viewing the real current day, and only when photo storage is configured.
+  - The day (or off) is set from a dropdown on `/progress` and saves instantly.
+  - Stored in `users.progress_photo_day` (0–6, null = off, default 0).
+- **Pose reference:** each empty slot in the check-in form shows last time's photo of that pose
+  at 30% opacity, labelled "Last: Sep 5, 2026", to match stance and framing.
+- `formatIsoDay` moved to `@/lib/date` and is shared by progress and goals.
+- Migration 0034: adds the `users.progress_photo_day` column with default 0 (additive).
+- Verified:
+  - 230 unit tests, including the reminder rules, compare math and the reminder action.
+  - A 26-check browser run against a production build with fake S3: reminder shows and clears,
+    references appear, compare numbers are right, junk params are handled, another member
+    can't see anything, and there's no overflow on /progress, /progress/compare or /today at
+    320/375px.
+  - The PR 1 and goals browser suites still pass.
+  - All 35 migrations applied to an empty DB.
 
 ## Task: Goals & milestones — **PR open**
 

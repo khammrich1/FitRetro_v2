@@ -1,4 +1,5 @@
 import type { DatePrecision } from "@/db/schema";
+import { formatIsoDay } from "@/lib/date";
 
 /** Pure "YYYY-MM-DD" helpers for goals. All arithmetic is on UTC-anchored dates, so results never
  * depend on the server's or browser's time zone. */
@@ -87,12 +88,7 @@ export function formatAchieved(achievedOn: string, precision: DatePrecision): st
 
 /** "Jan 1, 2026". */
 export function formatDay(day: string): string {
-  return toUtc(day).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  return formatIsoDay(day);
 }
 
 /** Whole days from `from` to `to` (negative if `to` is earlier). */
