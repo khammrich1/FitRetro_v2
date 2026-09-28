@@ -49,6 +49,11 @@ src/
                          separate per-day completion note.
     peptides/            User-defined peptides (name, dose, frequency) with per-day dose logs;
                          no due-date/reminder logic — frequency is reference only
+    progress-photos/     Private progress photo check-ins (front/side/back): sharp processing
+                         (EXIF/GPS stripped), keys in S3-compatible storage (@/lib/object-storage),
+                         served only via the owner-checked /progress/photos/[id] route
+    goals/               Goals that become milestones when achieved; achievement dates stored at
+                         day/month/year precision ("sometime in March") — see goals/dates.ts
   lib/                 Cross-cutting utilities (e.g. session cookie signing)
     date.ts              Shared "YYYY-MM-DD" day-param parsing/formatting, used by every
                          day-scoped page/action (avoids each feature reinventing it)

@@ -18,3 +18,4 @@ export * from "./daily-reading";
 export * from "./subscriptions";
 export * from "./password-reset";
 export * from "./progress-photos";
+export * from "./goals";

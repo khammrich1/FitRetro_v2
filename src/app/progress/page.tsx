@@ -6,6 +6,7 @@ import { kgToLbs } from "@/features/workouts/units";
 import { toIsoDate } from "@/lib/date";
 import { isObjectStorageConfigured } from "@/lib/object-storage";
 import { CheckInForm } from "./_components/check-in-form";
+import { ProgressTabs } from "./_components/progress-tabs";
 import { CheckInCard, type CheckInCardData } from "./_components/check-in-card";
 
 export const metadata: Metadata = {
@@ -76,7 +77,8 @@ export default async function ProgressPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10">
-      <h1 className="retro-heading text-2xl font-bold text-foreground">Progress pics</h1>
+      <h1 className="retro-heading text-2xl font-bold text-foreground">Progress</h1>
+      <ProgressTabs active="photos" />
       <p className="text-sm text-muted-foreground">
         The scale only tells part of the story. A quick front, side and back photo every week or so
         shows the changes you can&apos;t see day to day. Your photos are private: only you can see
