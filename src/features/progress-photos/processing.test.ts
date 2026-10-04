@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
-import sharp from "sharp";
+import sharp, { type Sharp } from "sharp";
 
 vi.mock("server-only", () => ({}));
 
@@ -87,7 +87,7 @@ describe("processProgressPhoto", () => {
   });
 
   it("accepts PNG and WebP, re-encoding them as JPEG", async () => {
-    for (const encode of [(s: sharp.Sharp) => s.png(), (s: sharp.Sharp) => s.webp()]) {
+    for (const encode of [(s: Sharp) => s.png(), (s: Sharp) => s.webp()]) {
       const input = await encode(
         sharp({ create: { width: 50, height: 60, channels: 3, background: "#fff" } }),
       ).toBuffer();
