@@ -34,6 +34,13 @@ export const subscriptions = pgTable("subscriptions", {
   /** Campaign from the Stripe subscription's own metadata (set at checkout, e.g. "promo1"), so
    * /ops can count sticker subscriptions without querying Stripe. Null for normal checkouts. */
   campaign: text("campaign"),
+  /** When Stripe created this subscription. Lets the webhook tell a replacement apart from a
+   * delayed event about the old one: an event for a subscription created earlier than the one on
+   * file is stale and ignored. Null only on rows written before this column existed. */
+  stripeSubscriptionCreated: timestamp("stripe_subscription_created", { withTimezone: true }),
+  /** Stripe's `created` of the last event applied to this row, so an older event about the same
+   * subscription that arrives late can't roll the status back. */
+  lastEventCreated: timestamp("last_event_created", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

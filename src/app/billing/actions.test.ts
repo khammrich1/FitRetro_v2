@@ -61,6 +61,8 @@ vi.mock("@/lib/stripe", async (importOriginal) => ({
 vi.mock("@/features/billing", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/billing")>()),
   getOrCreateStripeCustomer: mocks.getOrCreateStripeCustomer,
+  // The real lock needs Postgres; the serialisation it provides is covered by its own tests.
+  withCheckoutLock: (_userId: string, work: () => Promise<unknown>) => work(),
 }));
 
 const { createCheckoutSessionAction, createBillingPortalSessionAction, dismissStickerOfferAction } =
