@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql, sum } from "drizzle-orm";
 import { db } from "@/db/client";
 import { aiUsage } from "@/db/schema";
 
@@ -19,8 +19,16 @@ export async function getAiUsageCountForDay(userId: string, day: Date): Promise<
   return row?.count ?? 0;
 }
 
-/** Atomically increments today's count and returns the new total. */
-export async function incrementAiUsage(userId: string, day: Date): Promise<number> {
+/** Reserves one of the user's `limit` AI actions for the day and returns the new count, or
+ * null if the day is already full. Admission and increment are one statement: the insert
+ * creates the day's row at 1, and on conflict the update only applies while the stored count is
+ * still under the limit. Postgres serialises the row, so a burst of requests arriving at 19
+ * sees exactly one succeed — a read-then-increment would have let them all through. */
+export async function reserveAiUsage(
+  userId: string,
+  day: Date,
+  limit: number,
+): Promise<number | null> {
   const dayIso = toDateOnly(day);
   const [row] = await db
     .insert(aiUsage)
@@ -28,8 +36,19 @@ export async function incrementAiUsage(userId: string, day: Date): Promise<numbe
     .onConflictDoUpdate({
       target: [aiUsage.userId, aiUsage.day],
       set: { count: sql`${aiUsage.count} + 1` },
+      setWhere: sql`${aiUsage.count} < ${limit}`,
     })
     .returning({ count: aiUsage.count });
 
-  return row.count;
+  return row?.count ?? null;
+}
+
+/** Every account's AI actions for the day added up — the input to the site-wide ceiling. */
+export async function getAiUsageTotalForDay(day: Date): Promise<number> {
+  const dayIso = toDateOnly(day);
+  const [row] = await db
+    .select({ total: sum(aiUsage.count) })
+    .from(aiUsage)
+    .where(eq(aiUsage.day, dayIso));
+  return Number(row?.total ?? 0);
 }
