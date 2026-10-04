@@ -41,9 +41,13 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm run test
       - name: Apply every migration to an empty database
         run: npm run db:migrate
+      - run: npm run test
+        env:
+          # Lets the few integration tests (e.g. the rate limiter's concurrency test) run
+          # against the migrated CI database instead of being skipped.
+          INTEGRATION_DATABASE_URL: ${{ env.DATABASE_URL }}
       - run: npm run build
 
   audit:

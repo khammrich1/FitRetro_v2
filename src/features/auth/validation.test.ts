@@ -63,3 +63,23 @@ describe("resetPasswordSchema", () => {
     expect(resetPasswordSchema.safeParse({ ...valid, token: "" }).success).toBe(false);
   });
 });
+
+describe("password length", () => {
+  const base = { displayName: "Kyle", email: "kyle@example.com" };
+
+  it("accepts up to 72 bytes and rejects anything longer", () => {
+    const seventyTwo = "a1".repeat(36);
+    expect(signupSchema.safeParse({ ...base, password: seventyTwo }).success).toBe(true);
+    expect(signupSchema.safeParse({ ...base, password: `${seventyTwo}x` }).success).toBe(false);
+  });
+
+  it("counts bytes, not characters — bcrypt only hashes the first 72 bytes", () => {
+    // 24 three-byte characters plus "a1" = 74 bytes but only 26 characters.
+    const multiByte = `${"€".repeat(24)}a1`;
+    const result = signupSchema.safeParse({ ...base, password: multiByte });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toMatch(/72 bytes/);
+    }
+  });
+});

@@ -15,6 +15,9 @@ function getSecretKey() {
 
 export type SessionPayload = {
   userId: string;
+  /** users.session_version at issue time. Absent on cookies issued before versions existed;
+   * the DAL treats those as version 1. */
+  sv?: number;
 };
 
 async function encrypt(payload: SessionPayload) {
@@ -40,9 +43,9 @@ async function decrypt(session: string | undefined) {
 /** Verifies a raw session cookie value. Used by proxy.ts, which reads cookies off the request directly. */
 export const verifySessionToken = decrypt;
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, sessionVersion: number) {
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
-  const session = await encrypt({ userId });
+  const session = await encrypt({ userId, sv: sessionVersion });
   const cookieStore = await cookies();
 
   cookieStore.set(SESSION_COOKIE_NAME, session, {
@@ -57,6 +60,9 @@ export async function createSession(userId: string) {
   });
 }
 
+/** The cookie's payload if its signature is valid. This is NOT an authorization check on its
+ * own — it doesn't know whether the account has since revoked its sessions. Use
+ * verifySession()/getSessionUserId() from @/features/auth for anything that gates data. */
 export async function getSession() {
   const cookieStore = await cookies();
   const session = cookieStore.get(SESSION_COOKIE_NAME)?.value;

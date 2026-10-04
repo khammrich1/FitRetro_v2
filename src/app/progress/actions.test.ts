@@ -25,6 +25,12 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("server-only", () => ({}));
+// The DAL's session-version check is a one-row lookup; fake it so the real JWT verification runs
+// without a database. Version 1 matches a cookie that carries no version (or sv: 1).
+vi.mock("@/features/auth/session-check", () => ({
+  getSessionVersion: async () => 1,
+  bumpSessionVersion: async () => 2,
+}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/headers", () => ({
   cookies: async () => ({

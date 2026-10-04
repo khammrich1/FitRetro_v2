@@ -1,6 +1,6 @@
 # FitRetro — Live Status
 
-_Last updated: 2026-10-02 (#31–#35 all merged into `main`; nothing open; owner checklist below is current)_
+_Last updated: 2026-10-04 (production-readiness review received; hardening PRs 1–2 of 6 open; owner checklist below is current)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
@@ -78,7 +78,12 @@ pic day" card on Today stays hidden.
 Members are capped at 20 AI actions/day, but the owner account is exempt. Set a monthly spend
 limit in the Anthropic console so a runaway day can't surprise you.
 
-### 6. Decisions I'm waiting on
+### 6. One click on GitHub
+
+Settings → General → Default branch → `main`. It's still the old `claude/quirky-maxwell-ovfba4`;
+everything deploys from `main`. The proxy here can't change repository settings.
+
+### 7. Decisions I'm waiting on
 
 - **Today's "Log a meal" form:** should it get the same append-per-ingredient behaviour as Meal
   Prep? (Asked, unanswered.)
@@ -257,6 +262,43 @@ migration changes.
   coupon is 100% off with duration "once", and `STRIPE_PROMO_CODE=FREEMONTH` must be set in `.env`.
 - Known gap: the site header's generic "Log in" link doesn't carry `?next=`. Attribution still
   survives that path, but the visitor lands on `/today` instead of `/subscribe`.
+
+## Task: Production-readiness review → hardening — **in progress (PRs 1–2 of 6 open)**
+
+An external review of `main` (2026-10-03) listed 20 findings. Verified against the code: 16
+real, 2 wrong for our setup (format check — Windows line endings; the "critical" Next advisory
+is Windows-only hosting), 2 needed product decisions. Owner decided: **per-user timezone: yes;
+score only filled-in sets; archive templates on delete.**
+
+Batches, each its own PR, stacked in order:
+
+1. **Dependencies + CI (#37, open).** Next 16.3.8, sharp 0.35.5, eslint-config-next 16.3.8,
+   drizzle-kit 0.31.11, transitive bumps. Audit: 20 (1 critical) → 9, all dev-only tooling.
+   New `.github/workflows/ci.yml`: format/lint/typecheck/tests/all migrations on empty
+   Postgres/build, plus a runtime-only audit gate. Browser suites rerun on the new build.
+2. **Session revocation + rate limits + password cap (open, stacked on #37).**
+   - `users.session_version` (migration 0035). Cookies carry the version they were issued with;
+     `verifySession`/`getCurrentUser`/the photo route reject a mismatch. Password reset bumps it
+     (signs out every other device); Settings → Security has "Log out of all devices".
+     Pre-versioning cookies count as version 1 so the deploy itself logs nobody out.
+   - A revoked cookie is sent through `/session/expired`, which clears it and lands on login with
+     an explanation — otherwise the proxy's cookie-only check loops `/login` ↔ `/today` (found
+     by the browser test).
+   - `rate_limits` table + one atomic upsert per attempt (`@/features/auth/rate-limit`).
+     Login 10/15 min per account (cleared on success), 60/15 min per IP; signup 30/hour per IP;
+     reset request 3/hour per account, 10/hour per IP; reset submit 10/15 min per IP. Per-IP
+     limits are loose on purpose: a gym's shared wifi is one IP. Concurrency proven by an
+     integration test (25 parallel → exactly 5 admitted) that CI runs against its Postgres.
+   - Passwords capped at 72 bytes (bcrypt's limit), counted in bytes; login passwords bounded.
+   - Reset submit checks the token cheaply before paying for bcrypt; the claim stays atomic.
+   - Verified: 264 unit tests; 22-check browser run (two devices, log-out-everywhere, reset
+     revokes the other device, 11th wrong password throttled, right password also throttled, other
+     account unaffected, 4th reset request dropped with identical reply, 74-byte password
+     rejected); photos/goals/compare suites on the production build; 36 migrations on an empty DB.
+3. **Next:** voice note save; dose history snapshots + archive-on-delete + real dose time.
+4. Atomic AI limit; Daily Reader single-flight.
+5. Billing idempotency + webhook ledger (before live mode).
+6. Per-user timezone; filled-in-set scoring; validation/date/query cleanups; stale Help text.
 
 ## Task: Sticker launch readiness (stickers go out at the gym next week) — **done, merged (#31)**
 

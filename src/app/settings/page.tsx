@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { logoutEverywhere } from "@/features/auth";
 
 const SETTINGS_SECTIONS = [
   {
@@ -68,6 +69,22 @@ export default function SettingsPage() {
           </Link>
         ))}
       </div>
+
+      <section className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Security</h2>
+        <p className="text-sm text-muted-foreground">
+          Signed in somewhere you don&apos;t recognise, or lost a phone? This signs you out of every
+          device, including this one.
+        </p>
+        <form action={logoutEverywhere}>
+          <button
+            type="submit"
+            className="rounded-full border border-border px-4 py-1.5 text-sm hover:border-danger hover:text-danger"
+          >
+            Log out of all devices
+          </button>
+        </form>
+      </section>
     </div>
   );
 }
