@@ -6,12 +6,14 @@ import { verifySession } from "@/features/auth";
 import {
   createPeptideTemplate,
   updatePeptideTemplate,
-  deletePeptideTemplate,
+  archivePeptideTemplate,
+  restorePeptideTemplate,
   logPeptideDose,
   deletePeptideLog,
+  resolveAdministeredAt,
 } from "@/features/peptides";
 import { peptideDoseUnitEnum, peptideFrequencyEnum } from "@/db/schema";
-import { parseDayParam } from "@/lib/date";
+import { parseDayParam, toIsoDate } from "@/lib/date";
 
 function revalidatePeptidePaths() {
   revalidatePath("/today");
@@ -106,15 +108,34 @@ export async function updatePeptideTemplateAction(
   revalidatePeptidePaths();
 }
 
-export async function deletePeptideTemplateAction(id: string): Promise<void> {
+/** Archives rather than deletes, so the dose history stays. */
+export async function archivePeptideTemplateAction(id: string): Promise<void> {
   const { userId } = await verifySession();
-  await deletePeptideTemplate(id, userId);
+  await archivePeptideTemplate(id, userId);
   revalidatePeptidePaths();
 }
 
-export async function logPeptideDoseAction(templateId: string, dayIso: string): Promise<void> {
+export async function restorePeptideTemplateAction(id: string): Promise<void> {
   const { userId } = await verifySession();
-  await logPeptideDose(templateId, userId, parseDayParam(dayIso));
+  await restorePeptideTemplate(id, userId);
+  revalidatePeptidePaths();
+}
+
+/** `time` is "HH:MM" from a time input, or empty. Today with no time means now; a past day with
+ * no time is recorded with an unknown dose time rather than a made-up one. */
+export async function logPeptideDoseAction(
+  templateId: string,
+  dayIso: string,
+  time?: string | null,
+): Promise<void> {
+  const { userId } = await verifySession();
+  const day = parseDayParam(dayIso);
+  const administeredAt = resolveAdministeredAt({
+    dayIso: toIsoDate(day),
+    todayIso: toIsoDate(new Date()),
+    time,
+  });
+  await logPeptideDose(templateId, userId, day, administeredAt);
   revalidatePeptidePaths();
 }
 

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNotNull, lte } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   peptideTemplates,
@@ -8,6 +8,7 @@ import {
   type PeptideDoseUnit,
   type PeptideFrequency,
 } from "@/db/schema";
+import type { DoseForEstimate } from "./decay";
 
 function toDateOnly(day: Date) {
   const year = day.getFullYear();
@@ -55,22 +56,51 @@ export async function updatePeptideTemplate(
   return template ?? null;
 }
 
-export async function deletePeptideTemplate(id: string, userId: string) {
+/** "Delete" from the user's point of view. The row stays so every dose ever logged against it
+ * keeps its history (and the days' activity scores); it just disappears from Today and the
+ * settings list until restored. */
+export async function archivePeptideTemplate(id: string, userId: string) {
   await db
-    .delete(peptideTemplates)
+    .update(peptideTemplates)
+    .set({ archivedAt: new Date() })
     .where(and(eq(peptideTemplates.id, id), eq(peptideTemplates.userId, userId)));
 }
 
+export async function restorePeptideTemplate(id: string, userId: string) {
+  await db
+    .update(peptideTemplates)
+    .set({ archivedAt: null })
+    .where(and(eq(peptideTemplates.id, id), eq(peptideTemplates.userId, userId)));
+}
+
+/** The user's current (non-archived) peptides. */
 export async function getPeptideTemplatesForUser(userId: string): Promise<PeptideTemplate[]> {
   return db
     .select()
     .from(peptideTemplates)
-    .where(eq(peptideTemplates.userId, userId))
+    .where(and(eq(peptideTemplates.userId, userId), isNull(peptideTemplates.archivedAt)))
     .orderBy(asc(peptideTemplates.createdAt));
 }
 
-/** Logs a dose of a peptide for the given day. Returns null if the template isn't owned by userId. */
-export async function logPeptideDose(templateId: string, userId: string, day: Date) {
+export async function getArchivedPeptideTemplatesForUser(
+  userId: string,
+): Promise<PeptideTemplate[]> {
+  return db
+    .select()
+    .from(peptideTemplates)
+    .where(and(eq(peptideTemplates.userId, userId), isNotNull(peptideTemplates.archivedAt)))
+    .orderBy(desc(peptideTemplates.archivedAt));
+}
+
+/** Logs a dose of a peptide for the given day, snapshotting the template's name/dose/unit so a
+ * later template edit can't rewrite what was taken. `administeredAt` null means the time isn't
+ * known (see @/features/peptides/dose-time). Returns null if the template isn't the user's. */
+export async function logPeptideDose(
+  templateId: string,
+  userId: string,
+  day: Date,
+  administeredAt: Date | null,
+) {
   const [template] = await db
     .select()
     .from(peptideTemplates)
@@ -79,7 +109,14 @@ export async function logPeptideDose(templateId: string, userId: string, day: Da
 
   const [log] = await db
     .insert(peptideLogs)
-    .values({ peptideTemplateId: templateId, loggedOn: toDateOnly(day) })
+    .values({
+      peptideTemplateId: templateId,
+      loggedOn: toDateOnly(day),
+      administeredAt,
+      name: template.name,
+      doseAmount: template.doseAmount,
+      doseUnit: template.doseUnit,
+    })
     .returning();
   return log;
 }
@@ -119,33 +156,41 @@ export async function getMostRecentLogDates(
   return latest;
 }
 
-/** All logged-dose timestamps for a user's peptide templates that have a half-life set (used for
- * the "level in body" estimate — see @/features/peptides/decay). Templates without a half-life
- * are skipped since there's nothing to estimate. Not date-bounded in SQL: log volume for a single
- * user's peptides is small enough that filtering to each template's own decay window in JS (where
- * the half-life is available) is simpler than a per-row dynamic date filter in the query. */
-export async function getLogTimestampsForDecay(userId: string): Promise<Map<string, Date[]>> {
+/** Every dose (its real time, or null for unknown) of each current peptide that has a half-life
+ * set, for the "level in body" estimate — see @/features/peptides/decay. Not date-bounded in SQL:
+ * one person's dose history is small, and the decay window depends on each template's half-life,
+ * which estimateLevel applies in JS. */
+export async function getDosesForDecay(userId: string): Promise<Map<string, DoseForEstimate[]>> {
   const rows = await db
     .select({
       peptideTemplateId: peptideLogs.peptideTemplateId,
-      loggedAt: peptideLogs.loggedAt,
+      administeredAt: peptideLogs.administeredAt,
+      loggedOn: peptideLogs.loggedOn,
     })
     .from(peptideLogs)
     .innerJoin(peptideTemplates, eq(peptideLogs.peptideTemplateId, peptideTemplates.id))
-    .where(and(eq(peptideTemplates.userId, userId), isNotNull(peptideTemplates.halfLifeHours)));
+    .where(
+      and(
+        eq(peptideTemplates.userId, userId),
+        isNull(peptideTemplates.archivedAt),
+        isNotNull(peptideTemplates.halfLifeHours),
+      ),
+    );
 
-  const byTemplate = new Map<string, Date[]>();
+  const byTemplate = new Map<string, DoseForEstimate[]>();
   for (const row of rows) {
+    const dose = { administeredAt: row.administeredAt, loggedOn: row.loggedOn };
     const existing = byTemplate.get(row.peptideTemplateId);
-    if (existing) existing.push(row.loggedAt);
-    else byTemplate.set(row.peptideTemplateId, [row.loggedAt]);
+    if (existing) existing.push(dose);
+    else byTemplate.set(row.peptideTemplateId, [dose]);
   }
   return byTemplate;
 }
 
 export type PeptideLogWithTemplate = PeptideLog & { template: PeptideTemplate };
 
-/** All of a user's peptide doses logged on the calendar day of `day`, with their template info. */
+/** All of a user's peptide doses logged on the calendar day of `day`, with their template info.
+ * Archived templates are included on purpose: the dose was still taken that day. */
 export async function getPeptideLogsForDay(
   userId: string,
   day: Date,

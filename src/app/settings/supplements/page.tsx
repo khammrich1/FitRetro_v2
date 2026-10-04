@@ -1,12 +1,20 @@
 import Link from "next/link";
 import { verifySession } from "@/features/auth";
-import { getSupplementTemplatesForUser } from "@/features/supplements";
+import {
+  getSupplementTemplatesForUser,
+  getArchivedSupplementTemplatesForUser,
+} from "@/features/supplements";
+import { restoreSupplementTemplateAction } from "@/app/supplements/actions";
+import { ArchivedTemplates } from "../_components/archived-templates";
 import { SupplementTemplateCard } from "./_components/supplement-template-card";
 import { NewSupplementForm } from "./_components/new-supplement-form";
 
 export default async function SupplementsSettingsPage() {
   const { userId } = await verifySession();
-  const templates = await getSupplementTemplatesForUser(userId);
+  const [templates, archived] = await Promise.all([
+    getSupplementTemplatesForUser(userId),
+    getArchivedSupplementTemplatesForUser(userId),
+  ]);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10">
@@ -31,6 +39,12 @@ export default async function SupplementsSettingsPage() {
       )}
 
       <NewSupplementForm />
+
+      <ArchivedTemplates
+        items={archived}
+        noun="supplement"
+        restore={restoreSupplementTemplateAction}
+      />
     </div>
   );
 }

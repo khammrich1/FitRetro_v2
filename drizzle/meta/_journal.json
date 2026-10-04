@@ -253,6 +253,13 @@
       "when": 1791091417211,
       "tag": "0035_free_marten_broadcloak",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791092230397,
+      "tag": "0036_magical_mister_sinister",
+      "breakpoints": true
     }
   ]
 }

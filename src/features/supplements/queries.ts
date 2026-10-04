@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, lte } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   supplementTemplates,
@@ -52,18 +52,40 @@ export async function updateSupplementTemplate(
   return template ?? null;
 }
 
-export async function deleteSupplementTemplate(id: string, userId: string) {
+/** "Delete" from the user's point of view. The row stays so every dose ever logged against it
+ * keeps its history (and the days' activity scores); it just disappears from Today and the
+ * settings list until restored. */
+export async function archiveSupplementTemplate(id: string, userId: string) {
   await db
-    .delete(supplementTemplates)
+    .update(supplementTemplates)
+    .set({ archivedAt: new Date() })
     .where(and(eq(supplementTemplates.id, id), eq(supplementTemplates.userId, userId)));
 }
 
+export async function restoreSupplementTemplate(id: string, userId: string) {
+  await db
+    .update(supplementTemplates)
+    .set({ archivedAt: null })
+    .where(and(eq(supplementTemplates.id, id), eq(supplementTemplates.userId, userId)));
+}
+
+/** The user's current (non-archived) supplements. */
 export async function getSupplementTemplatesForUser(userId: string): Promise<SupplementTemplate[]> {
   return db
     .select()
     .from(supplementTemplates)
-    .where(eq(supplementTemplates.userId, userId))
+    .where(and(eq(supplementTemplates.userId, userId), isNull(supplementTemplates.archivedAt)))
     .orderBy(asc(supplementTemplates.createdAt));
+}
+
+export async function getArchivedSupplementTemplatesForUser(
+  userId: string,
+): Promise<SupplementTemplate[]> {
+  return db
+    .select()
+    .from(supplementTemplates)
+    .where(and(eq(supplementTemplates.userId, userId), isNotNull(supplementTemplates.archivedAt)))
+    .orderBy(desc(supplementTemplates.archivedAt));
 }
 
 /** Logs a dose of a supplement for the given day. Returns null if the template isn't owned by
@@ -75,9 +97,16 @@ export async function logSupplementDose(templateId: string, userId: string, day:
     .where(and(eq(supplementTemplates.id, templateId), eq(supplementTemplates.userId, userId)));
   if (!template) return null;
 
+  // Snapshot the template so a later edit can't rewrite what was taken.
   const [log] = await db
     .insert(supplementLogs)
-    .values({ supplementTemplateId: templateId, loggedOn: toDateOnly(day) })
+    .values({
+      supplementTemplateId: templateId,
+      loggedOn: toDateOnly(day),
+      name: template.name,
+      doseAmount: template.doseAmount,
+      doseUnit: template.doseUnit,
+    })
     .returning();
   return log;
 }
