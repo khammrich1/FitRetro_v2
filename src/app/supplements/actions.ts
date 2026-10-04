@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { verifySession } from "@/features/auth";
+import { verifySession, parseMemberDay } from "@/features/auth";
 import {
   createSupplementTemplate,
   updateSupplementTemplate,
@@ -12,7 +12,6 @@ import {
   deleteSupplementLog,
 } from "@/features/supplements";
 import { supplementDoseUnitEnum, supplementFrequencyEnum } from "@/db/schema";
-import { parseDayParam } from "@/lib/date";
 
 function revalidateSupplementPaths() {
   revalidatePath("/today");
@@ -102,7 +101,7 @@ export async function restoreSupplementTemplateAction(id: string): Promise<void>
 
 export async function logSupplementDoseAction(templateId: string, dayIso: string): Promise<void> {
   const { userId } = await verifySession();
-  await logSupplementDose(templateId, userId, parseDayParam(dayIso));
+  await logSupplementDose(templateId, userId, await parseMemberDay(dayIso));
   revalidateSupplementPaths();
 }
 

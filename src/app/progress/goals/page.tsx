@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { verifySession } from "@/features/auth";
+import { verifySession, getMemberToday } from "@/features/auth";
 import { listGoals, presentGoal, sortGoals } from "@/features/goals";
 import type { Goal } from "@/db/schema";
-import { toIsoDate } from "@/lib/date";
 import { ProgressTabs } from "../_components/progress-tabs";
 import { GoalForm } from "./_components/goal-form";
 import { GoalCard, MilestoneCard, type GoalCardData } from "./_components/goal-cards";
@@ -28,7 +27,7 @@ function toCardData(goal: Goal, todayIso: string): GoalCardData {
 
 export default async function GoalsPage() {
   const { userId } = await verifySession();
-  const todayIso = toIsoDate(new Date());
+  const { todayIso } = await getMemberToday();
   const { active, milestones } = sortGoals(await listGoals(userId));
 
   return (

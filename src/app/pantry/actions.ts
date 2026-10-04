@@ -240,7 +240,7 @@ export async function identifyPantryItemFromImageAction(
     return { error: "Unsupported image type — use JPEG, PNG, WebP, or GIF." };
   }
 
-  const usageCheck = await checkAiUsageAllowed(userId);
+  const usageCheck = await checkAiUsageAllowed(userId, { input: null });
   if (!usageCheck.allowed) {
     return { error: usageCheck.error };
   }

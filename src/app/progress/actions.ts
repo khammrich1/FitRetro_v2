@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { setUserProgressPhotoDay, verifySession } from "@/features/auth";
+import { setUserProgressPhotoDay, verifySession, getMemberToday } from "@/features/auth";
 import { upsertMeasurementForDay } from "@/features/measurements";
 import {
   PROGRESS_POSES,
@@ -16,7 +16,7 @@ import {
   type StoredKeys,
 } from "@/features/progress-photos";
 import { lbsToKg } from "@/features/workouts/units";
-import { toIsoDate } from "@/lib/date";
+import { dayFromIso, toIsoDate } from "@/lib/date";
 import { deleteObjects, isObjectStorageConfigured, putObject } from "@/lib/object-storage";
 import type { ProgressPhotoPose } from "@/db/schema";
 
@@ -58,8 +58,11 @@ const checkInSchema = z.object({
 
 /** Tomorrow by the server's clock: a phone's "today" can run ahead of the server's across time
  * zones, so this is the latest date a check-in may be filed under. */
-function latestAllowedDay() {
-  const tomorrow = new Date();
+async function latestAllowedDay(): Promise<string> {
+  // The member's tomorrow: a phone's "today" can run a little ahead of the stored zone right
+  // around midnight, so one day of slack past their own today.
+  const { todayIso } = await getMemberToday();
+  const tomorrow = dayFromIso(todayIso);
   tomorrow.setDate(tomorrow.getDate() + 1);
   return toIsoDate(tomorrow);
 }
@@ -93,7 +96,7 @@ export async function saveCheckInAction(
     return { errors: validated.error.flatten().fieldErrors };
   }
   const { takenOn, weightLbs, waistIn, bodyFatPercent } = validated.data;
-  if (takenOn > latestAllowedDay()) {
+  if (takenOn > (await latestAllowedDay())) {
     return { errors: { takenOn: ["That date is in the future."] } };
   }
 

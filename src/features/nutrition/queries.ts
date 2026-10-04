@@ -1,5 +1,6 @@
-import { and, asc, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { toIsoDate } from "@/lib/date";
 import {
   nutritionEntries,
   nutritionEntryItems,
@@ -11,6 +12,7 @@ import {
   type NutritionEntryItem,
   type NewNutritionGoal,
   type MealType,
+  pantryItems,
 } from "@/db/schema";
 
 export type LoggedItemInput = Omit<NewNutritionEntryItem, "id" | "entryId">;
@@ -308,4 +310,64 @@ export async function getMealTemplateWithItems(
     .orderBy(asc(mealTemplateItems.sortOrder));
 
   return { ...template, items };
+}
+
+/** Logs a meal that comes out of pantry stock. The stock decrement and the meal insert are one
+ * transaction, so a failed insert can't leave the shelf lighter with nothing logged (and a retry
+ * can't decrement twice). Returns null — and changes nothing — when there isn't enough left. */
+export async function logNutritionEntryFromPantry(
+  input: NewNutritionEntry,
+  items: LoggedItemInput[],
+  stock: { pantryItemId: string; quantity: number },
+) {
+  return db.transaction(async (tx) => {
+    const [item] = await tx
+      .update(pantryItems)
+      .set({
+        portionsRemaining: sql`${pantryItems.portionsRemaining} - ${stock.quantity}`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(pantryItems.id, stock.pantryItemId),
+          eq(pantryItems.userId, input.userId),
+          gte(pantryItems.portionsRemaining, stock.quantity),
+        ),
+      )
+      .returning({ id: pantryItems.id });
+    if (!item) return null;
+
+    const [entry] = await tx.insert(nutritionEntries).values(input).returning();
+    if (items.length > 0) {
+      await tx
+        .insert(nutritionEntryItems)
+        .values(items.map((logged) => ({ ...logged, entryId: entry.id })));
+    }
+    return entry;
+  });
+}
+
+/** Meals per calendar day (server's calendar, as getEntriesForDay buckets) for every day in
+ * [start, end) — one query for a whole month instead of one per day. */
+export async function countEntriesPerDay(
+  userId: string,
+  start: Date,
+  end: Date,
+): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ loggedAt: nutritionEntries.loggedAt })
+    .from(nutritionEntries)
+    .where(
+      and(
+        eq(nutritionEntries.userId, userId),
+        gte(nutritionEntries.loggedAt, start),
+        lt(nutritionEntries.loggedAt, end),
+      ),
+    );
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    const day = toIsoDate(row.loggedAt);
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+  }
+  return counts;
 }

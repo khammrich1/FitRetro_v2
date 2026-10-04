@@ -43,7 +43,7 @@ const SECTIONS: FaqSection[] = [
       {
         q: "What's the Pantry for?",
         a: [
-          "It's just a list of what you have on hand. It doesn't track macros itself — it's used to bias Food suggestions toward things you already have, so you get fewer suggestions requiring a grocery run.",
+          "What you have on hand, with macros where you want them. Food suggestions lean toward things in your Pantry so you get fewer suggestions that need a grocery run. Meal Prep adds a batch here with its per-portion macros already worked out, so you can log a portion from Today in one tap (and it keeps count of how many portions are left). Cases of individual items — shakes, bars — can be tracked one unit at a time the same way.",
         ],
       },
       {

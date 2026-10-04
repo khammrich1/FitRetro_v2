@@ -37,6 +37,11 @@ export const users = pgTable("users", {
    * cookie whose version no longer matches. Cookies issued before this column existed carry no
    * version and are treated as version 1, so the one-time deploy doesn't log anyone out. */
   sessionVersion: integer("session_version").default(1).notNull(),
+  /** IANA time zone of the device the member last used (e.g. "America/Los_Angeles"), synced on
+   * each page load. Defines what "today" means for them everywhere — Today page, daily AI limit
+   * reset, reminders — instead of the server's clock. Null until their first visit after this
+   * column shipped, which falls back to the server's day. */
+  timezone: text("timezone"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

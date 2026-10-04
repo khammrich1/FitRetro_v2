@@ -14,6 +14,18 @@ describe("resolveAdministeredAt", () => {
     expect(at).toEqual(new Date("2026-10-03T08:15:00"));
   });
 
+  it("reads the time in the member's zone when one is known", () => {
+    // 08:15 in Los Angeles on Oct 3 (PDT) is 15:15 UTC.
+    const at = resolveAdministeredAt({
+      dayIso: "2026-10-03",
+      todayIso: "2026-10-04",
+      time: "08:15",
+      timeZone: "America/Los_Angeles",
+      now,
+    });
+    expect(at?.toISOString()).toBe("2026-10-03T15:15:00.000Z");
+  });
+
   it("means 'just now' for today with no time", () => {
     expect(
       resolveAdministeredAt({ dayIso: "2026-10-04", todayIso: "2026-10-04", time: null, now }),

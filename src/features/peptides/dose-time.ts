@@ -1,3 +1,5 @@
+import { zonedTimeToUtc } from "@/lib/date";
+
 /** Works out when a dose was actually taken from what the user gave us.
  * - A time ("HH:MM", from a native time input) on the chosen day is exact.
  * - No time on today's date means "just now".
@@ -7,15 +9,18 @@ export function resolveAdministeredAt({
   dayIso,
   todayIso,
   time,
+  timeZone = null,
   now = new Date(),
 }: {
   dayIso: string;
   todayIso: string;
   time: string | null | undefined;
+  /** The member's zone: "8:15" means 8:15 where they are, not where the server is. */
+  timeZone?: string | null;
   now?: Date;
 }): Date | null {
   if (time && /^\d{2}:\d{2}$/.test(time)) {
-    const at = new Date(`${dayIso}T${time}:00`);
+    const at = zonedTimeToUtc(dayIso, time, timeZone);
     return Number.isNaN(at.getTime()) ? null : at;
   }
   return dayIso === todayIso ? now : null;

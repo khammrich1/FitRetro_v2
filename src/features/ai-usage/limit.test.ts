@@ -67,6 +67,33 @@ describe("checkAiUsageAllowed", () => {
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining("site-wide daily limit"));
   });
 
+  it("refuses oversized input before touching any counter", async () => {
+    const result = await checkAiUsageAllowed("u1", { input: "x".repeat(4001) });
+    expect(result).toEqual({ allowed: false, error: expect.stringMatching(/too long/) });
+    expect(mocks.reserveAiUsage).not.toHaveBeenCalled();
+    expect(mocks.getAiUsageTotalForDay).not.toHaveBeenCalled();
+    expect(await checkAiUsageAllowed("u1", { input: "x".repeat(4000) })).toEqual({
+      allowed: true,
+    });
+  });
+
+  it("counts the day in the member's time zone", async () => {
+    // 03:30 UTC on Oct 4 is still Oct 3 in Los Angeles.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-04T03:30:00Z"));
+    mocks.getUserById.mockResolvedValue({
+      id: "u1",
+      email: "member@example.com",
+      timezone: "America/Los_Angeles",
+    });
+    await checkAiUsageAllowed("u1");
+    const [, day] = mocks.reserveAiUsage.mock.calls[0];
+    expect(
+      `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`,
+    ).toBe("2026-10-03");
+    vi.useRealTimers();
+  });
+
   it("reads the site-wide ceiling from the environment, ignoring junk", () => {
     vi.stubEnv("AI_DAILY_GLOBAL_LIMIT", "250");
     expect(globalDailyAiLimit()).toBe(250);

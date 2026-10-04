@@ -64,6 +64,10 @@ export async function setUserStripeCustomerIdIfUnset(
   return user?.stripeCustomerId ?? null;
 }
 
+export async function setUserTimeZone(userId: string, timezone: string) {
+  await db.update(users).set({ timezone, updatedAt: new Date() }).where(eq(users.id, userId));
+}
+
 export async function setUserStripeCustomerId(userId: string, stripeCustomerId: string) {
   await db
     .update(users)

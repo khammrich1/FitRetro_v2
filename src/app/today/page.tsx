@@ -1,7 +1,8 @@
 import { after } from "next/server";
-import { verifySession, getCurrentUser } from "@/features/auth";
+import { verifySession, getCurrentUser, getMemberToday } from "@/features/auth";
 import { toIsoDate, parseDayParam } from "@/lib/date";
 import { computeDailyScore } from "@/lib/daily-score";
+import { countPerformedSets } from "@/features/daily-score";
 import { parseMacroOrder } from "@/lib/macro-order";
 import { parseReadingTopics, pickTodaysTopic } from "@/lib/reading-topics";
 import { getReadingForDayAndTopic, generateAndCacheReading } from "@/features/daily-reading";
@@ -51,9 +52,9 @@ export default async function TodayPage({
 }) {
   const { userId } = await verifySession();
   const { date: dateParam } = await searchParams;
-  const day = parseDayParam(dateParam);
+  const { todayIso } = await getMemberToday();
+  const day = parseDayParam(dateParam, todayIso);
   const dayIso = toIsoDate(day);
-  const todayIso = toIsoDate(new Date());
 
   const user = await getCurrentUser();
   const readingTopics = parseReadingTopics(user?.readingTopics);
@@ -153,10 +154,7 @@ export default async function TodayPage({
       (sum, routine) => sum + routine.items.filter((item) => item.completedToday).length,
       0,
     ),
-    workoutSetsLogged: workoutList.reduce(
-      (sum, detail) => sum + detail.exercises.reduce((s, ex) => s + ex.sets.length, 0),
-      0,
-    ),
+    workoutSetsLogged: workoutList.reduce((sum, detail) => sum + countPerformedSets(detail), 0),
     workoutsCompleted: completedWorkouts.length,
     peptideDosesLogged: peptideLogs.length,
     supplementDosesLogged: supplementLogs.length,

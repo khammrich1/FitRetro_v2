@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { verifySession } from "@/features/auth";
+import { verifySession, getMemberToday } from "@/features/auth";
 import {
   createPeptideTemplate,
   updatePeptideTemplate,
@@ -129,11 +129,13 @@ export async function logPeptideDoseAction(
   time?: string | null,
 ): Promise<void> {
   const { userId } = await verifySession();
-  const day = parseDayParam(dayIso);
+  const { todayIso, timeZone } = await getMemberToday();
+  const day = parseDayParam(dayIso, todayIso);
   const administeredAt = resolveAdministeredAt({
     dayIso: toIsoDate(day),
-    todayIso: toIsoDate(new Date()),
+    todayIso,
     time,
+    timeZone,
   });
   await logPeptideDose(templateId, userId, day, administeredAt);
   revalidatePeptidePaths();

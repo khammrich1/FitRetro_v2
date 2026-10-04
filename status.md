@@ -1,6 +1,6 @@
 # FitRetro — Live Status
 
-_Last updated: 2026-10-04 (production-readiness review received; hardening PRs 1–5 of 6 open; owner checklist below is current)_
+_Last updated: 2026-10-04 (production-readiness review received; all 6 hardening PRs open; owner checklist below is current)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
@@ -83,7 +83,18 @@ limit in the Anthropic console so a runaway day can't surprise you.
 Settings → General → Default branch → `main`. It's still the old `claude/quirky-maxwell-ovfba4`;
 everything deploys from `main`. The proxy here can't change repository settings.
 
-### 7. Decisions I'm waiting on
+### 7. Operational items from the review (no code — yours to set up)
+
+- **Backups:** automated off-droplet `pg_dump` (e.g. nightly to a Spaces bucket), and one
+  restore drill into a throwaway database. The deploy command's backup is a safety net, not a
+  backup strategy.
+- **Monitoring:** pm2 log retention, and an uptime check on `https://fitretro.app/login`.
+  Grep the logs for "AI site-wide daily limit reached" and "Stripe event … failed".
+- **Default branch** → `main` (see 6).
+- **Owner account:** make sure the OWNER_EMAIL account exists before signup opens to anyone
+  else; the first registrant with that address would become the owner.
+
+### 8. Decisions I'm waiting on
 
 - **Today's "Log a meal" form:** should it get the same append-per-ingredient behaviour as Meal
   Prep? (Asked, unanswered.)
@@ -263,7 +274,7 @@ migration changes.
 - Known gap: the site header's generic "Log in" link doesn't carry `?next=`. Attribution still
   survives that path, but the visitor lands on `/today` instead of `/subscribe`.
 
-## Task: Production-readiness review → hardening — **in progress (PRs 1–5 of 6 open)**
+## Task: Production-readiness review → hardening — **all 6 PRs open, stacked #37 → #42**
 
 An external review of `main` (2026-10-03) listed 20 findings. Verified against the code: 16
 real, 2 wrong for our setup (format check — Windows line endings; the "critical" Next advisory
@@ -344,7 +355,31 @@ Batches, each its own PR, stacked in order:
    - The webhook returns 500 on a processing failure (logging type/code only) so Stripe
      redelivers.
    - Not done: periodic reconciliation against Stripe's current state. Noted for later.
-6. Per-user timezone; filled-in-set scoring; validation/date/query cleanups; stale Help text.
+6. **Per-user time zone, set scoring, validation and query cleanups (open, stacked on #41).**
+   - `users.timezone` (migration 0039) is synced from the browser on every page load
+     (`TimeZoneSync` in the nav → `setTimeZoneAction`). `getMemberToday()` /
+     `parseMemberDay()` in the auth DAL give the member's calendar day; every "today" and
+     day-param site (Today, Calendar, Progress, Goals, all day-scoped actions, the AI daily
+     limit reset, the progress-pic reminder) uses it. A past-day dose time is read in the
+     member's zone (`zonedTimeToUtc`). Unknown zone → server day, as before.
+   - **Set scoring:** `workout_sets.logged_at` is set when a set is edited; a set scores if
+     edited, or any set once the workout is finished. A template's untouched pre-filled sets no
+     longer score on start. Backfill: existing sets with any value are marked logged.
+   - **Validation:** `updateWorkoutSetAction` validates ids and bounds server-side; `parseDayParam`
+     only accepts real calendar days (Feb 30 no longer becomes Mar 2) via the shared
+     `isValidIsoDay`; every AI action caps its text input at 4,000 chars via
+     `checkAiUsageAllowed(userId, { input })`.
+   - **Exercise lookup** is exact case-insensitive equality, not ILIKE (no wildcard matches).
+   - **Pantry:** stock decrement and meal insert are one transaction
+     (`logNutritionEntryFromPantry`); a failed insert leaves stock untouched.
+   - **Calendar:** `getDailyScoresForMonth` — five range queries per month instead of five per
+     day plus nested reads (~155 → 5). Indexes added on nutrition_entries(user, logged_at),
+     workouts(user, started_at), body_measurements(user, recorded_at), peptide/supplement
+     logs(logged_on).
+   - Help's Pantry answer updated to match what Pantry does now.
+   - Not done from the review: observability/health checks, account export/deletion flow,
+     backups/restore drills, PWA/offline, error/loading boundaries. Listed under the owner
+     checklist as operational items.
 
 ## Task: Sticker launch readiness (stickers go out at the gym next week) — **done, merged (#31)**
 

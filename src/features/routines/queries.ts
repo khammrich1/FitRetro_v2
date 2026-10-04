@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, gte, lt } from "drizzle-orm";
 import { db } from "@/db/client";
 import { routines, routineItems, routineCompletions, type RoutineItem } from "@/db/schema";
 
@@ -232,4 +232,35 @@ export async function getRoutinesForUser(userId: string, day: Date): Promise<Rou
     ...routine,
     items: itemsByRoutineId.get(routine.id) ?? [],
   }));
+}
+
+export type RoutineDayStats = { completed: number; withNotes: number };
+
+/** Routine step completions per day for every day in [startIso, endIso), one query for a whole
+ * month instead of one per day. */
+export async function getRoutineCompletionStatsInRange(
+  userId: string,
+  startIso: string,
+  endIso: string,
+): Promise<Map<string, RoutineDayStats>> {
+  const rows = await db
+    .select({ completedOn: routineCompletions.completedOn, notes: routineCompletions.notes })
+    .from(routineCompletions)
+    .innerJoin(routineItems, eq(routineCompletions.routineItemId, routineItems.id))
+    .innerJoin(routines, eq(routineItems.routineId, routines.id))
+    .where(
+      and(
+        eq(routines.userId, userId),
+        gte(routineCompletions.completedOn, startIso),
+        lt(routineCompletions.completedOn, endIso),
+      ),
+    );
+  const stats = new Map<string, RoutineDayStats>();
+  for (const row of rows) {
+    const day = stats.get(row.completedOn) ?? { completed: 0, withNotes: 0 };
+    day.completed += 1;
+    if (row.notes?.trim()) day.withNotes += 1;
+    stats.set(row.completedOn, day);
+  }
+  return stats;
 }

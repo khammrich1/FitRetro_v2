@@ -1,4 +1,4 @@
-import { and, eq, asc, desc, gte, lt, ilike, inArray, sql } from "drizzle-orm";
+import { and, eq, asc, desc, gte, lt, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   workouts,
@@ -41,9 +41,13 @@ export async function getWorkoutsForUser(userId: string) {
     .orderBy(asc(workouts.startedAt));
 }
 
-/** Finds an exercise in the shared catalog by name (case-insensitive), creating it if it's new. */
+/** Finds an exercise in the shared catalog by name (case-insensitive, exact — "%" and "_" in a
+ * name are just characters, not wildcards), creating it if it's new. */
 export async function getOrCreateExercise(name: string, muscleGroup: MuscleGroup) {
-  const [existing] = await db.select().from(exercises).where(ilike(exercises.name, name));
+  const [existing] = await db
+    .select()
+    .from(exercises)
+    .where(sql`lower(${exercises.name}) = lower(${name})`);
   if (existing) return existing;
 
   const [created] = await db.insert(exercises).values({ name, muscleGroup }).returning();
@@ -85,7 +89,7 @@ export async function logWorkoutWithExercises(
       const [existing] = await tx
         .select()
         .from(exercises)
-        .where(ilike(exercises.name, exerciseInput.name));
+        .where(sql`lower(${exercises.name}) = lower(${exerciseInput.name})`);
       const exercise =
         existing ??
         (
@@ -517,7 +521,7 @@ export async function startWorkoutFromTemplate(
       const [existing] = await tx
         .select()
         .from(exercises)
-        .where(ilike(exercises.name, templateExercise.name));
+        .where(sql`lower(${exercises.name}) = lower(${templateExercise.name})`);
       const exercise =
         existing ??
         (
@@ -554,6 +558,8 @@ export async function updateWorkoutSet(setId: string, userId: string, input: Log
       weightKg: input.weightLbs !== null ? lbsToKg(input.weightLbs) : null,
       durationSeconds: input.durationSeconds,
       rpe: input.rpe,
+      // Editing a set is what turns a planned set into a performed one (see workoutSets.loggedAt).
+      loggedAt: new Date(),
     })
     .where(
       and(
@@ -641,4 +647,60 @@ export async function finishWorkout(workoutId: string, userId: string) {
     .update(workouts)
     .set({ completedAt: new Date() })
     .where(and(eq(workouts.id, workoutId), eq(workouts.userId, userId)));
+}
+
+export type WorkoutScoreStats = {
+  /** "YYYY-MM-DD" in the server's calendar, matching how getWorkoutsForDay buckets days. */
+  day: string;
+  completed: boolean;
+  hasNotes: boolean;
+  /** Sets that count toward the score: edited by the member, or any set once the workout is
+   * finished — a template's untouched pre-filled sets don't. */
+  performedSets: number;
+};
+
+/** Per-workout scoring inputs for every workout started in [start, end), in three queries
+ * rather than one per day — what the calendar's month view needs. */
+export async function getWorkoutScoreStatsInRange(
+  userId: string,
+  start: Date,
+  end: Date,
+): Promise<WorkoutScoreStats[]> {
+  const rows = await db
+    .select({
+      id: workouts.id,
+      startedAt: workouts.startedAt,
+      completedAt: workouts.completedAt,
+      notes: workouts.notes,
+    })
+    .from(workouts)
+    .where(
+      and(eq(workouts.userId, userId), gte(workouts.startedAt, start), lt(workouts.startedAt, end)),
+    );
+  if (rows.length === 0) return [];
+
+  const sets = await db
+    .select({
+      workoutId: workoutExercises.workoutId,
+      loggedAt: workoutSets.loggedAt,
+    })
+    .from(workoutSets)
+    .innerJoin(workoutExercises, eq(workoutSets.workoutExerciseId, workoutExercises.id))
+    .where(
+      inArray(
+        workoutExercises.workoutId,
+        rows.map((row) => row.id),
+      ),
+    );
+
+  return rows.map((row) => {
+    const completed = row.completedAt !== null;
+    const own = sets.filter((set) => set.workoutId === row.id);
+    return {
+      day: toDateOnly(row.startedAt),
+      completed,
+      hasNotes: Boolean(row.notes?.trim()),
+      performedSets: completed ? own.length : own.filter((set) => set.loggedAt !== null).length,
+    };
+  });
 }

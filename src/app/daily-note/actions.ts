@@ -1,14 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { verifySession } from "@/features/auth";
+import { verifySession, parseMemberDay } from "@/features/auth";
 import { setDailyNoteForDay, cleanUpDailyNote } from "@/features/daily-note";
 import { checkAiUsageAllowed } from "@/features/ai-usage";
-import { parseDayParam } from "@/lib/date";
 
 export async function setDailyNoteAction(dayIso: string, note: string): Promise<void> {
   const { userId } = await verifySession();
-  await setDailyNoteForDay(userId, parseDayParam(dayIso), note);
+  await setDailyNoteForDay(userId, await parseMemberDay(dayIso), note);
   revalidatePath("/today");
 }
 
@@ -21,7 +20,7 @@ export async function cleanUpNoteAction(rawText: string): Promise<CleanUpNoteSta
     return { error: "Nothing to clean up yet." };
   }
 
-  const usageCheck = await checkAiUsageAllowed(userId);
+  const usageCheck = await checkAiUsageAllowed(userId, { input: rawText });
   if (!usageCheck.allowed) {
     return { error: usageCheck.error };
   }
