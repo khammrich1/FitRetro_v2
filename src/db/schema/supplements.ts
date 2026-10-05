@@ -39,6 +39,9 @@ export const supplementTemplates = pgTable("supplement_templates", {
   /** Preferred time of day to take it, stored as 24-hour "HH:MM" (from a native time input);
    * reference/label only, same as frequency — not used for reminders. */
   preferredTime: text("preferred_time"),
+  /** Set instead of deleting the row, so every dose ever logged against it stays in history.
+   * Archived templates are hidden from Today and the settings list (with a restore option). */
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -49,6 +52,12 @@ export const supplementLogs = pgTable("supplement_logs", {
     .references(() => supplementTemplates.id, { onDelete: "cascade" })
     .notNull(),
   loggedOn: date("logged_on").notNull(),
+  /** Snapshot of the template at the moment of logging, so editing the template later never
+   * rewrites history. Null only on rows from before these columns existed, which the migration
+   * backfills from the template; code falls back to the template anyway. */
+  name: text("name"),
+  doseAmount: real("dose_amount"),
+  doseUnit: supplementDoseUnitEnum("dose_unit"),
 });
 
 export type SupplementTemplate = typeof supplementTemplates.$inferSelect;

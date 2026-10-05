@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentLevelPercent, decayWindowHours } from "./decay";
+import { currentLevelPercent, decayWindowHours, estimateLevel } from "./decay";
 
 describe("currentLevelPercent", () => {
   it("is 100% right after a single dose", () => {
@@ -37,5 +37,35 @@ describe("currentLevelPercent", () => {
 
   it("returns 0 with no doses logged", () => {
     expect(currentLevelPercent([], 5, 24, new Date())).toBe(0);
+  });
+});
+
+describe("estimateLevel", () => {
+  const asOf = new Date("2026-10-04T12:00:00");
+
+  it("uses real dose times and leaves unknown ones out, counting the recent ones", () => {
+    const result = estimateLevel(
+      [
+        { administeredAt: new Date("2026-10-03T12:00:00"), loggedOn: "2026-10-03" }, // 24h ago
+        { administeredAt: null, loggedOn: "2026-10-04" }, // today, time unknown
+        { administeredAt: null, loggedOn: "2025-01-01" }, // ancient, irrelevant
+      ],
+      10,
+      24,
+      asOf,
+    );
+    expect(result.percent).toBeCloseTo(50, 5);
+    expect(result.unknownRecentDoses).toBe(1);
+  });
+
+  it("reports zero unknowns when every dose has a time", () => {
+    const result = estimateLevel(
+      [{ administeredAt: new Date("2026-10-04T11:00:00"), loggedOn: "2026-10-04" }],
+      10,
+      24,
+      asOf,
+    );
+    expect(result.unknownRecentDoses).toBe(0);
+    expect(result.percent).toBeGreaterThan(90);
   });
 });

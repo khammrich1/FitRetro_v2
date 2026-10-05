@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { setWaterIntakeAction } from "@/app/water/actions";
 
 const MAX_OUNCES = 300;
@@ -18,24 +18,72 @@ export function WaterTracker({
   goalOunces: number;
 }) {
   const [ounces, setOunces] = useState(initialOunces);
-  const [, startTransition] = useTransition();
+  const [failed, setFailed] = useState(false);
+  const ouncesRef = useRef(ounces);
+  const savedRef = useRef(initialOunces);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inFlightRef = useRef(false);
+  const queuedRef = useRef<number | null>(null);
+
+  // Saves are absolute ("ounces today = 48"), so they must land in order: one request at a time,
+  // with only the newest value waiting behind it. Without this, a slow earlier save could
+  // overwrite a later one.
+  const runSaves = useCallback(async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    try {
+      while (queuedRef.current !== null) {
+        const value = queuedRef.current;
+        queuedRef.current = null;
+        try {
+          await setWaterIntakeAction(dayIso, value);
+          savedRef.current = value;
+          setFailed(false);
+        } catch {
+          queuedRef.current ??= value;
+          setFailed(true);
+          break;
+        }
+      }
+    } finally {
+      inFlightRef.current = false;
+    }
+  }, [dayIso]);
 
   function commit(value: number) {
-    startTransition(async () => {
-      await setWaterIntakeAction(dayIso, value);
-    });
+    queuedRef.current = value;
+    void runSaves();
   }
 
+  // Leaving the page (or the day) mid-drag: send whatever the debounce was still holding.
+  useEffect(
+    () => () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+      if (ouncesRef.current !== savedRef.current) {
+        queuedRef.current = ouncesRef.current;
+        void runSaves();
+      }
+    },
+    [runSaves],
+  );
+
   function handleSliderChange(value: number) {
+    ouncesRef.current = value;
     setOunces(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => commit(value), COMMIT_DELAY_MS);
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null;
+      commit(value);
+    }, COMMIT_DELAY_MS);
   }
 
   function handleQuickAdd(amount: number) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const value = Math.min(MAX_OUNCES, ounces + amount);
+    const value = Math.min(MAX_OUNCES, ouncesRef.current + amount);
+    ouncesRef.current = value;
     setOunces(value);
     commit(value);
   }
@@ -69,7 +117,7 @@ export function WaterTracker({
         />
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {QUICK_ADD_AMOUNTS.map((amount) => (
           <button
             key={amount}
@@ -80,6 +128,11 @@ export function WaterTracker({
             +{amount} oz
           </button>
         ))}
+        {failed && (
+          <span role="status" className="text-xs text-danger">
+            Couldn&apos;t save — will retry on your next change.
+          </span>
+        )}
       </div>
     </div>
   );

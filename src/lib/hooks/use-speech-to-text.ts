@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 /** Minimal shape of the Web Speech API's SpeechRecognition, which isn't in TypeScript's lib. */
 interface SpeechRecognitionLike extends EventTarget {
@@ -60,6 +60,10 @@ export function useSpeechToText(onTranscript: (text: string) => void) {
     getServerIsSupportedSnapshot,
   );
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+
+  // Don't leave the microphone running after the component that started it is gone (e.g. the
+  // note editor collapsed or the day changed while dictating).
+  useEffect(() => () => recognitionRef.current?.stop(), []);
 
   function toggleListening() {
     if (isListening) {

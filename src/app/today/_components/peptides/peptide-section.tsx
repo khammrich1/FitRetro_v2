@@ -1,8 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import type { PeptideTemplate, PeptideFrequency } from "@/db/schema";
-import type { PeptideLogWithTemplate } from "@/features/peptides";
+import type { LevelEstimate, PeptideLogWithTemplate } from "@/features/peptides";
+import { describeLoggedDose } from "@/features/peptides/logs";
 import { computeDrawVolumeMl, mlToSyringeUnits } from "@/features/peptides/reconstitution";
 import { logPeptideDoseAction, deletePeptideLogAction } from "@/app/peptides/actions";
 
@@ -67,11 +68,24 @@ function LoggedPeptideRow({ log }: { log: PeptideLogWithTemplate }) {
     });
   }
 
+  // The log's own snapshot, so editing the template later never changes what this row says.
+  const dose = describeLoggedDose(log);
+  const takenAt = log.administeredAt
+    ? new Date(log.administeredAt).toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null;
+
   return (
     <li className="flex items-center justify-between rounded-md border border-border bg-background p-2 text-sm">
       <span>
-        {log.template.name} — {log.template.doseAmount}
-        {log.template.doseUnit}
+        {dose.name} — {dose.doseAmount}
+        {dose.doseUnit}
+        <span className="text-muted-foreground">
+          {takenAt ? ` · ${takenAt}` : " · time not recorded"}
+          {log.template.archivedAt ? " · archived peptide" : ""}
+        </span>
       </span>
       <button
         onClick={handleRemove}
@@ -86,22 +100,28 @@ function LoggedPeptideRow({ log }: { log: PeptideLogWithTemplate }) {
 
 export function PeptideSection({
   dayIso,
+  todayIso,
   templates,
   logs,
   mostRecentLogDates,
   currentLevelByTemplate,
 }: {
   dayIso: string;
+  todayIso: string;
   templates: PeptideTemplate[];
   logs: PeptideLogWithTemplate[];
   mostRecentLogDates: Record<string, string>;
-  currentLevelByTemplate: Record<string, number>;
+  currentLevelByTemplate: Record<string, LevelEstimate>;
 }) {
   const [pending, startTransition] = useTransition();
+  // Logging a past day: "now" would be wrong, so ask for the time (optional — blank means the
+  // dose is recorded with an unknown time and left out of the level estimate).
+  const isPastDay = dayIso !== todayIso;
+  const [time, setTime] = useState("");
 
   function handleAdd(templateId: string) {
     startTransition(async () => {
-      await logPeptideDoseAction(templateId, dayIso);
+      await logPeptideDoseAction(templateId, dayIso, isPastDay ? time : null);
     });
   }
 
@@ -114,12 +134,23 @@ export function PeptideSection({
 
   return (
     <div className="flex flex-col gap-3">
-      {templates.length === 0 ? (
+      {templates.length === 0 && logs.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No peptides yet — add one in Settings &gt; Peptides.
         </p>
-      ) : (
+      ) : templates.length === 0 ? null : (
         <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 text-sm">
+          {dueTemplates.length > 0 && isPastDay && (
+            <label className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              Time taken (optional, so the level estimate can count it):
+              <input
+                type="time"
+                value={time}
+                onChange={(event) => setTime(event.target.value)}
+                className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
+              />
+            </label>
+          )}
           {dueTemplates.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -191,11 +222,16 @@ export function PeptideSection({
                 key={template.id}
                 className="rounded-full border border-border px-3 py-1 text-xs text-accent"
               >
-                {template.name} ~{Math.round(currentLevelByTemplate[template.id])}%
+                {template.name} ~{Math.round(currentLevelByTemplate[template.id].percent)}%
+                {currentLevelByTemplate[template.id].unknownRecentDoses > 0 &&
+                  ` (${currentLevelByTemplate[template.id].unknownRecentDoses} recent dose${
+                    currentLevelByTemplate[template.id].unknownRecentDoses === 1 ? "" : "s"
+                  } with no time not counted)`}
               </span>
             ))}
           <span className="w-full text-xs text-muted-foreground">
-            Rough estimate from the half-life you entered — not medical guidance.
+            Rough estimate from the half-life you entered — not medical guidance. Doses logged
+            without a time aren&apos;t included.
           </span>
         </div>
       )}

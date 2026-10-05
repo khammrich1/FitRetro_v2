@@ -6,7 +6,8 @@ import { verifySession } from "@/features/auth";
 import {
   createSupplementTemplate,
   updateSupplementTemplate,
-  deleteSupplementTemplate,
+  archiveSupplementTemplate,
+  restoreSupplementTemplate,
   logSupplementDose,
   deleteSupplementLog,
 } from "@/features/supplements";
@@ -86,9 +87,16 @@ export async function updateSupplementTemplateAction(
   revalidateSupplementPaths();
 }
 
-export async function deleteSupplementTemplateAction(id: string): Promise<void> {
+/** Archives rather than deletes, so the dose history stays. */
+export async function archiveSupplementTemplateAction(id: string): Promise<void> {
   const { userId } = await verifySession();
-  await deleteSupplementTemplate(id, userId);
+  await archiveSupplementTemplate(id, userId);
+  revalidateSupplementPaths();
+}
+
+export async function restoreSupplementTemplateAction(id: string): Promise<void> {
+  const { userId } = await verifySession();
+  await restoreSupplementTemplate(id, userId);
   revalidateSupplementPaths();
 }
 

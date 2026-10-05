@@ -2,7 +2,7 @@
 
 ## Current reconciliation — October 4, 2026
 
-Current gate: review and owner-test the open production-hardening stack [#37](https://github.com/khammrich1/FitRetro_v2/pull/37) → #38 → #39 → #40 → #41 → [#42](https://github.com/khammrich1/FitRetro_v2/pull/42) in order. They cover dependencies/CI, session revocation/rate limits, notes/dose history, atomic AI admission, checkout/webhook idempotency, member time zones/scoring/input/pantry/calendar correctness. PR #37 is merged; #38–#42 remain open; PR descriptions report validation, not fresh owner acceptance or deployment.
+Current gate: review and owner-test the open production-hardening stack [#37](https://github.com/khammrich1/FitRetro_v2/pull/37) → #38 → #39 → #40 → #41 → [#42](https://github.com/khammrich1/FitRetro_v2/pull/42) in order. They cover dependencies/CI, session revocation/rate limits, notes/dose history, atomic AI admission, checkout/webhook idempotency, member time zones/scoring/input/pantry/calendar correctness. PRs #37–#38 are merged; #39–#42 remain open; PR descriptions report validation, not fresh owner acceptance or deployment.
 
 Workout guidance is scoped in [#43](https://github.com/khammrich1/FitRetro_v2/issues/43); documentation [PR #44](https://github.com/khammrich1/FitRetro_v2/pull/44) is merged. Sequence: 7-minute cardio → dynamic mobility → lifting → post-lifting cardio → static cooldown, tailored to the workout's muscle groups. This focused guide does not authorize a broader coaching engine.
 
@@ -20,7 +20,7 @@ See [issue #43](https://github.com/khammrich1/FitRetro_v2/issues/43) and
 [workout-session-guide.md](docs/workout-session-guide.md) for acceptance and non-goals.
 Spaces, Resend, Stripe and deployment setup remain the immediate owner tasks.
 
-_Last updated: 2026-10-04 (production-readiness review received; hardening PRs 1–2 of 6 open; owner checklist below is current)_
+_Last updated: 2026-10-04 (production-readiness review received; hardening PRs 1–3 of 6 open; owner checklist below is current)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
@@ -283,7 +283,7 @@ migration changes.
 - Known gap: the site header's generic "Log in" link doesn't carry `?next=`. Attribution still
   survives that path, but the visitor lands on `/today` instead of `/subscribe`.
 
-## Task: Production-readiness review → hardening — **in progress (PRs 1–2 of 6 open)**
+## Task: Production-readiness review → hardening — **in progress (PRs 1–3 of 6 open)**
 
 An external review of `main` (2026-10-03) listed 20 findings. Verified against the code: 16
 real, 2 wrong for our setup (format check — Windows line endings; the "critical" Next advisory
@@ -315,7 +315,26 @@ Batches, each its own PR, stacked in order:
      revokes the other device, 11th wrong password throttled, right password also throttled, other
      account unaffected, 4th reset request dropped with identical reply, 74-byte password
      rejected); photos/goals/compare suites on the production build; 36 migrations on an empty DB.
-3. **Next:** voice note save; dose history snapshots + archive-on-delete + real dose time.
+3. **Data loss fixes (open, stacked on #38).**
+   - **Daily note:** dictation now goes through the same save path as typing (it was never
+     saved before). Saves are serialised so an older one can't land after a newer one; unsaved
+     text is flushed when the editor collapses or the day changes, and kept in sessionStorage
+     until a save confirms (a closed tab restores and saves it); a failed save keeps the text and
+     says so; an AI clean-up won't overwrite text typed while it ran. Microphone stops on
+     unmount. Water saves are serialised and flushed the same way.
+   - **Dose history (migration 0036):** peptide/supplement logs snapshot name/dose/unit at
+     logging time, so editing a template never rewrites what was taken. "Delete" is now
+     **Archive**: the template leaves Today and the settings list (restorable from an Archived
+     section) and every logged dose stays. Migration backfills snapshots for existing rows
+     (only NULLs are filled).
+   - **Dose time:** `peptide_logs.administered_at` is the real dose time — now for today,
+     a time input on past days, or null = unknown. The "level in body" estimate uses only known
+     times and says how many recent doses it had to leave out. Legacy rows get a time only
+     where logged_at fell on the logged day; migration-0028-stamped rows stay unknown.
+   - Verified: 278 unit tests incl. a jsdom test of the note editor (dictation saved,
+     ordering, flush on collapse, failure keeps text, draft restore, clean-up conflict);
+     backfill proven on a throwaway DB (template edited 250→500, logs still 250); browser suite
+     for doses; photos/goals/compare suites; 37 migrations on an empty DB.
 4. Atomic AI limit; Daily Reader single-flight.
 5. Billing idempotency + webhook ledger (before live mode).
 6. Per-user timezone; filled-in-set scoring; validation/date/query cleanups; stale Help text.

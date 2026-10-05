@@ -31,3 +31,39 @@ export function currentLevelPercent(
 
   return (activeAmount / doseAmount) * 100;
 }
+
+export type DoseForEstimate = {
+  administeredAt: Date | null;
+  /** "YYYY-MM-DD" day the dose was logged for; used to tell whether an unknown-time dose is
+   * recent enough that leaving it out matters. */
+  loggedOn: string;
+};
+
+export type LevelEstimate = {
+  percent: number;
+  /** Doses inside the decay window whose time isn't known and so aren't in `percent`. The UI
+   * should say so — a number that quietly ignores yesterday's dose is worse than no number. */
+  unknownRecentDoses: number;
+};
+
+/** currentLevelPercent over real dose times only, plus a count of recent doses it had to skip. */
+export function estimateLevel(
+  doses: DoseForEstimate[],
+  doseAmount: number,
+  halfLifeHours: number,
+  asOf: Date,
+): LevelEstimate {
+  const windowDays = Math.ceil(decayWindowHours(halfLifeHours) / 24);
+  const cutoff = new Date(asOf);
+  cutoff.setDate(cutoff.getDate() - windowDays);
+  const cutoffIso = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
+
+  const known = doses.flatMap((d) => (d.administeredAt ? [d.administeredAt] : []));
+  const unknownRecentDoses = doses.filter(
+    (d) => d.administeredAt === null && d.loggedOn >= cutoffIso,
+  ).length;
+  return {
+    percent: currentLevelPercent(known, doseAmount, halfLifeHours, asOf),
+    unknownRecentDoses,
+  };
+}

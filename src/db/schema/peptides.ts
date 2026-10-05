@@ -38,6 +38,9 @@ export const peptideTemplates = pgTable("peptide_templates", {
    * this peptide entirely rather than guessing; FitRetro doesn't assert a half-life on the
    * user's behalf. */
   halfLifeHours: real("half_life_hours"),
+  /** Set instead of deleting the row, so every dose ever logged against it stays in history.
+   * Archived templates are hidden from Today and the settings list (with a restore option). */
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -48,10 +51,20 @@ export const peptideLogs = pgTable("peptide_logs", {
     .references(() => peptideTemplates.id, { onDelete: "cascade" })
     .notNull(),
   loggedOn: date("logged_on").notNull(),
-  /** Actual moment the dose was logged, in addition to the calendar-day `loggedOn` (kept as-is
-   * for day-bucketing everywhere else). Needed for the "level in body" decay estimate — a
-   * calendar day alone is too coarse for a peptide with a half-life measured in hours. */
+  /** When the row was created. Not the dose time — see administeredAt. (Rows from before
+   * migration 0028 were stamped with that migration's run time, so for them it means nothing.) */
   loggedAt: timestamp("logged_at", { withTimezone: true }).defaultNow().notNull(),
+  /** The actual moment the dose was taken, used by the "level in body" estimate. Null means
+   * unknown — a backdated dose logged without a time, or a legacy row whose logged_at was
+   * clearly not the dose time — and unknown doses are left out of the estimate rather than
+   * guessed. */
+  administeredAt: timestamp("administered_at", { withTimezone: true }),
+  /** Snapshot of the template at the moment of logging, so editing the template later never
+   * rewrites history ("5mg" stays "5mg"). Null only on rows from before these columns existed,
+   * which the migration backfills from the template; code falls back to the template anyway. */
+  name: text("name"),
+  doseAmount: real("dose_amount"),
+  doseUnit: peptideDoseUnitEnum("dose_unit"),
 });
 
 export type PeptideTemplate = typeof peptideTemplates.$inferSelect;
