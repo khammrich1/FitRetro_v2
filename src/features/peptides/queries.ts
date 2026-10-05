@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lte } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, gte, lt } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   peptideTemplates,
@@ -203,4 +203,27 @@ export async function getPeptideLogsForDay(
     .where(and(eq(peptideTemplates.userId, userId), eq(peptideLogs.loggedOn, loggedOn)));
 
   return rows.map((row) => ({ ...row.log, template: row.template }));
+}
+
+/** Doses logged per day for every day in [startIso, endIso) — one query for a whole month.
+ * Archived templates count: the dose was still taken that day. */
+export async function countPeptideLogsPerDay(
+  userId: string,
+  startIso: string,
+  endIso: string,
+): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ loggedOn: peptideLogs.loggedOn })
+    .from(peptideLogs)
+    .innerJoin(peptideTemplates, eq(peptideLogs.peptideTemplateId, peptideTemplates.id))
+    .where(
+      and(
+        eq(peptideTemplates.userId, userId),
+        gte(peptideLogs.loggedOn, startIso),
+        lt(peptideLogs.loggedOn, endIso),
+      ),
+    );
+  const counts = new Map<string, number>();
+  for (const row of rows) counts.set(row.loggedOn, (counts.get(row.loggedOn) ?? 0) + 1);
+  return counts;
 }

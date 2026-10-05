@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect, notFound } from "next/navigation";
 import { getSession } from "@/lib/session";
+import { parseDayParam, todayIsoIn } from "@/lib/date";
 import { getUserById } from "./queries";
 import { getSessionVersion } from "./session-check";
 
@@ -35,6 +36,22 @@ export const getCurrentUser = cache(async () => {
   if (!userId) return null;
   return getUserById(userId);
 });
+
+/** The signed-in member's time zone and what calendar day it is for them right now. This is the
+ * "today" every day-scoped page and action should use — a member in Los Angeles at 9 pm is still
+ * on today even though a UTC server has moved on. Signed out, or no zone known yet: the server's
+ * day. Cached per request. */
+export const getMemberToday = cache(async () => {
+  const user = await getCurrentUser();
+  const timeZone = user?.timezone ?? null;
+  return { timeZone, todayIso: todayIsoIn(timeZone) };
+});
+
+/** parseDayParam with the member's today as the fallback for a missing or invalid day. */
+export async function parseMemberDay(param: string | null | undefined): Promise<Date> {
+  const { todayIso } = await getMemberToday();
+  return parseDayParam(param, todayIso);
+}
 
 /** True only for the single account named by OWNER_EMAIL — not a general admin/role concept. */
 export function isOwner(email: string) {

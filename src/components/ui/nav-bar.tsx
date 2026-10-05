@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser, isOwner, logout } from "@/features/auth";
+import { TimeZoneSync } from "./timezone-sync";
 
 export async function NavBar() {
   const user = await getCurrentUser();
@@ -46,6 +47,7 @@ export async function NavBar() {
                 </Link>
               </>
             )}
+            <TimeZoneSync current={user.timezone} />
             <span className="text-muted-foreground">{user.displayName}</span>
             <form action={logout}>
               <button

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, real, pgEnum, timestamp, date } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, real, pgEnum, timestamp, date, index } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 export const supplementDoseUnitEnum = pgEnum("supplement_dose_unit", [
@@ -46,19 +46,23 @@ export const supplementTemplates = pgTable("supplement_templates", {
 });
 
 /** A single logged dose of a supplement on a given calendar day. */
-export const supplementLogs = pgTable("supplement_logs", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  supplementTemplateId: uuid("supplement_template_id")
-    .references(() => supplementTemplates.id, { onDelete: "cascade" })
-    .notNull(),
-  loggedOn: date("logged_on").notNull(),
-  /** Snapshot of the template at the moment of logging, so editing the template later never
-   * rewrites history. Null only on rows from before these columns existed, which the migration
-   * backfills from the template; code falls back to the template anyway. */
-  name: text("name"),
-  doseAmount: real("dose_amount"),
-  doseUnit: supplementDoseUnitEnum("dose_unit"),
-});
+export const supplementLogs = pgTable(
+  "supplement_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    supplementTemplateId: uuid("supplement_template_id")
+      .references(() => supplementTemplates.id, { onDelete: "cascade" })
+      .notNull(),
+    loggedOn: date("logged_on").notNull(),
+    /** Snapshot of the template at the moment of logging, so editing the template later never
+     * rewrites history. Null only on rows from before these columns existed, which the migration
+     * backfills from the template; code falls back to the template anyway. */
+    name: text("name"),
+    doseAmount: real("dose_amount"),
+    doseUnit: supplementDoseUnitEnum("dose_unit"),
+  },
+  (table) => [index("supplement_logs_logged_on_idx").on(table.loggedOn)],
+);
 
 export type SupplementTemplate = typeof supplementTemplates.$inferSelect;
 export type NewSupplementTemplate = typeof supplementTemplates.$inferInsert;

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { verifySession } from "@/features/auth";
+import { verifySession, getMemberToday } from "@/features/auth";
 import {
   createGoal,
   deleteGoal,
@@ -14,7 +14,6 @@ import {
   updateGoal,
   type GoalFieldErrors,
 } from "@/features/goals";
-import { toIsoDate } from "@/lib/date";
 
 export type GoalFormState =
   | {
@@ -37,7 +36,7 @@ export async function createGoalAction(
   formData: FormData,
 ): Promise<GoalFormState> {
   const { userId } = await verifySession();
-  const parsed = parseGoalForm(formData, toIsoDate(new Date()));
+  const parsed = parseGoalForm(formData, (await getMemberToday()).todayIso);
   if ("errors" in parsed) return { errors: parsed.errors };
 
   await createGoal(userId, parsed.values);
@@ -55,7 +54,7 @@ export async function updateGoalAction(
 ): Promise<GoalFormState> {
   const { userId } = await verifySession();
   if (!isUuid(goalId)) return { error: "That goal no longer exists." };
-  const parsed = parseGoalForm(formData, toIsoDate(new Date()));
+  const parsed = parseGoalForm(formData, (await getMemberToday()).todayIso);
   if ("errors" in parsed) return { errors: parsed.errors };
 
   const updated = await updateGoal(goalId, userId, parsed.values);
@@ -75,7 +74,7 @@ export async function achieveGoalAction(
   const goal = await getGoalForUser(goalId, userId);
   if (!goal) return { error: "That goal no longer exists." };
 
-  const when = parseAchievedFields(formData, toIsoDate(new Date()));
+  const when = parseAchievedFields(formData, (await getMemberToday()).todayIso);
   if ("error" in when) return { errors: { achieved: [when.error] } };
   if (goal.startedOn && periodEnd(when.achievedOn, when.precision) < goal.startedOn) {
     return { errors: { achieved: ["That's before you started this goal."] } };

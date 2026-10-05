@@ -56,7 +56,10 @@ src/
                          day/month/year precision ("sometime in March") — see goals/dates.ts
   lib/                 Cross-cutting utilities (e.g. session cookie signing)
     date.ts              Shared "YYYY-MM-DD" day-param parsing/formatting, used by every
-                         day-scoped page/action (avoids each feature reinventing it)
+                         day-scoped page/action (avoids each feature reinventing it). "Today" is
+                         the member's day, not the server's: pages/actions get it from
+                         getMemberToday()/parseMemberDay() in features/auth (users.timezone,
+                         synced from the browser), never from `new Date()` directly.
     hooks/               Shared React hooks (e.g. speech-to-text) reused across features
   proxy.ts             Route protection (this Next.js version renames middleware.ts to
                        proxy.ts — see AGENTS.md and node_modules/next/dist/docs)

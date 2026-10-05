@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, real, pgEnum, timestamp, date } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, real, pgEnum, timestamp, date, index } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 export const peptideDoseUnitEnum = pgEnum("peptide_dose_unit", ["mcg", "mg", "iu", "ml"]);
@@ -45,27 +45,31 @@ export const peptideTemplates = pgTable("peptide_templates", {
 });
 
 /** A single logged dose of a peptide on a given calendar day. */
-export const peptideLogs = pgTable("peptide_logs", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  peptideTemplateId: uuid("peptide_template_id")
-    .references(() => peptideTemplates.id, { onDelete: "cascade" })
-    .notNull(),
-  loggedOn: date("logged_on").notNull(),
-  /** When the row was created. Not the dose time — see administeredAt. (Rows from before
-   * migration 0028 were stamped with that migration's run time, so for them it means nothing.) */
-  loggedAt: timestamp("logged_at", { withTimezone: true }).defaultNow().notNull(),
-  /** The actual moment the dose was taken, used by the "level in body" estimate. Null means
-   * unknown — a backdated dose logged without a time, or a legacy row whose logged_at was
-   * clearly not the dose time — and unknown doses are left out of the estimate rather than
-   * guessed. */
-  administeredAt: timestamp("administered_at", { withTimezone: true }),
-  /** Snapshot of the template at the moment of logging, so editing the template later never
-   * rewrites history ("5mg" stays "5mg"). Null only on rows from before these columns existed,
-   * which the migration backfills from the template; code falls back to the template anyway. */
-  name: text("name"),
-  doseAmount: real("dose_amount"),
-  doseUnit: peptideDoseUnitEnum("dose_unit"),
-});
+export const peptideLogs = pgTable(
+  "peptide_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    peptideTemplateId: uuid("peptide_template_id")
+      .references(() => peptideTemplates.id, { onDelete: "cascade" })
+      .notNull(),
+    loggedOn: date("logged_on").notNull(),
+    /** When the row was created. Not the dose time — see administeredAt. (Rows from before
+     * migration 0028 were stamped with that migration's run time, so for them it means nothing.) */
+    loggedAt: timestamp("logged_at", { withTimezone: true }).defaultNow().notNull(),
+    /** The actual moment the dose was taken, used by the "level in body" estimate. Null means
+     * unknown — a backdated dose logged without a time, or a legacy row whose logged_at was
+     * clearly not the dose time — and unknown doses are left out of the estimate rather than
+     * guessed. */
+    administeredAt: timestamp("administered_at", { withTimezone: true }),
+    /** Snapshot of the template at the moment of logging, so editing the template later never
+     * rewrites history ("5mg" stays "5mg"). Null only on rows from before these columns existed,
+     * which the migration backfills from the template; code falls back to the template anyway. */
+    name: text("name"),
+    doseAmount: real("dose_amount"),
+    doseUnit: peptideDoseUnitEnum("dose_unit"),
+  },
+  (table) => [index("peptide_logs_logged_on_idx").on(table.loggedOn)],
+);
 
 export type PeptideTemplate = typeof peptideTemplates.$inferSelect;
 export type NewPeptideTemplate = typeof peptideTemplates.$inferInsert;

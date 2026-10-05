@@ -1,10 +1,9 @@
 import type { DatePrecision } from "@/db/schema";
-import { formatIsoDay } from "@/lib/date";
+import { formatIsoDay, isValidIsoDay } from "@/lib/date";
 
 /** Pure "YYYY-MM-DD" helpers for goals. All arithmetic is on UTC-anchored dates, so results never
  * depend on the server's or browser's time zone. */
 
-const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_MONTH = /^\d{4}-\d{2}$/;
 const ISO_YEAR = /^\d{4}$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -18,10 +17,7 @@ function fromUtc(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-/** True for a real calendar day ("2026-02-30" is not). */
-export function isValidIsoDay(value: string): boolean {
-  return ISO_DAY.test(value) && fromUtc(toUtc(value)) === value;
-}
+export { isValidIsoDay } from "@/lib/date";
 
 /** The last day of the period an achievement date stands for: the day itself, the end of its
  * month, or Dec 31 of its year. */

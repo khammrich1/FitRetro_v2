@@ -1,5 +1,12 @@
 import { getUserById, isOwner } from "@/features/auth";
+import { dayFromIso, todayIsoIn } from "@/lib/date";
 import { getAiUsageTotalForDay, reserveAiUsage } from "./queries";
+
+/** Longest text any AI action accepts. Real descriptions are a few hundred characters; this
+ * bounds the token cost of one action without ever getting in a real person's way. */
+export const MAX_AI_INPUT_CHARS = 4000;
+
+export const INPUT_TOO_LONG_MESSAGE = `That's too long to send — keep it under ${MAX_AI_INPUT_CHARS.toLocaleString()} characters.`;
 
 // Flat cap across every AI-powered action combined (macro/workout estimation, suggestions,
 // recipes, photo scans, note cleanup) — not cost-weighted per feature. Chosen as generous
@@ -27,8 +34,17 @@ export const SITE_LIMIT_MESSAGE =
 /** Call this immediately before any Claude API call in a server action, right after
  * verifySession(). The owner is exempt from the per-user cap (but still counted, so the
  * site-wide total is honest). Reserves the slot as a side effect when allowed. */
-export async function checkAiUsageAllowed(userId: string): Promise<AiUsageCheckResult> {
-  const today = new Date();
+export async function checkAiUsageAllowed(
+  userId: string,
+  options: { input?: string | null } = {},
+): Promise<AiUsageCheckResult> {
+  if (options.input && options.input.length > MAX_AI_INPUT_CHARS) {
+    return { allowed: false, error: INPUT_TOO_LONG_MESSAGE };
+  }
+
+  // The day resets at midnight in the member's own time zone, like everything else "today".
+  const user = await getUserById(userId);
+  const today = dayFromIso(todayIsoIn(user?.timezone));
 
   const total = await getAiUsageTotalForDay(today);
   if (total >= globalDailyAiLimit()) {
@@ -37,7 +53,6 @@ export async function checkAiUsageAllowed(userId: string): Promise<AiUsageCheckR
     return { allowed: false, error: SITE_LIMIT_MESSAGE };
   }
 
-  const user = await getUserById(userId);
   const perUserLimit =
     user && isOwner(user.email) ? Number.MAX_SAFE_INTEGER : DAILY_AI_ACTION_LIMIT;
 

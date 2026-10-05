@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { verifySession } from "@/features/auth";
+import { verifySession, parseMemberDay } from "@/features/auth";
 import {
   createRoutine,
   deleteRoutine,
@@ -13,7 +13,6 @@ import {
   toggleRoutineItemCompletion,
   updateRoutineCompletionNotes,
 } from "@/features/routines";
-import { parseDayParam } from "@/lib/date";
 
 function revalidateRoutinePaths() {
   revalidatePath("/today");
@@ -119,7 +118,7 @@ export async function moveRoutineItemAction(id: string, direction: "up" | "down"
 
 export async function toggleRoutineItemCompletionAction(id: string, dayIso: string): Promise<void> {
   const { userId } = await verifySession();
-  await toggleRoutineItemCompletion(id, userId, parseDayParam(dayIso));
+  await toggleRoutineItemCompletion(id, userId, await parseMemberDay(dayIso));
   revalidateRoutinePaths();
 }
 
@@ -129,6 +128,11 @@ export async function updateRoutineCompletionNotesAction(
   dayIso: string,
 ): Promise<void> {
   const { userId } = await verifySession();
-  await updateRoutineCompletionNotes(id, userId, parseDayParam(dayIso), notes.trim() || null);
+  await updateRoutineCompletionNotes(
+    id,
+    userId,
+    await parseMemberDay(dayIso),
+    notes.trim() || null,
+  );
   revalidateRoutinePaths();
 }

@@ -25,6 +25,11 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("server-only", () => ({}));
+// getMemberToday() reads the account's time zone; fake the row so the real DAL runs without a DB.
+vi.mock("@/features/auth/queries", () => ({
+  getUserById: async (id: string) => ({ id, email: "member@example.com", timezone: null }),
+  setUserProgressPhotoDay: async () => {},
+}));
 // The DAL's session-version check is a one-row lookup; fake it so the real JWT verification runs
 // without a database. Version 1 matches a cookie that carries no version (or sv: 1).
 vi.mock("@/features/auth/session-check", () => ({

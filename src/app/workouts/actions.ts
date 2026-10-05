@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { verifySession } from "@/features/auth";
+import { verifySession, parseMemberDay } from "@/features/auth";
 import { checkAiUsageAllowed } from "@/features/ai-usage";
 import {
   logWorkoutWithExercises,
@@ -31,13 +31,13 @@ import {
   type TemplateEstimate,
 } from "@/features/workouts";
 import { muscleGroupEnum, type MuscleGroup } from "@/db/schema";
-import { parseDayParam } from "@/lib/date";
 
 /** Combines a calendar day with the current time of day, so workouts logged for a non-today day
  * (e.g. backfilling yesterday) still get a sensible timestamp rather than midnight. */
-function combineDayWithCurrentTime(dayIso: string | null): Date {
+/** The chosen day at the current time of day — the member's today when no day is given. */
+async function combineDayWithCurrentTime(dayIso: string | null): Promise<Date> {
   const now = new Date();
-  const day = parseDayParam(dayIso);
+  const day = await parseMemberDay(dayIso);
   day.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
   return day;
 }
@@ -107,7 +107,7 @@ export async function logWorkoutAction(
 
   await logWorkoutWithExercises(userId, {
     name: validatedFields.data.name,
-    startedAt: combineDayWithCurrentTime(formData.get("day")?.toString() ?? null),
+    startedAt: await combineDayWithCurrentTime(formData.get("day")?.toString() ?? null),
     notes: validatedFields.data.notes ?? null,
     exercises,
   });
@@ -130,7 +130,7 @@ export async function estimateWorkoutAction(description: string): Promise<Estima
     return { error: "Describe your workout first." };
   }
 
-  const usageCheck = await checkAiUsageAllowed(userId);
+  const usageCheck = await checkAiUsageAllowed(userId, { input: description });
   if (!usageCheck.allowed) {
     return { error: usageCheck.error };
   }
@@ -195,7 +195,7 @@ export async function moveSplitCycleDayAction(id: string, direction: "up" | "dow
 
 export async function toggleSplitCycleCompletionAction(dayIso: string): Promise<void> {
   const { userId } = await verifySession();
-  await toggleSplitCycleCompletion(userId, parseDayParam(dayIso));
+  await toggleSplitCycleCompletion(userId, await parseMemberDay(dayIso));
   revalidatePath("/today");
 }
 
@@ -204,7 +204,7 @@ export async function startWorkoutFromTemplateAction(
   dayIso: string,
 ): Promise<void> {
   const { userId } = await verifySession();
-  await startWorkoutFromTemplate(userId, templateId, combineDayWithCurrentTime(dayIso));
+  await startWorkoutFromTemplate(userId, templateId, await combineDayWithCurrentTime(dayIso));
   revalidatePath("/today");
 }
 
@@ -215,9 +215,26 @@ export type WorkoutSetInput = {
   rpe: number | null;
 };
 
+/** Server-side bounds for a set, so a hand-crafted request can't store a negative weight or an
+ * RPE of 50 — the form's input attributes are a convenience, not the check. */
+const workoutSetInputSchema = z.object({
+  reps: z.number().int().min(0).max(1000).nullable(),
+  weightLbs: z.number().finite().min(0).max(2000).nullable(),
+  durationSeconds: z
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 60 * 60)
+    .nullable(),
+  rpe: z.number().finite().min(0).max(10).nullable(),
+});
+
 export async function updateWorkoutSetAction(setId: string, input: WorkoutSetInput): Promise<void> {
   const { userId } = await verifySession();
-  await updateWorkoutSet(setId, userId, input);
+  if (!z.uuid().safeParse(setId).success) return;
+  const parsed = workoutSetInputSchema.safeParse(input);
+  if (!parsed.success) return;
+  await updateWorkoutSet(setId, userId, parsed.data);
   revalidatePath("/today");
 }
 
@@ -277,7 +294,7 @@ export async function getExerciseSuggestionsAction(
     return { error: "Set up your workout rotation in Settings first." };
   }
 
-  const usageCheck = await checkAiUsageAllowed(userId);
+  const usageCheck = await checkAiUsageAllowed(userId, { input: notes });
   if (!usageCheck.allowed) {
     return { error: usageCheck.error };
   }
@@ -364,7 +381,7 @@ export async function estimateTemplateAction(description: string): Promise<Estim
     return { error: "Describe your routine first." };
   }
 
-  const usageCheck = await checkAiUsageAllowed(userId);
+  const usageCheck = await checkAiUsageAllowed(userId, { input: description });
   if (!usageCheck.allowed) {
     return { error: usageCheck.error };
   }

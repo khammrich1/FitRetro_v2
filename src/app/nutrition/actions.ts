@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { verifySession, setUserMacroOrder, setUserBodyStats } from "@/features/auth";
+import {
+  verifySession,
+  setUserMacroOrder,
+  setUserBodyStats,
+  parseMemberDay,
+} from "@/features/auth";
 import { checkAiUsageAllowed } from "@/features/ai-usage";
 import { recordMeasurement } from "@/features/measurements";
 import { MACRO_KEYS, macroOrderToString, type MacroKey } from "@/lib/macro-order";
@@ -29,17 +34,18 @@ import {
   type EstimatePurpose,
   type FoodSuggestion,
   type MacroEstimate,
+  logNutritionEntryFromPantry,
 } from "@/features/nutrition";
-import { listPantryItems, getPantryItemById, decrementPantryItemPortion } from "@/features/pantry";
+import { listPantryItems, getPantryItemById } from "@/features/pantry";
 import { generateRecipe, type GeneratedRecipe } from "@/features/recipes";
 import { mealTypeEnum, type MealType } from "@/db/schema";
-import { parseDayParam } from "@/lib/date";
 
 /** Combines a calendar day with the current time of day, so meals logged for a non-today day
  * (e.g. backfilling yesterday) still get a sensible timestamp rather than midnight. */
-function combineDayWithCurrentTime(dayIso: string | null): Date {
+/** The chosen day at the current time of day — the member's today when no day is given. */
+async function combineDayWithCurrentTime(dayIso: string | null): Promise<Date> {
   const now = new Date();
-  const day = parseDayParam(dayIso);
+  const day = await parseMemberDay(dayIso);
   day.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
   return day;
 }
@@ -103,7 +109,7 @@ export async function logMealAction(
   await logNutritionEntry(
     {
       userId,
-      loggedAt: combineDayWithCurrentTime(formData.get("day")?.toString() ?? null),
+      loggedAt: await combineDayWithCurrentTime(formData.get("day")?.toString() ?? null),
       ...validatedFields.data,
     },
     parseLoggedItems(formData.get("items")),
@@ -183,12 +189,12 @@ export async function getSuggestionsAction(
 ): Promise<SuggestionsState> {
   const { userId } = await verifySession();
 
-  const remaining = await getRemainingMacrosForDay(userId, parseDayParam(dayIso));
+  const remaining = await getRemainingMacrosForDay(userId, await parseMemberDay(dayIso));
   if (!remaining) {
     return { error: "Set your daily macro goals first to get suggestions." };
   }
 
-  const usageCheck = await checkAiUsageAllowed(userId);
+  const usageCheck = await checkAiUsageAllowed(userId, { input: preference });
   if (!usageCheck.allowed) {
     return { error: usageCheck.error };
   }
@@ -226,7 +232,7 @@ export async function estimateMacrosAction(
     return { error: "Describe what you ate first." };
   }
 
-  const usageCheck = await checkAiUsageAllowed(userId);
+  const usageCheck = await checkAiUsageAllowed(userId, { input: description });
   if (!usageCheck.allowed) {
     return { error: usageCheck.error };
   }
@@ -263,12 +269,12 @@ export async function estimateMacrosFromImageAction(
     return { error: "Unsupported image type — use JPEG, PNG, WebP, or GIF." };
   }
 
-  const usageCheck = await checkAiUsageAllowed(userId);
+  const note = formData.get("note")?.toString().trim() || undefined;
+
+  const usageCheck = await checkAiUsageAllowed(userId, { input: note });
   if (!usageCheck.allowed) {
     return { error: usageCheck.error };
   }
-
-  const note = formData.get("note")?.toString().trim() || undefined;
 
   try {
     const buffer = Buffer.from(await image.arrayBuffer());
@@ -313,7 +319,7 @@ export async function logSuggestionAction(input: LogSuggestionInput): Promise<{ 
   await logNutritionEntry(
     {
       userId,
-      loggedAt: combineDayWithCurrentTime(input.dayIso),
+      loggedAt: await combineDayWithCurrentTime(input.dayIso),
       mealType,
       description: name,
       calories,
@@ -337,7 +343,7 @@ export async function getRecipeAction(
 ): Promise<RecipeState> {
   const { userId } = await verifySession();
 
-  const usageCheck = await checkAiUsageAllowed(userId);
+  const usageCheck = await checkAiUsageAllowed(userId, { input: `${name} ${description}` });
   if (!usageCheck.allowed) {
     return { error: usageCheck.error };
   }
@@ -411,7 +417,7 @@ export async function logMealTemplateAction(
   await logNutritionEntry(
     {
       userId,
-      loggedAt: combineDayWithCurrentTime(dayIso),
+      loggedAt: await combineDayWithCurrentTime(dayIso),
       mealType: template.mealType,
       description: template.name,
       ...totals,
@@ -448,18 +454,6 @@ export async function logPantryItemAction(input: LogPantryItemInput): Promise<{ 
     return { error: "That item no longer has known macros." };
   }
 
-  if (pantryItem.portionsRemaining !== null) {
-    const decremented = await decrementPantryItemPortion(input.pantryItemId, userId, quantity);
-    if (!decremented) {
-      return {
-        error:
-          pantryItem.portionsRemaining > 0
-            ? `Only ${pantryItem.portionsRemaining} left — lower the quantity.`
-            : "No portions left — prep another batch.",
-      };
-    }
-  }
-
   const calories = pantryItem.caloriesPerPortion * quantity;
   const proteinGrams = (pantryItem.proteinGramsPerPortion ?? 0) * quantity;
   const carbsGrams = (pantryItem.carbsGramsPerPortion ?? 0) * quantity;
@@ -469,28 +463,44 @@ export async function logPantryItemAction(input: LogPantryItemInput): Promise<{ 
       ? `${quantity} x ${pantryItem.quantity ?? "1 unit"}`
       : (pantryItem.quantity ?? "1 unit");
 
-  await logNutritionEntry(
+  const entry = {
+    userId,
+    loggedAt: await combineDayWithCurrentTime(input.dayIso),
+    mealType: input.mealType,
+    description: quantity > 1 ? `${pantryItem.name} (x${quantity})` : pantryItem.name,
+    calories,
+    proteinGrams,
+    carbsGrams,
+    fatGrams,
+  };
+  const items = [
     {
-      userId,
-      loggedAt: combineDayWithCurrentTime(input.dayIso),
-      mealType: input.mealType,
-      description: quantity > 1 ? `${pantryItem.name} (x${quantity})` : pantryItem.name,
+      name: pantryItem.name,
+      quantity: quantityLabel,
       calories,
       proteinGrams,
       carbsGrams,
       fatGrams,
     },
-    [
-      {
-        name: pantryItem.name,
-        quantity: quantityLabel,
-        calories,
-        proteinGrams,
-        carbsGrams,
-        fatGrams,
-      },
-    ],
-  );
+  ];
+
+  // Stock and meal move together: the decrement only happens if the meal is written, and the
+  // meal is only written if there was enough stock.
+  const logged =
+    pantryItem.portionsRemaining !== null
+      ? await logNutritionEntryFromPantry(entry, items, {
+          pantryItemId: input.pantryItemId,
+          quantity,
+        })
+      : await logNutritionEntry(entry, items);
+  if (!logged) {
+    return {
+      error:
+        pantryItem.portionsRemaining && pantryItem.portionsRemaining > 0
+          ? `Only ${pantryItem.portionsRemaining} left — lower the quantity.`
+          : "No portions left — prep another batch.",
+    };
+  }
 
   revalidatePath("/today");
   revalidatePath("/pantry");

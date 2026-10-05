@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getCurrentUser, verifySession } from "@/features/auth";
+import { getCurrentUser, verifySession, getMemberToday } from "@/features/auth";
 import { getMeasurementHistory } from "@/features/measurements";
 import { groupCheckIns, latestPhotoByPose, listProgressPhotos } from "@/features/progress-photos";
 import { kgToLbs } from "@/features/workouts/units";
@@ -39,6 +39,7 @@ function summarize(
 export default async function ProgressPage() {
   const { userId } = await verifySession();
   const storageReady = isObjectStorageConfigured();
+  const { todayIso } = await getMemberToday();
   const [photos, measurements, user] = await Promise.all([
     listProgressPhotos(userId),
     getMeasurementHistory(userId),
@@ -87,7 +88,7 @@ export default async function ProgressPage() {
       </p>
 
       {storageReady ? (
-        <CheckInForm todayIso={toIsoDate(new Date())} references={references} />
+        <CheckInForm todayIso={todayIso} references={references} />
       ) : (
         <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
           Photo storage isn&apos;t set up on this server yet, so new photos can&apos;t be saved.

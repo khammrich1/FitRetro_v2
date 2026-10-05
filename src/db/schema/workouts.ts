@@ -7,6 +7,7 @@ import {
   real,
   pgEnum,
   uniqueIndex,
+  index,
   date,
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
@@ -35,17 +36,21 @@ export const exercises = pgTable("exercises", {
 });
 
 /** A single workout session logged by a user. */
-export const workouts = pgTable("workouts", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .notNull(),
-  name: text("name").notNull(),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-  completedAt: timestamp("completed_at", { withTimezone: true }),
-  notes: text("notes"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const workouts = pgTable(
+  "workouts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    name: text("name").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("workouts_user_started_at_idx").on(table.userId, table.startedAt)],
+);
 
 /** An exercise performed within a workout, in a given order. */
 export const workoutExercises = pgTable("workout_exercises", {
@@ -70,6 +75,10 @@ export const workoutSets = pgTable("workout_sets", {
   weightKg: real("weight_kg"),
   durationSeconds: integer("duration_seconds"),
   rpe: real("rpe"),
+  /** When the member last entered something for this set. Null means it's still only planned —
+   * a template pre-fills sets with target reps, and those don't count as done (or score) until
+   * they're edited or the workout is finished. */
+  loggedAt: timestamp("logged_at", { withTimezone: true }),
 });
 
 /** One step in the user's repeating workout rotation (e.g. "Chest & Tris"), in cycle order —

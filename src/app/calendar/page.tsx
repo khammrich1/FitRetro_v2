@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { verifySession } from "@/features/auth";
-import { toIsoDate, parseMonthParam, toMonthIso, shiftMonth } from "@/lib/date";
-import { getDailyScoreForDay } from "@/features/daily-score";
+import { getMemberToday, verifySession } from "@/features/auth";
+import { dayFromIso, toIsoDate, parseMonthParam, toMonthIso, shiftMonth } from "@/lib/date";
+import { getDailyScoresForMonth } from "@/features/daily-score";
 import { MonthNav } from "./_components/month-nav";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -27,9 +27,9 @@ export default async function CalendarPage({
 }) {
   const { userId } = await verifySession();
   const { month: monthParam } = await searchParams;
-  const current = parseMonthParam(monthParam);
-  const today = new Date();
-  const todayIso = toIsoDate(today);
+  const { todayIso } = await getMemberToday();
+  const today = dayFromIso(todayIso);
+  const current = parseMonthParam(monthParam, todayIso);
   const currentMonthIso = toMonthIso({ year: today.getFullYear(), month: today.getMonth() + 1 });
 
   const daysInMonth = new Date(current.year, current.month, 0).getDate();
@@ -39,7 +39,9 @@ export default async function CalendarPage({
     (_, i) => new Date(current.year, current.month - 1, i + 1),
   );
 
-  const scores = await Promise.all(days.map((day) => getDailyScoreForDay(userId, day)));
+  // Five range queries for the month, not five per day.
+  const scoreByDay = await getDailyScoresForMonth(userId, current.year, current.month);
+  const scores = days.map((day) => scoreByDay.get(toIsoDate(day))!);
 
   const prevMonthIso = toMonthIso(shiftMonth(current, -1));
   const nextMonthIso = toMonthIso(shiftMonth(current, 1));

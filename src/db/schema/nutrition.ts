@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, real, integer, pgEnum } from "drizzle-orm/pg-core";
+import { index, pgTable, uuid, text, timestamp, real, integer, pgEnum } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 export const mealTypeEnum = pgEnum("meal_type", ["breakfast", "lunch", "dinner", "snack"]);
@@ -6,20 +6,24 @@ export const mealTypeEnum = pgEnum("meal_type", ["breakfast", "lunch", "dinner",
 export type MealType = (typeof mealTypeEnum.enumValues)[number];
 
 /** A logged food/meal entry with macro breakdown. */
-export const nutritionEntries = pgTable("nutrition_entries", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .notNull(),
-  loggedAt: timestamp("logged_at", { withTimezone: true }).notNull(),
-  mealType: mealTypeEnum("meal_type").notNull(),
-  description: text("description").notNull(),
-  calories: integer("calories").notNull(),
-  proteinGrams: real("protein_grams").notNull(),
-  carbsGrams: real("carbs_grams").notNull(),
-  fatGrams: real("fat_grams").notNull(),
-  recipeId: uuid("recipe_id"),
-});
+export const nutritionEntries = pgTable(
+  "nutrition_entries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    loggedAt: timestamp("logged_at", { withTimezone: true }).notNull(),
+    mealType: mealTypeEnum("meal_type").notNull(),
+    description: text("description").notNull(),
+    calories: integer("calories").notNull(),
+    proteinGrams: real("protein_grams").notNull(),
+    carbsGrams: real("carbs_grams").notNull(),
+    fatGrams: real("fat_grams").notNull(),
+    recipeId: uuid("recipe_id"),
+  },
+  (table) => [index("nutrition_entries_user_logged_at_idx").on(table.userId, table.loggedAt)],
+);
 
 export type NutritionEntry = typeof nutritionEntries.$inferSelect;
 export type NewNutritionEntry = typeof nutritionEntries.$inferInsert;
