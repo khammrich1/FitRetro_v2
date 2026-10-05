@@ -1,5 +1,25 @@
 # FitRetro — Live Status
 
+## Current reconciliation — October 4, 2026
+
+Current gate: review and owner-test the open production-hardening stack [#37](https://github.com/khammrich1/FitRetro_v2/pull/37) → #38 → #39 → #40 → #41 → [#42](https://github.com/khammrich1/FitRetro_v2/pull/42) in order. They cover dependencies/CI, session revocation/rate limits, notes/dose history, atomic AI admission, checkout/webhook idempotency, member time zones/scoring/input/pantry/calendar correctness. PRs #37–#38 are merged; #39–#42 remain open; PR descriptions report validation, not fresh owner acceptance or deployment.
+
+Workout guidance is scoped in [#43](https://github.com/khammrich1/FitRetro_v2/issues/43); documentation [PR #44](https://github.com/khammrich1/FitRetro_v2/pull/44) is merged. Sequence: 7-minute cardio → dynamic mobility → lifting → post-lifting cardio → static cooldown, tailored to the workout's muscle groups. This focused guide does not authorize a broader coaching engine.
+
+GitHub metadata still confirms default branch `claude/quirky-maxwell-ovfba4`; intended trunk is `main`. Both private Spaces buckets exist in sfo3; DEV credentials are saved and upload testing is pending. Owner setup still includes PROD storage credentials/email, phone acceptance, deliberate billing configuration, off-droplet backup/restore drill, monitoring and export/deletion. Exact DEV/PROD revisions and new migrations remain unverified. The #31–35 deploy claims below require verification against the running server.
+
+This reconciliation supersedes conflicting current-state claims below.
+
+## Workout session guide — scoped, not started (2026-10-04)
+
+Owner requests a collapsible guide on Today, based on the viewed day's workout split:
+approximately 7 minutes cardio warm-up → dynamic mobility → lifting with warm-up sets →
+post-lifting cardio → static cooldown stretches. Back/biceps is the first owner example.
+Use reviewed static routines with instructions and durations; no AI call or migration expected.
+See [issue #43](https://github.com/khammrich1/FitRetro_v2/issues/43) and
+[workout-session-guide.md](docs/workout-session-guide.md) for acceptance and non-goals.
+Spaces, Resend, Stripe and deployment setup remain the immediate owner tasks.
+
 _Last updated: 2026-10-04 (production-readiness review received; hardening PRs 1–3 of 6 open; owner checklist below is current)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
