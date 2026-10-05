@@ -10,7 +10,6 @@ GitHub metadata still confirms default branch `claude/quirky-maxwell-ovfba4`; in
 
 This reconciliation supersedes conflicting current-state claims below.
 
-
 ## Workout session guide — scoped, not started (2026-10-04)
 
 Owner requests a collapsible guide on Today, based on the viewed day's workout split:
