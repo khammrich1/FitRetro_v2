@@ -20,7 +20,7 @@ See [issue #43](https://github.com/khammrich1/FitRetro_v2/issues/43) and
 [workout-session-guide.md](docs/workout-session-guide.md) for acceptance and non-goals.
 Spaces, Resend, Stripe and deployment setup remain the immediate owner tasks.
 
-_Last updated: 2026-10-04 (production-readiness review received; hardening PRs 1–3 of 6 open; owner checklist below is current)_
+_Last updated: 2026-10-04 (production-readiness review received; hardening PRs 1–4 of 6 open; owner checklist below is current)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
@@ -283,7 +283,7 @@ migration changes.
 - Known gap: the site header's generic "Log in" link doesn't carry `?next=`. Attribution still
   survives that path, but the visitor lands on `/today` instead of `/subscribe`.
 
-## Task: Production-readiness review → hardening — **in progress (PRs 1–3 of 6 open)**
+## Task: Production-readiness review → hardening — **in progress (PRs 1–4 of 6 open)**
 
 An external review of `main` (2026-10-03) listed 20 findings. Verified against the code: 16
 real, 2 wrong for our setup (format check — Windows line endings; the "critical" Next advisory
@@ -335,7 +335,17 @@ Batches, each its own PR, stacked in order:
      ordering, flush on collapse, failure keeps text, draft restore, clean-up conflict);
      backfill proven on a throwaway DB (template edited 250→500, logs still 250); browser suite
      for doses; photos/goals/compare suites; 37 migrations on an empty DB.
-4. Atomic AI limit; Daily Reader single-flight.
+4. **Atomic AI admission + Daily Reader single-flight (open, stacked on #39).**
+   - `reserveAiUsage`: one INSERT … ON CONFLICT DO UPDATE … WHERE count < limit statement
+     decides admission and increments together. A burst at 19 admits exactly one. Integration
+     test: 30 parallel at limit 20 → exactly 20 admitted.
+   - Site-wide daily ceiling (`AI_DAILY_GLOBAL_LIMIT`, default 1000) across every account,
+     owner included — a cost backstop; the owner is now counted (still exempt from the 20/day).
+     Hitting it logs "AI site-wide daily limit reached".
+   - Daily Reader claims a `(day, topic)` lease (`daily_reading_jobs`, migration 0037) before
+     generating; a 10-minute lease doubles as retry backoff. Integration test: 10 concurrent
+     cache misses → 1 generation, 1 row. Also respects the site-wide ceiling.
+   - Per-action input size caps are in batch 6 with the rest of the validation work.
 5. Billing idempotency + webhook ledger (before live mode).
 6. Per-user timezone; filled-in-set scoring; validation/date/query cleanups; stale Help text.
 
