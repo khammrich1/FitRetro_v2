@@ -4,7 +4,7 @@
 
 Current gate: review and owner-test the open production-hardening stack [#37](https://github.com/khammrich1/FitRetro_v2/pull/37) → #38 → #39 → #40 → #41 → [#42](https://github.com/khammrich1/FitRetro_v2/pull/42) in order. They cover dependencies/CI, session revocation/rate limits, notes/dose history, atomic AI admission, checkout/webhook idempotency, member time zones/scoring/input/pantry/calendar correctness. All six remain open; PR descriptions report validation, not fresh owner acceptance or deployment.
 
-Workout guidance ([#43](https://github.com/khammrich1/FitRetro_v2/issues/43), scope doc merged in #44) is implemented on branch `claude/workout-session-guide` and in PR for owner review — see the section below. Sequence: 7-minute cardio → dynamic mobility → lifting → post-lifting cardio → static cooldown, tailored to the workout's muscle groups. This focused guide does not authorize a broader coaching engine.
+Workout guidance ([#43](https://github.com/khammrich1/FitRetro_v2/issues/43), scope doc merged in #44) is implemented on branch `claude/workout-session-guide`, [PR #45](https://github.com/khammrich1/FitRetro_v2/pull/45) open for owner review — see the section below. Sequence: 7-minute cardio → dynamic mobility → lifting → post-lifting cardio → static cooldown, tailored to the workout's muscle groups. This focused guide does not authorize a broader coaching engine.
 
 GitHub metadata still confirms default branch `claude/quirky-maxwell-ovfba4`; intended trunk is `main`. Owner setup still includes private Spaces/email, phone acceptance, deliberate billing configuration, off-droplet backup/restore drill, monitoring and export/deletion. Exact DEV/PROD revisions and new migrations remain unverified. The old #31–35 gate below is historical, not the full current queue.
 
@@ -14,9 +14,10 @@ _Last updated: 2026-09-24 (#28/#29 merged; sticker launch-readiness PR open; mea
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
-## Workout session guide — implemented, PR open for owner review (2026-10-05)
+## Workout session guide — implemented, PR #45 open for owner review (2026-10-05)
 
-Issue [#43](https://github.com/khammrich1/FitRetro_v2/issues/43). Branch
+Issue [#43](https://github.com/khammrich1/FitRetro_v2/issues/43),
+[PR #45](https://github.com/khammrich1/FitRetro_v2/pull/45). Branch
 `claude/workout-session-guide` off `main`. A collapsed "🧘 Warm-up & cooldown for <split>" card
 on Today's Move tab, between the split target and the logging form. Expanding it shows the five
 steps in order (about 7 minutes cardio → dynamic mobility → lifting with warm-up sets →
