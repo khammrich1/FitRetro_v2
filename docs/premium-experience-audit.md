@@ -1,6 +1,6 @@
 # Daily experience and hardening follow-up audit
 
-Reviewed October 4, 2026 (America/Los_Angeles). Base: `main` at `afa453b`, including merged hardening PRs #39–42. This is a follow-up audit of the hardening changes and everyday product experience, with a focused implementation PR. It does not replace staging acceptance or certify production as defect-free.
+Reviewed October 4, 2026 (America/Los_Angeles). Initial review base: `main` at `afa453b`, including merged hardening PRs #39–42. The implementation was rebased and reverified on `0ae22ca`, which also includes workout-session guide PR #45. This is a follow-up audit of the hardening changes and everyday product experience, with a focused implementation PR. It does not replace staging acceptance or certify production as defect-free.
 
 ## What changed since the first audit
 
@@ -52,7 +52,7 @@ Journal saves are serialized within the same retained editor. They are not versi
 
 ### P2: CI formatting baseline is currently failing
 
-Local `npm run format:check` reports 286 files, including historical source/configuration and migration metadata. Changed PR files pass a targeted Prettier check. The CI workflow runs the global formatter check first, so it will remain a release blocker until the existing baseline is fixed in a dedicated formatting change. This PR is a draft for review rather than a claim that all required CI checks are green.
+Local `npm run format:check` after rebasing reports 303 files, including historical source/configuration and migration metadata. Changed PR files pass a targeted Prettier check. The CI workflow runs the global formatter check first, so it will remain a release blocker until the existing baseline is fixed in a dedicated formatting change. This PR is a draft for review rather than a claim that all required CI checks are green.
 
 ### Still require deployment evidence
 
@@ -80,7 +80,7 @@ These are product hypotheses based on the current flows, not claims of measured 
 
 - Local focused regression tests cover retained tab drafts, day-change isolation, keyboard tab navigation, hidden-effect cleanup, journal undo before/after an in-flight write, account-separated drafts, collapse/reopen and retry recovery.
 - Navigation tests cover nested owner routes, one current-page link, Escape closing and focus return.
-- Full local suite: 319 passed, 14 PostgreSQL integration tests skipped; these must run in CI/staging.
+- Full local suite after rebasing onto `0ae22ca`: 331 passed, 14 PostgreSQL integration tests skipped; these must run in CI/staging.
 - Typecheck, lint and production build passed with audit-only placeholder environment values. The build did not connect to production services.
 - Runtime `npm audit --omit=dev`: zero reported advisories at review time.
 - Changed files pass Prettier; repository-wide formatting has the existing failure described above.
