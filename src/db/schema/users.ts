@@ -32,6 +32,11 @@ export const users = pgTable("users", {
   /** Weekday (0 = Sunday … 6 = Saturday) for the "Progress pic day" reminder on Today. Null means
    * the reminder is off. Defaults to Sunday — progress photos are too easy to forget. */
   progressPhotoDay: integer("progress_photo_day").default(0),
+  /** Bumped whenever every existing session must stop working — password reset, "log out of all
+   * devices". A session cookie carries the version it was issued with, and the DAL rejects any
+   * cookie whose version no longer matches. Cookies issued before this column existed carry no
+   * version and are treated as version 1, so the one-time deploy doesn't log anyone out. */
+  sessionVersion: integer("session_version").default(1).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

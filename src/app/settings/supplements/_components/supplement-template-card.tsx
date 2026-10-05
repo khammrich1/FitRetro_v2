@@ -8,7 +8,7 @@ import {
 } from "@/db/schema";
 import {
   updateSupplementTemplateAction,
-  deleteSupplementTemplateAction,
+  archiveSupplementTemplateAction,
 } from "@/app/supplements/actions";
 
 /** Formats a 24-hour "HH:MM" string (from a native time input) as e.g. "8:00 AM". */
@@ -51,7 +51,7 @@ export function SupplementTemplateCard({ template }: { template: SupplementTempl
 
   function handleDelete() {
     startDeleting(async () => {
-      await deleteSupplementTemplateAction(template.id);
+      await archiveSupplementTemplateAction(template.id);
     });
   }
 
@@ -156,9 +156,10 @@ export function SupplementTemplateCard({ template }: { template: SupplementTempl
         <button
           onClick={handleDelete}
           disabled={deleting}
+          title="Removes it from Today and this list. Every dose you've logged stays in your history, and you can restore it below."
           className="text-muted-foreground hover:text-danger"
         >
-          Delete
+          Archive
         </button>
       </div>
     </div>

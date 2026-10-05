@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { peptideDoseUnitEnum, peptideFrequencyEnum, type PeptideTemplate } from "@/db/schema";
-import { updatePeptideTemplateAction, deletePeptideTemplateAction } from "@/app/peptides/actions";
+import { updatePeptideTemplateAction, archivePeptideTemplateAction } from "@/app/peptides/actions";
 import { computeDrawVolumeMl, mlToSyringeUnits } from "@/features/peptides/reconstitution";
 
 /** Formats a 24-hour "HH:MM" string (from a native time input) as e.g. "8:00 AM". */
@@ -57,7 +57,7 @@ export function PeptideTemplateCard({ template }: { template: PeptideTemplate })
 
   function handleDelete() {
     startDeleting(async () => {
-      await deletePeptideTemplateAction(template.id);
+      await archivePeptideTemplateAction(template.id);
     });
   }
 
@@ -230,9 +230,10 @@ export function PeptideTemplateCard({ template }: { template: PeptideTemplate })
         <button
           onClick={handleDelete}
           disabled={deleting}
+          title="Removes it from Today and this list. Every dose you've logged stays in your history, and you can restore it below."
           className="text-muted-foreground hover:text-danger"
         >
-          Delete
+          Archive
         </button>
       </div>
     </div>

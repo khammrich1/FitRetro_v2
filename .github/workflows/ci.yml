@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fitretro
+          POSTGRES_PASSWORD: fitretro
+          POSTGRES_DB: fitretro_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U fitretro"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://fitretro:fitretro@localhost:5432/fitretro_ci
+      # Placeholder only — CI never signs a real session; it just has to be non-empty for the build.
+      SESSION_SECRET: ci-placeholder-not-a-real-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Apply every migration to an empty database
+        run: npm run db:migrate
+      - run: npm run test
+        env:
+          # Lets the few integration tests (e.g. the rate limiter's concurrency test) run
+          # against the migrated CI database instead of being skipped.
+          INTEGRATION_DATABASE_URL: ${{ env.DATABASE_URL }}
+      - run: npm run build
+
+  audit:
+    name: Dependency audit (runtime deps)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Fails only on high/critical advisories that reach production code. Dev-only tooling
+      # (linters, test runners, migration CLI) is reported but doesn't block a merge.
+      - run: npm audit --omit=dev --audit-level=high

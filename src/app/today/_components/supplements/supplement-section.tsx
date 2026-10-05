@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import type { SupplementTemplate, SupplementFrequency } from "@/db/schema";
 import type { SupplementLogWithTemplate } from "@/features/supplements";
+import { describeLoggedSupplement } from "@/features/supplements/logs";
 import { logSupplementDoseAction, deleteSupplementLogAction } from "@/app/supplements/actions";
 
 /** Frequencies with a fixed day-count interval, used to compute when a supplement is next due.
@@ -66,11 +67,17 @@ function LoggedSupplementRow({ log }: { log: SupplementLogWithTemplate }) {
     });
   }
 
+  // The log's own snapshot, so editing the template later never changes what this row says.
+  const dose = describeLoggedSupplement(log);
+
   return (
     <li className="flex items-center justify-between rounded-md border border-border bg-background p-2 text-sm">
       <span>
-        {log.template.name} — {log.template.doseAmount}
-        {log.template.doseUnit}
+        {dose.name} — {dose.doseAmount}
+        {dose.doseUnit}
+        {log.template.archivedAt && (
+          <span className="text-muted-foreground"> · archived supplement</span>
+        )}
       </span>
       <button
         onClick={handleRemove}
@@ -111,11 +118,11 @@ export function SupplementSection({
 
   return (
     <div className="flex flex-col gap-3">
-      {templates.length === 0 ? (
+      {templates.length === 0 && logs.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No supplements yet — add one in Settings &gt; Supplements.
         </p>
-      ) : (
+      ) : templates.length === 0 ? null : (
         <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 text-sm">
           {dueTemplates.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
