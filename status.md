@@ -4,27 +4,36 @@
 
 Current gate: review and owner-test the open production-hardening stack [#37](https://github.com/khammrich1/FitRetro_v2/pull/37) → #38 → #39 → #40 → #41 → [#42](https://github.com/khammrich1/FitRetro_v2/pull/42) in order. They cover dependencies/CI, session revocation/rate limits, notes/dose history, atomic AI admission, checkout/webhook idempotency, member time zones/scoring/input/pantry/calendar correctness. All six remain open; PR descriptions report validation, not fresh owner acceptance or deployment.
 
-Workout guidance is scoped in [#43](https://github.com/khammrich1/FitRetro_v2/issues/43); documentation [PR #44](https://github.com/khammrich1/FitRetro_v2/pull/44) is open. Sequence: 7-minute cardio → dynamic mobility → lifting → post-lifting cardio → static cooldown, tailored to the workout's muscle groups. This focused guide does not authorize a broader coaching engine.
+Workout guidance ([#43](https://github.com/khammrich1/FitRetro_v2/issues/43), scope doc merged in #44) is implemented on branch `claude/workout-session-guide` and in PR for owner review — see the section below. Sequence: 7-minute cardio → dynamic mobility → lifting → post-lifting cardio → static cooldown, tailored to the workout's muscle groups. This focused guide does not authorize a broader coaching engine.
 
 GitHub metadata still confirms default branch `claude/quirky-maxwell-ovfba4`; intended trunk is `main`. Owner setup still includes private Spaces/email, phone acceptance, deliberate billing configuration, off-droplet backup/restore drill, monitoring and export/deletion. Exact DEV/PROD revisions and new migrations remain unverified. The old #31–35 gate below is historical, not the full current queue.
 
 The older status below is retained as history; this reconciliation supersedes conflicting current-state claims.
 
-
 _Last updated: 2026-09-24 (#28/#29 merged; sticker launch-readiness PR open; meal-prep per-ingredient estimate queued)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
+## Workout session guide — implemented, PR open for owner review (2026-10-05)
 
-## Workout session guide — scoped, not started (2026-10-04)
+Issue [#43](https://github.com/khammrich1/FitRetro_v2/issues/43). Branch
+`claude/workout-session-guide` off `main`. A collapsed "🧘 Warm-up & cooldown for <split>" card
+on Today's Move tab, between the split target and the logging form. Expanding it shows the five
+steps in order (about 7 minutes cardio → dynamic mobility → lifting with warm-up sets →
+post-lifting cardio, no set length → static cooldown), then the day's dynamic movements and
+static stretches (name, how, reps/hold, targets), merged and deduplicated across the split's
+muscle groups. Days with no split target show a neutral rest-day set and say no workout is
+scheduled. Static content only (`src/features/workouts/session-guide.ts`); no AI, no migration.
+Content sources and the back/biceps mapping are in
+[docs/workout-session-guide.md](docs/workout-session-guide.md).
 
-Owner requests a collapsible guide on Today, based on the viewed day's workout split:
-approximately 7 minutes cardio warm-up → dynamic mobility → lifting with warm-up sets →
-post-lifting cardio → static cooldown stretches. Back/biceps is the first owner example.
-Use reviewed static routines with instructions and durations; no AI call or migration expected.
-See [issue #43](https://github.com/khammrich1/FitRetro_v2/issues/43) and
-[workout-session-guide.md](docs/workout-session-guide.md) for acceptance and non-goals.
-Spaces, Resend, Stripe and deployment setup remain the immediate owner tasks.
+Verified: unit tests (catalog, dedupe, rest day, card), browser run on a 375px and 320px phone
+viewport (rest day, Back & Bis guide, rotation advanced → tomorrow shows Chest & Tris guide,
+logging form reachable with the guide open, no horizontal overflow).
+
+Owner steps: review/merge the PR, then deploy to d.fitretro.app for phone acceptance. Pure code
+change — no backup/migrate step needed for this one. Spaces, Resend, Stripe and the hardening
+stack remain the immediate owner tasks.
 
 ## Safety rules (standing, from CLAUDE.md)
 
