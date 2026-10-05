@@ -20,7 +20,7 @@ See [issue #43](https://github.com/khammrich1/FitRetro_v2/issues/43) and
 [workout-session-guide.md](docs/workout-session-guide.md) for acceptance and non-goals.
 Spaces, Resend, Stripe and deployment setup remain the immediate owner tasks.
 
-_Last updated: 2026-10-04 (production-readiness review received; hardening PRs 1–4 of 6 open; owner checklist below is current)_
+_Last updated: 2026-10-04 (production-readiness review received; hardening PRs 1–5 of 6 open; owner checklist below is current)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
@@ -283,7 +283,7 @@ migration changes.
 - Known gap: the site header's generic "Log in" link doesn't carry `?next=`. Attribution still
   survives that path, but the visitor lands on `/today` instead of `/subscribe`.
 
-## Task: Production-readiness review → hardening — **in progress (PRs 1–4 of 6 open)**
+## Task: Production-readiness review → hardening — **in progress (PRs 1–5 of 6 open)**
 
 An external review of `main` (2026-10-03) listed 20 findings. Verified against the code: 16
 real, 2 wrong for our setup (format check — Windows line endings; the "critical" Next advisory
@@ -346,7 +346,24 @@ Batches, each its own PR, stacked in order:
      generating; a 10-minute lease doubles as retry backoff. Integration test: 10 concurrent
      cache misses → 1 generation, 1 row. Also respects the site-wide ceiling.
    - Per-action input size caps are in batch 6 with the rest of the validation work.
-5. Billing idempotency + webhook ledger (before live mode).
+5. **Billing idempotency + webhook ledger (open, stacked on #40). Must be in before live mode.**
+   - Customer creation carries a Stripe idempotency key (`customer-create:<userId>`), and the
+     id is written only if the account has none yet, so two first-time checkouts can't leave the
+     account flipping between two customers.
+   - The whole checkout sequence (expire old sessions → check subscriptions → create session)
+     runs under a per-user Postgres advisory lock (`withCheckoutLock`), so a double tap or a
+     second tab waits instead of racing to two payable sessions. Sessions are still expired and
+     recreated rather than reused: reuse would resurrect sessions with a stale price/discount.
+   - `stripe_events` ledger (migration 0038): each event id is inserted in the same transaction
+     as the subscription write, so redeliveries are skipped and a failed write (→ 500 → Stripe
+     retries) is never marked as applied.
+   - Ordering: `subscriptions.stripe_subscription_created` and `last_event_created` let the
+     webhook drop a late event about the same subscription, and any event about an older,
+     replaced subscription (the "deleted for A after created for B" case). Pure rules in
+     `features/billing/ordering.ts`.
+   - The webhook returns 500 on a processing failure (logging type/code only) so Stripe
+     redelivers.
+   - Not done: periodic reconciliation against Stripe's current state. Noted for later.
 6. Per-user timezone; filled-in-set scoring; validation/date/query cleanups; stale Help text.
 
 ## Task: Sticker launch readiness (stickers go out at the gym next week) — **done, merged (#31)**

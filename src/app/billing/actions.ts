@@ -11,6 +11,7 @@ import {
   getOrCreateStripeCustomer,
   hasBlockingSubscription,
   parseCampaign,
+  withCheckoutLock,
 } from "@/features/billing";
 import { getStripeClient, getStripePriceId, getStripePromoCode } from "@/lib/stripe";
 
@@ -140,61 +141,68 @@ export async function createCheckoutSessionAction(promoCode?: string): Promise<v
     cancel_url: `${siteUrl}/subscribe`,
   } satisfies Stripe.Checkout.SessionCreateParams;
 
-  if (campaign) {
-    // Resolved before creating any Stripe customer or session: if the promised free month can't
-    // be applied, stop here rather than falling through to a full-price checkout.
-    const promotionCodeId = await findStickerPromotionCodeId(stripe);
-    if (!promotionCodeId) checkoutStopped("promo_unavailable");
+  // Everything from here runs under a per-user lock: a double tap or a second tab waits for the
+  // first checkout to finish (and its session to exist) instead of racing it to two payable
+  // sessions. redirect() throws its way out, which releases the lock.
+  await withCheckoutLock(userId, async () => {
+    if (campaign) {
+      // Resolved before creating any Stripe customer or session: if the promised free month can't
+      // be applied, stop here rather than falling through to a full-price checkout.
+      const promotionCodeId = await findStickerPromotionCodeId(stripe);
+      if (!promotionCodeId) checkoutStopped("promo_unavailable");
+
+      const customerId = await checkoutStep("customer lookup", () =>
+        getOrCreateStripeCustomer(userId),
+      );
+      await ensureCustomerCanStartCheckout(stripe, customerId);
+      const metadata = { userId, ...STICKER_CAMPAIGN_METADATA };
+
+      let checkoutUrl: string | null;
+      try {
+        const session = await stripe.checkout.sessions.create({
+          ...baseParams,
+          customer: customerId,
+          discounts: [{ promotion_code: promotionCodeId }],
+          metadata,
+          subscription_data: { metadata },
+        });
+        checkoutUrl = session.url;
+      } catch (error) {
+        // No session exists either way, so nothing can be charged. An invalid-request error means
+        // Stripe refused the discount itself (e.g. this customer isn't eligible); anything else is
+        // an outage.
+        const rejected = (error as { type?: unknown } | null)?.type === "StripeInvalidRequestError";
+        console.error(`Sticker checkout stopped: ${describeStripeError(error)}.`);
+        checkoutStopped(rejected ? "promo_rejected" : "billing_unavailable");
+      }
+      if (!checkoutUrl) checkoutStopped("billing_unavailable");
+      redirect(checkoutUrl);
+    }
 
     const customerId = await checkoutStep("customer lookup", () =>
       getOrCreateStripeCustomer(userId),
     );
     await ensureCustomerCanStartCheckout(stripe, customerId);
-    const metadata = { userId, ...STICKER_CAMPAIGN_METADATA };
+    const promotionCodeId = promoCode
+      ? await checkoutStep("promotion code lookup", () => findActivePromotionCodeId(promoCode))
+      : null;
 
-    let checkoutUrl: string | null;
-    try {
-      const session = await stripe.checkout.sessions.create({
+    const session = await checkoutStep("checkout session", () =>
+      stripe.checkout.sessions.create({
         ...baseParams,
         customer: customerId,
-        discounts: [{ promotion_code: promotionCodeId }],
-        metadata,
-        subscription_data: { metadata },
-      });
-      checkoutUrl = session.url;
-    } catch (error) {
-      // No session exists either way, so nothing can be charged. An invalid-request error means
-      // Stripe refused the discount itself (e.g. this customer isn't eligible); anything else is
-      // an outage.
-      const rejected = (error as { type?: unknown } | null)?.type === "StripeInvalidRequestError";
-      console.error(`Sticker checkout stopped: ${describeStripeError(error)}.`);
-      checkoutStopped(rejected ? "promo_rejected" : "billing_unavailable");
-    }
-    if (!checkoutUrl) checkoutStopped("billing_unavailable");
-    redirect(checkoutUrl);
-  }
-
-  const customerId = await checkoutStep("customer lookup", () => getOrCreateStripeCustomer(userId));
-  await ensureCustomerCanStartCheckout(stripe, customerId);
-  const promotionCodeId = promoCode
-    ? await checkoutStep("promotion code lookup", () => findActivePromotionCodeId(promoCode))
-    : null;
-
-  const session = await checkoutStep("checkout session", () =>
-    stripe.checkout.sessions.create({
-      ...baseParams,
-      customer: customerId,
-      // Mutually exclusive with allow_promotion_codes: pre-apply a known code, otherwise let
-      // the customer type one in manually.
-      ...(promotionCodeId
-        ? { discounts: [{ promotion_code: promotionCodeId }] }
-        : { allow_promotion_codes: true }),
-      metadata: { userId },
-      subscription_data: { metadata: { userId } },
-    }),
-  );
-  if (!session.url) checkoutStopped("billing_unavailable");
-  redirect(session.url);
+        // Mutually exclusive with allow_promotion_codes: pre-apply a known code, otherwise let
+        // the customer type one in manually.
+        ...(promotionCodeId
+          ? { discounts: [{ promotion_code: promotionCodeId }] }
+          : { allow_promotion_codes: true }),
+        metadata: { userId },
+        subscription_data: { metadata: { userId } },
+      }),
+    );
+    if (!session.url) checkoutStopped("billing_unavailable");
+    redirect(session.url);
+  });
 }
 
 /** Explicit opt-out after a stopped sticker checkout (e.g. the free month was already used):

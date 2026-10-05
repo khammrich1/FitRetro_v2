@@ -2,12 +2,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Stripe from "stripe";
 
-const mocks = vi.hoisted(() => ({ upsert: vi.fn() }));
+const mocks = vi.hoisted(() => ({ apply: vi.fn() }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/features/billing", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/billing")>()),
-  upsertSubscriptionFromStripe: mocks.upsert,
+  applySubscriptionEvent: mocks.apply,
 }));
 
 // Fake, test-only values: signatures are generated and verified for real, locally.
@@ -23,10 +23,12 @@ function subscriptionEvent(metadata: Record<string, string>) {
     id: "evt_test",
     object: "event",
     type: "customer.subscription.created",
+    created: 1_800_000_000,
     data: {
       object: {
         id: "sub_test",
         object: "subscription",
+        created: 1_799_999_000,
         status: "trialing",
         cancel_at_period_end: false,
         metadata,
@@ -52,7 +54,9 @@ function deliver(payload: string, signedPayload = payload) {
 }
 
 beforeEach(() => {
-  mocks.upsert.mockReset().mockResolvedValue(undefined);
+  mocks.apply.mockReset().mockResolvedValue("applied");
+  vi.spyOn(console, "info").mockImplementation(() => {});
+  vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
 describe("Stripe webhook campaign attribution", () => {
@@ -62,23 +66,29 @@ describe("Stripe webhook campaign attribution", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(mocks.upsert).toHaveBeenCalledWith(
+    expect(mocks.apply).toHaveBeenCalledWith(
       expect.objectContaining({
-        userId: "user-1",
-        stripeSubscriptionId: "sub_test",
-        campaign: "promo1",
+        subscription: expect.objectContaining({
+          userId: "user-1",
+          stripeSubscriptionId: "sub_test",
+          campaign: "promo1",
+        }),
       }),
     );
   });
 
   it("records no campaign for a normal checkout", async () => {
     await deliver(subscriptionEvent({ userId: "user-1" }));
-    expect(mocks.upsert).toHaveBeenCalledWith(expect.objectContaining({ campaign: null }));
+    expect(mocks.apply).toHaveBeenCalledWith(
+      expect.objectContaining({ subscription: expect.objectContaining({ campaign: null }) }),
+    );
   });
 
   it("ignores an unrecognized campaign value (e.g. hand-edited in the dashboard)", async () => {
     await deliver(subscriptionEvent({ userId: "user-1", campaign: "promo9" }));
-    expect(mocks.upsert).toHaveBeenCalledWith(expect.objectContaining({ campaign: null }));
+    expect(mocks.apply).toHaveBeenCalledWith(
+      expect.objectContaining({ subscription: expect.objectContaining({ campaign: null }) }),
+    );
   });
 
   it("rejects a payload that doesn't match its signature", async () => {
@@ -88,6 +98,45 @@ describe("Stripe webhook campaign attribution", () => {
     const response = await deliver(tampered, signed);
 
     expect(response.status).toBe(400);
-    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.apply).not.toHaveBeenCalled();
+  });
+});
+
+describe("Stripe webhook ledger and retries", () => {
+  it("passes the event id and timestamps the ledger and ordering need", async () => {
+    await deliver(subscriptionEvent({ userId: "user-1" }));
+    expect(mocks.apply).toHaveBeenCalledWith({
+      event: {
+        id: "evt_test",
+        type: "customer.subscription.created",
+        created: new Date(1_800_000_000 * 1000),
+      },
+      subscription: expect.objectContaining({
+        stripeSubscriptionCreated: new Date(1_799_999_000 * 1000),
+        currentPeriodEnd: new Date(1_900_000_000 * 1000),
+      }),
+    });
+  });
+
+  it("acknowledges a duplicate or stale event with 200 so Stripe stops resending it", async () => {
+    for (const result of ["duplicate", "stale_event", "stale_subscription"] as const) {
+      mocks.apply.mockResolvedValue(result);
+      const response = await deliver(subscriptionEvent({ userId: "user-1" }));
+      expect(response.status).toBe(200);
+    }
+  });
+
+  it("answers 500 when the write fails, so Stripe redelivers, without logging secrets", async () => {
+    mocks.apply.mockRejectedValue(
+      Object.assign(new Error("secret-bearing message sk_test_abc"), {
+        type: "StripeConnectionError",
+        code: "ECONNRESET",
+      }),
+    );
+    const response = await deliver(subscriptionEvent({ userId: "user-1" }));
+    expect(response.status).toBe(500);
+    const logged = vi.mocked(console.error).mock.calls.flat().join(" ");
+    expect(logged).toContain("StripeConnectionError/ECONNRESET");
+    expect(logged).not.toContain("sk_test_abc");
   });
 });

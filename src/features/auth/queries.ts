@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users, type NewUser } from "@/db/schema";
 
@@ -44,6 +44,24 @@ export async function setUserProgressPhotoDay(userId: string, progressPhotoDay: 
     .update(users)
     .set({ progressPhotoDay, updatedAt: new Date() })
     .where(eq(users.id, userId));
+}
+
+/** Records the customer id only if none is stored yet, and returns whichever id the account ends
+ * up with. Two first-time checkouts racing each other can both create a customer in Stripe; the
+ * conditional write means only one of them is ever remembered, so the account can't flip between
+ * customers. (The Stripe-side duplicate is prevented separately by an idempotency key.) */
+export async function setUserStripeCustomerIdIfUnset(
+  userId: string,
+  stripeCustomerId: string,
+): Promise<string | null> {
+  const [updated] = await db
+    .update(users)
+    .set({ stripeCustomerId, updatedAt: new Date() })
+    .where(and(eq(users.id, userId), isNull(users.stripeCustomerId)))
+    .returning({ stripeCustomerId: users.stripeCustomerId });
+  if (updated) return updated.stripeCustomerId;
+  const user = await getUserById(userId);
+  return user?.stripeCustomerId ?? null;
 }
 
 export async function setUserStripeCustomerId(userId: string, stripeCustomerId: string) {
