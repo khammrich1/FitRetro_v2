@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getSession } from "@/lib/session";
+import { getSessionUserId } from "@/features/auth/dal";
 import { getProgressPhotoForUser } from "@/features/progress-photos";
 import { getObjectStream } from "@/lib/object-storage";
 
@@ -23,13 +23,13 @@ function notFound() {
  * stored photo is ever read — there are no public or pre-signed URLs. `?size=thumb` serves the
  * thumbnail. */
 export async function GET(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session?.userId) return notFound();
+  const userId = await getSessionUserId();
+  if (!userId) return notFound();
 
   const { id } = await ctx.params;
   if (!UUID.test(id)) return notFound();
 
-  const photo = await getProgressPhotoForUser(id, session.userId);
+  const photo = await getProgressPhotoForUser(id, userId);
   if (!photo) return notFound();
 
   const key =

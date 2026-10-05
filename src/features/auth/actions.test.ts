@@ -25,8 +25,13 @@ const mocks = vi.hoisted(() => {
     getUserByEmail: vi.fn(),
     createUser: vi.fn(),
     createPasswordResetToken: vi.fn(),
+    isResetTokenUsable: vi.fn(),
     resetPasswordWithToken: vi.fn(),
     sendEmail: vi.fn(),
+    consumeRateLimits: vi.fn(),
+    clearRateLimit: vi.fn(),
+    bumpSessionVersion: vi.fn(),
+    verifySession: vi.fn(),
   };
 });
 
@@ -44,11 +49,25 @@ vi.mock("@/features/auth/queries", () => ({
 vi.mock("@/features/auth/password-reset", () => ({
   RESET_TOKEN_TTL_MINUTES: 60,
   createPasswordResetToken: mocks.createPasswordResetToken,
+  isResetTokenUsable: mocks.isResetTokenUsable,
   resetPasswordWithToken: mocks.resetPasswordWithToken,
 }));
+vi.mock("@/features/auth/rate-limit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/features/auth/rate-limit")>()),
+  consumeRateLimits: mocks.consumeRateLimits,
+  clearRateLimit: mocks.clearRateLimit,
+  requestIp: async () => "203.0.113.9",
+}));
+vi.mock("@/features/auth/session-check", () => ({
+  bumpSessionVersion: mocks.bumpSessionVersion,
+}));
+vi.mock("@/features/auth/dal", () => ({ verifySession: mocks.verifySession }));
 vi.mock("@/lib/email", () => ({ sendEmail: mocks.sendEmail }));
 
-const { login, signup, requestPasswordReset, resetPassword } = await import("./actions");
+const { login, signup, requestPasswordReset, resetPassword, logoutEverywhere } =
+  await import("./actions");
+
+const THROTTLED = { allowed: false as const, retryAfterSeconds: 600 };
 
 async function redirectTarget(run: () => Promise<unknown>): Promise<string> {
   try {
@@ -75,6 +94,9 @@ beforeEach(async () => {
   mocks.cookieStore.delete.mockClear();
   mocks.getUserByEmail.mockReset();
   mocks.createUser.mockReset();
+  mocks.consumeRateLimits.mockReset().mockResolvedValue({ allowed: true });
+  mocks.clearRateLimit.mockReset();
+  mocks.isResetTokenUsable.mockReset().mockResolvedValue(true);
   // Arrived via /promo1 before signing up/logging in.
   mocks.jar.set("fr_campaign", "promo1");
 });
@@ -87,8 +109,44 @@ describe("login", () => {
   beforeEach(async () => {
     mocks.getUserByEmail.mockResolvedValue({
       id: "user-1",
+      sessionVersion: 4,
       passwordHash: await bcrypt.hash(PASSWORD, 4),
     });
+  });
+
+  it("clears the account's failure count on a correct password, but not on a wrong one", async () => {
+    await redirectTarget(() =>
+      login(undefined, form({ email: "a@example.com", password: PASSWORD })),
+    );
+    expect(mocks.clearRateLimit).toHaveBeenCalledWith("login:email:a@example.com");
+    mocks.clearRateLimit.mockClear();
+    await login(undefined, form({ email: "a@example.com", password: "wrong-password1" }));
+    expect(mocks.clearRateLimit).not.toHaveBeenCalled();
+  });
+
+  it("issues a cookie carrying the account's current session version", async () => {
+    await redirectTarget(() =>
+      login(undefined, form({ email: "a@example.com", password: PASSWORD })),
+    );
+    const [, token] = mocks.cookieStore.set.mock.calls[0];
+    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
+    expect(payload).toMatchObject({ userId: "user-1", sv: 4 });
+  });
+
+  it("counts every attempt against the IP and the account, and refuses when throttled", async () => {
+    mocks.consumeRateLimits.mockResolvedValue(THROTTLED);
+    const result = await login(undefined, form({ email: "a@example.com", password: PASSWORD }));
+    expect(result).toEqual({
+      message: "Too many attempts. Please wait 10 minutes and try again.",
+      fields: { email: "a@example.com" },
+    });
+    expect(mocks.consumeRateLimits).toHaveBeenCalledWith([
+      expect.objectContaining({ key: "login:ip:203.0.113.9" }),
+      expect.objectContaining({ key: "login:email:a@example.com" }),
+    ]);
+    // Throttled before the lookup, so a blocked caller can't even tell whether the account exists.
+    expect(mocks.getUserByEmail).not.toHaveBeenCalled();
+    expect(mocks.jar.has("session")).toBe(false);
   });
 
   it("returns to the validated next destination with campaign attribution intact", async () => {
@@ -137,7 +195,26 @@ describe("login", () => {
 describe("signup", () => {
   beforeEach(() => {
     mocks.getUserByEmail.mockResolvedValue(null);
-    mocks.createUser.mockResolvedValue({ id: "user-2" });
+    mocks.createUser.mockResolvedValue({ id: "user-2", sessionVersion: 1 });
+  });
+
+  it("refuses when the IP is over its signup limit", async () => {
+    mocks.consumeRateLimits.mockResolvedValue(THROTTLED);
+    const result = await signup(
+      undefined,
+      form({ displayName: "Bot", email: "bot@example.com", password: PASSWORD }),
+    );
+    expect(result?.message).toMatch(/Too many attempts/);
+    expect(mocks.createUser).not.toHaveBeenCalled();
+  });
+
+  it("rejects a password over 72 bytes", async () => {
+    const result = await signup(
+      undefined,
+      form({ displayName: "Long", email: "long@example.com", password: `${"€".repeat(24)}a1` }),
+    );
+    expect(result?.errors?.password?.[0]).toMatch(/72 bytes/);
+    expect(mocks.createUser).not.toHaveBeenCalled();
   });
 
   it("returns to the validated next destination with campaign attribution intact", async () => {
@@ -266,6 +343,21 @@ describe("requestPasswordReset", () => {
     expect(logged).not.toContain("raw-one-time-token");
   });
 
+  it("gives the identical reply when throttled, and sends nothing", async () => {
+    mocks.consumeRateLimits.mockResolvedValue(THROTTLED);
+    mocks.getUserByEmail.mockResolvedValue({ id: "user-1", email: "member@example.com" });
+
+    const result = await requestPasswordReset(undefined, form({ email: "member@example.com" }));
+
+    expect(result).toEqual({ sent: true, message: GENERIC_REPLY });
+    expect(mocks.consumeRateLimits).toHaveBeenCalledWith([
+      expect.objectContaining({ key: "reset-request:ip:203.0.113.9" }),
+      expect.objectContaining({ key: "reset-request:email:member@example.com" }),
+    ]);
+    expect(mocks.getUserByEmail).not.toHaveBeenCalled();
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
   it("validates the email format", async () => {
     const result = await requestPasswordReset(undefined, form({ email: "not-an-email" }));
     expect(result?.errors?.email).toBeDefined();
@@ -281,7 +373,7 @@ describe("resetPassword", () => {
   });
 
   it("sets a hash of the new password, signs the user in and goes to /today", async () => {
-    mocks.resetPasswordWithToken.mockResolvedValue("user-1");
+    mocks.resetPasswordWithToken.mockResolvedValue({ userId: "user-1", sessionVersion: 2 });
 
     const target = await redirectTarget(() =>
       resetPassword(
@@ -300,6 +392,35 @@ describe("resetPassword", () => {
     expect(passwordHash).not.toBe(NEW_PASSWORD);
     expect(await bcrypt.compare(NEW_PASSWORD, passwordHash)).toBe(true);
     expect(mocks.jar.has("session")).toBe(true);
+    // The cookie carries the post-reset version, so this device stays in while others drop.
+    const [, cookie] = mocks.cookieStore.set.mock.calls[0];
+    expect(JSON.parse(Buffer.from(cookie.split(".")[1], "base64url").toString())).toMatchObject({
+      userId: "user-1",
+      sv: 2,
+    });
+  });
+
+  it("checks the token cheaply before paying for a bcrypt hash", async () => {
+    mocks.isResetTokenUsable.mockResolvedValue(false);
+    const hash = vi.spyOn(bcrypt, "hash");
+    const result = await resetPassword(
+      undefined,
+      form({ token: "junk", password: NEW_PASSWORD, confirmPassword: NEW_PASSWORD }),
+    );
+    expect(result?.message).toContain("invalid, expired, or already used");
+    expect(hash).not.toHaveBeenCalled();
+    expect(mocks.resetPasswordWithToken).not.toHaveBeenCalled();
+    hash.mockRestore();
+  });
+
+  it("refuses when the IP is over its reset-submit limit", async () => {
+    mocks.consumeRateLimits.mockResolvedValue(THROTTLED);
+    const result = await resetPassword(
+      undefined,
+      form({ token: "t", password: NEW_PASSWORD, confirmPassword: NEW_PASSWORD }),
+    );
+    expect(result?.message).toMatch(/Too many attempts/);
+    expect(mocks.resetPasswordWithToken).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid, expired or already-used token without signing in", async () => {
@@ -327,5 +448,19 @@ describe("resetPassword", () => {
     expect(mismatch?.errors?.confirmPassword).toBeDefined();
     expect(weak?.errors?.password).toBeDefined();
     expect(mocks.resetPasswordWithToken).not.toHaveBeenCalled();
+  });
+});
+
+describe("logoutEverywhere", () => {
+  it("bumps the account's session version, drops this cookie and goes to login", async () => {
+    mocks.verifySession.mockResolvedValue({ userId: "user-1" });
+    mocks.bumpSessionVersion.mockReset().mockResolvedValue(2);
+    mocks.jar.set("session", "old-cookie");
+
+    const target = await redirectTarget(() => logoutEverywhere());
+
+    expect(target).toBe("/login?notice=signed_out_everywhere");
+    expect(mocks.bumpSessionVersion).toHaveBeenCalledWith("user-1");
+    expect(mocks.jar.has("session")).toBe(false);
   });
 });

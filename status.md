@@ -2,19 +2,13 @@
 
 ## Current reconciliation — October 4, 2026
 
-Current gate: review and owner-test the open production-hardening stack [#37](https://github.com/khammrich1/FitRetro_v2/pull/37) → #38 → #39 → #40 → #41 → [#42](https://github.com/khammrich1/FitRetro_v2/pull/42) in order. They cover dependencies/CI, session revocation/rate limits, notes/dose history, atomic AI admission, checkout/webhook idempotency, member time zones/scoring/input/pantry/calendar correctness. All six remain open; PR descriptions report validation, not fresh owner acceptance or deployment.
+Current gate: review and owner-test the open production-hardening stack [#37](https://github.com/khammrich1/FitRetro_v2/pull/37) → #38 → #39 → #40 → #41 → [#42](https://github.com/khammrich1/FitRetro_v2/pull/42) in order. They cover dependencies/CI, session revocation/rate limits, notes/dose history, atomic AI admission, checkout/webhook idempotency, member time zones/scoring/input/pantry/calendar correctness. PR #37 is merged; #38–#42 remain open; PR descriptions report validation, not fresh owner acceptance or deployment.
 
-Workout guidance is scoped in [#43](https://github.com/khammrich1/FitRetro_v2/issues/43); documentation [PR #44](https://github.com/khammrich1/FitRetro_v2/pull/44) is open. Sequence: 7-minute cardio → dynamic mobility → lifting → post-lifting cardio → static cooldown, tailored to the workout's muscle groups. This focused guide does not authorize a broader coaching engine.
+Workout guidance is scoped in [#43](https://github.com/khammrich1/FitRetro_v2/issues/43); documentation [PR #44](https://github.com/khammrich1/FitRetro_v2/pull/44) is merged. Sequence: 7-minute cardio → dynamic mobility → lifting → post-lifting cardio → static cooldown, tailored to the workout's muscle groups. This focused guide does not authorize a broader coaching engine.
 
-GitHub metadata still confirms default branch `claude/quirky-maxwell-ovfba4`; intended trunk is `main`. Owner setup still includes private Spaces/email, phone acceptance, deliberate billing configuration, off-droplet backup/restore drill, monitoring and export/deletion. Exact DEV/PROD revisions and new migrations remain unverified. The old #31–35 gate below is historical, not the full current queue.
+GitHub metadata still confirms default branch `claude/quirky-maxwell-ovfba4`; intended trunk is `main`. Both private Spaces buckets exist in sfo3; DEV credentials are saved and upload testing is pending. Owner setup still includes PROD storage credentials/email, phone acceptance, deliberate billing configuration, off-droplet backup/restore drill, monitoring and export/deletion. Exact DEV/PROD revisions and new migrations remain unverified. The #31–35 deploy claims below require verification against the running server.
 
-The older status below is retained as history; this reconciliation supersedes conflicting current-state claims.
-
-
-_Last updated: 2026-09-24 (#28/#29 merged; sticker launch-readiness PR open; meal-prep per-ingredient estimate queued)_
-
-This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
-
+This reconciliation supersedes conflicting current-state claims below.
 
 ## Workout session guide — scoped, not started (2026-10-04)
 
@@ -25,6 +19,99 @@ Use reviewed static routines with instructions and durations; no AI call or migr
 See [issue #43](https://github.com/khammrich1/FitRetro_v2/issues/43) and
 [workout-session-guide.md](docs/workout-session-guide.md) for acceptance and non-goals.
 Spaces, Resend, Stripe and deployment setup remain the immediate owner tasks.
+
+_Last updated: 2026-10-04 (production-readiness review received; hardening PRs 1–2 of 6 open; owner checklist below is current)_
+
+This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
+
+## What the owner needs to do (as of 2026-10-02)
+
+Everything built so far is merged into `main`. None of it is live until the deploy in step 1 runs.
+Steps 2–4 can happen before or after the deploy; the app works without them, and the pages that
+need them say so until they're set.
+
+### 1. Deploy (required — nothing from #31–#35 is live yet)
+
+Six migrations are pending (0029–0034). They only add tables and columns; nothing existing is
+dropped or rewritten. The backup line stays in regardless.
+
+```bash
+cd /opt/fitretro && git branch --show-current
+```
+
+If that prints anything other than `main`, stop and say so (the droplet should track `main`). Then:
+
+```bash
+cd /opt/fitretro && \
+pg_dump "$DATABASE_URL" > backup-$(date +%Y%m%d%H%M%S).sql && \
+git pull origin main && npm install && npm run db:migrate && \
+npm run build && pm2 restart fitretro
+```
+
+What this turns on immediately: double-subscribe guard, sticker signup attribution + `/ops`
+funnel, meal-prep per-ingredient estimates, and Goals & milestones. Password reset and progress
+pics also deploy, but stay inactive until steps 2 and 3.
+
+### 2. Password reset email — Resend (required before anyone needs "Forgot password")
+
+1. Create a Resend account and verify the domain you send from.
+2. Add to `/opt/fitretro/.env` (edit with `vim /opt/fitretro/.env`):
+   ```
+   APP_URL="https://fitretro.app"
+   RESEND_API_KEY="re_..."
+   EMAIL_FROM="FitRetro <noreply@fitretro.app>"
+   ```
+3. `pm2 restart fitretro`.
+
+Until these are set, production refuses to send reset emails (it never falls back to logging
+them), and the forgot-password form shows a generic "couldn't send" message.
+
+### 3. Progress pics storage — DigitalOcean Spaces (required before photos can be saved)
+
+1. In DigitalOcean, create a Spaces bucket (~$5/mo) with **no public access** and "Restrict File
+   Listing" on. Photos are only ever read through the app's owner-checked route.
+2. Create a Spaces access key limited to that bucket.
+3. Add to `/opt/fitretro/.env`:
+   ```
+   SPACES_ENDPOINT="https://nyc3.digitaloceanspaces.com"   # your bucket's region, no bucket name
+   SPACES_BUCKET="your-bucket-name"
+   SPACES_KEY="..."
+   SPACES_SECRET="..."
+   ```
+4. `pm2 restart fitretro`.
+
+Until these are set, `/progress` shows a notice and accepts no uploads, and the Sunday "Progress
+pic day" card on Today stays hidden.
+
+### 4. Stripe — before real sticker signups
+
+- **Live mode decision.** The app is test-mode only: it refuses `sk_live_` keys, and real cards
+  fail in test mode. Real gym signups can't pay until this is decided and the guard is lifted
+  (that's a code change — say the word).
+- **FREEMONTH promo code.** The current code has a _total_ redemption limit of 1 (it read as
+  "per customer" but isn't, and max redemptions can't be edited after creation). Recreate it:
+  coupon 100% off, duration "once"; promotion code `FREEMONTH`, no total redemption limit,
+  "first-time customers only" on. Then confirm `STRIPE_PROMO_CODE=FREEMONTH` is in `.env`.
+
+### 5. Anthropic spend limit (recommended)
+
+Members are capped at 20 AI actions/day, but the owner account is exempt. Set a monthly spend
+limit in the Anthropic console so a runaway day can't surprise you.
+
+### 6. One click on GitHub
+
+Settings → General → Default branch → `main`. It's still the old `claude/quirky-maxwell-ovfba4`;
+everything deploys from `main`. The proxy here can't change repository settings.
+
+### 7. Decisions I'm waiting on
+
+- **Today's "Log a meal" form:** should it get the same append-per-ingredient behaviour as Meal
+  Prep? (Asked, unanswered.)
+- **Next build order:** milestone auto-suggest from workouts, then photo/video on milestones —
+  or swap them. Both are approved; neither is started.
+- **Landing page clips:** you said you'd record these yourself. Send them over when ready and
+  I'll wire them in.
+- **App Store:** still exploratory, no decision needed yet (see the bottom of this file).
 
 ## Safety rules (standing, from CLAUDE.md)
 
@@ -196,7 +283,44 @@ migration changes.
 - Known gap: the site header's generic "Log in" link doesn't carry `?next=`. Attribution still
   survives that path, but the visitor lands on `/today` instead of `/subscribe`.
 
-## Task: Sticker launch readiness (stickers go out at the gym next week) — **PR open**
+## Task: Production-readiness review → hardening — **in progress (PRs 1–2 of 6 open)**
+
+An external review of `main` (2026-10-03) listed 20 findings. Verified against the code: 16
+real, 2 wrong for our setup (format check — Windows line endings; the "critical" Next advisory
+is Windows-only hosting), 2 needed product decisions. Owner decided: **per-user timezone: yes;
+score only filled-in sets; archive templates on delete.**
+
+Batches, each its own PR, stacked in order:
+
+1. **Dependencies + CI (#37, open).** Next 16.3.8, sharp 0.35.5, eslint-config-next 16.3.8,
+   drizzle-kit 0.31.11, transitive bumps. Audit: 20 (1 critical) → 9, all dev-only tooling.
+   New `.github/workflows/ci.yml`: format/lint/typecheck/tests/all migrations on empty
+   Postgres/build, plus a runtime-only audit gate. Browser suites rerun on the new build.
+2. **Session revocation + rate limits + password cap (open, stacked on #37).**
+   - `users.session_version` (migration 0035). Cookies carry the version they were issued with;
+     `verifySession`/`getCurrentUser`/the photo route reject a mismatch. Password reset bumps it
+     (signs out every other device); Settings → Security has "Log out of all devices".
+     Pre-versioning cookies count as version 1 so the deploy itself logs nobody out.
+   - A revoked cookie is sent through `/session/expired`, which clears it and lands on login with
+     an explanation — otherwise the proxy's cookie-only check loops `/login` ↔ `/today` (found
+     by the browser test).
+   - `rate_limits` table + one atomic upsert per attempt (`@/features/auth/rate-limit`).
+     Login 10/15 min per account (cleared on success), 60/15 min per IP; signup 30/hour per IP;
+     reset request 3/hour per account, 10/hour per IP; reset submit 10/15 min per IP. Per-IP
+     limits are loose on purpose: a gym's shared wifi is one IP. Concurrency proven by an
+     integration test (25 parallel → exactly 5 admitted) that CI runs against its Postgres.
+   - Passwords capped at 72 bytes (bcrypt's limit), counted in bytes; login passwords bounded.
+   - Reset submit checks the token cheaply before paying for bcrypt; the claim stays atomic.
+   - Verified: 264 unit tests; 22-check browser run (two devices, log-out-everywhere, reset
+     revokes the other device, 11th wrong password throttled, right password also throttled, other
+     account unaffected, 4th reset request dropped with identical reply, 74-byte password
+     rejected); photos/goals/compare suites on the production build; 36 migrations on an empty DB.
+3. **Next:** voice note save; dose history snapshots + archive-on-delete + real dose time.
+4. Atomic AI limit; Daily Reader single-flight.
+5. Billing idempotency + webhook ledger (before live mode).
+6. Per-user timezone; filled-in-set scoring; validation/date/query cleanups; stale Help text.
+
+## Task: Sticker launch readiness (stickers go out at the gym next week) — **done, merged (#31)**
 
 Branch `claude/sticker-launch-readiness`. Everything is in one PR because two parts add migrations
 (0029, 0030), and separate PRs would collide on migration slots, as #24/#26 did.
@@ -224,14 +348,11 @@ Branch `claude/sticker-launch-readiness`. Everything is in one PR because two pa
   - All 31 migrations applied to an empty DB.
   - Production-build crawl of every page at 375px and 320px.
   - Sticker suite (26 checks) and reset suite (14 checks, real Postgres).
-- **Still needs the owner:**
-  - Live-mode decision (the app is test-mode only; real cards fail in test mode).
-  - A Resend account with a verified domain, plus `RESEND_API_KEY`, `EMAIL_FROM` and `APP_URL`.
-  - Run migrations 0029 and 0030 on deploy.
+- **Still needs the owner:** see the checklist at the top (deploy, Resend, Stripe live mode).
 - **Known limitation:** sessions are stateless JWTs, so a password reset doesn't sign out other
   devices.
 
-## Task: Meal prep per-ingredient macro estimates — **PR open (#32)**
+## Task: Meal prep per-ingredient macro estimates — **done, merged (#32)**
 
 Branch `claude/meal-prep-per-ingredient`. No migration.
 
@@ -244,10 +365,9 @@ Branch `claude/meal-prep-per-ingredient`. No migration.
 - Verified with a fake AI server only. Accuracy on real photos is untested (no API key in the
   sandbox).
 
-## Task: Progress pics (PR 1 of 2) — **PR open**
+## Task: Progress pics (PR 1 of 2) — **done, merged (#33)**
 
-Branch `claude/progress-pics`. It is stacked on `claude/sticker-launch-readiness` because its
-migrations (0031, 0032) come after that PR's 0029/0030. **Merge #31 first.**
+Branch `claude/progress-pics` (was stacked on #31 for migration order; merged in sequence).
 
 - `/progress` (nav: "Progress"):
   - A check-in has a date and front/side/back photo slots, plus optional weight, waist and body
@@ -281,17 +401,12 @@ migrations (0031, 0032) come after that PR's 0029/0030. **Merge #31 first.**
   - 42-check browser run against a production build with a fake S3 server, using three 8MB
     phone photos with GPS data.
   - All 33 migrations applied to an empty DB.
-- Owner setup:
-  1. Create a Spaces bucket with no public access.
-  2. Create an access key limited to that bucket.
-  3. Set the `SPACES_*` values in `/opt/fitretro/.env`.
-  4. Run migrations 0031 and 0032 on deploy (backup first).
+- Owner setup: see the checklist at the top (Spaces bucket + `SPACES_*`, deploy).
 - PR 2 (compare, reminder, pose reference) is its own PR; see the next section.
 
-## Task: Progress pics PR 2 (compare, reminder, pose reference) — **PR open**
+## Task: Progress pics PR 2 (compare, reminder, pose reference) — **done, merged (#35)**
 
-Branch `claude/progress-pics-compare`, stacked on `claude/goals-milestones` (migration 0034
-comes after 0033). **Merge order: #31 → #33 → #34 → this PR.**
+Branch `claude/progress-pics-compare` (was stacked on #34 for migration order; merged in sequence).
 
 - **Compare** (`/progress/compare`, linked from the timeline once there are 2+ check-ins):
   - Two check-ins side by side for a chosen pose. Defaults to first vs latest; the earlier date
@@ -321,13 +436,12 @@ comes after 0033). **Merge order: #31 → #33 → #34 → this PR.**
   - The PR 1 and goals browser suites still pass.
   - All 35 migrations applied to an empty DB.
 
-## Task: Goals & milestones — **PR open**
+## Task: Goals & milestones — **done, merged (#34)**
 
 User: wants milestones/goals. Their example: a New Year's resolution to do a muscle up, which
 they achieved but can't remember the exact day of, and have done ever since.
 
-Branch `claude/goals-milestones`, stacked on `claude/progress-pics` (migration 0033 comes after
-0032). **Merge order: #31 → #33 → this PR.**
+Branch `claude/goals-milestones` (was stacked on #33 for migration order; merged in sequence).
 
 - It's a "Goals & milestones" tab on `/progress`, next to Photos, so the nav doesn't get longer.
 - A goal has a title, a start date (defaults to today; e.g. Jan 1 for a resolution), an optional

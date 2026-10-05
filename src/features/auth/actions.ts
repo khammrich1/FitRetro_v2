@@ -13,8 +13,18 @@ import { createUser, getUserByEmail } from "./queries";
 import {
   RESET_TOKEN_TTL_MINUTES,
   createPasswordResetToken,
+  isResetTokenUsable,
   resetPasswordWithToken,
 } from "./password-reset";
+import { bumpSessionVersion } from "./session-check";
+import { verifySession } from "./dal";
+import {
+  clearRateLimit,
+  consumeRateLimits,
+  requestIp,
+  tooManyAttemptsMessage,
+  type RateLimitRule,
+} from "./rate-limit";
 
 export type AuthFormState =
   | {
@@ -37,6 +47,35 @@ function formText(formData: FormData, name: string): string {
 
 const SALT_ROUNDS = 10;
 
+const MINUTE = 60;
+const HOUR = 60 * MINUTE;
+
+/** Abuse limits for the unauthenticated endpoints. Per-IP bounds scripted hammering from one
+ * place; per-account bounds a distributed guess at one account. Generous for real people — a
+ * typo'd password a few times is nowhere near these.
+ *
+ * Per-IP limits are deliberately loose: a gym's shared wifi puts dozens of members behind one
+ * address, and sticker launch day means many signups from it within an hour. The per-account
+ * limits are what actually stop password guessing. */
+const loginEmailKey = (email: string) => `login:email:${email}`;
+
+const LIMITS = {
+  login: (ip: string, email: string): RateLimitRule[] => [
+    { key: `login:ip:${ip}`, limit: 60, windowSeconds: 15 * MINUTE },
+    { key: loginEmailKey(email), limit: 10, windowSeconds: 15 * MINUTE },
+  ],
+  signup: (ip: string): RateLimitRule[] => [
+    { key: `signup:ip:${ip}`, limit: 30, windowSeconds: HOUR },
+  ],
+  resetRequest: (ip: string, email: string): RateLimitRule[] => [
+    { key: `reset-request:ip:${ip}`, limit: 10, windowSeconds: HOUR },
+    { key: `reset-request:email:${email}`, limit: 3, windowSeconds: HOUR },
+  ],
+  resetSubmit: (ip: string): RateLimitRule[] => [
+    { key: `reset-submit:ip:${ip}`, limit: 10, windowSeconds: 15 * MINUTE },
+  ],
+};
+
 export async function signup(_state: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const fields = {
     displayName: formText(formData, "displayName"),
@@ -54,6 +93,11 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
 
   const { displayName, email, password } = validatedFields.data;
 
+  const limited = await consumeRateLimits(LIMITS.signup(await requestIp()));
+  if (!limited.allowed) {
+    return { message: tooManyAttemptsMessage(limited), fields };
+  }
+
   const existingUser = await getUserByEmail(email);
   if (existingUser) {
     return { errors: { email: ["An account with this email already exists."] }, fields };
@@ -63,7 +107,7 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
   const signupCampaign = parseCampaign((await cookies()).get(CAMPAIGN_COOKIE_NAME)?.value);
   const user = await createUser({ displayName, email, passwordHash, signupCampaign });
 
-  await createSession(user.id);
+  await createSession(user.id, user.sessionVersion);
   redirect(safeNextPath(formData.get("next")) ?? "/today");
 }
 
@@ -80,6 +124,12 @@ export async function login(_state: AuthFormState, formData: FormData): Promise<
 
   const { email, password } = validatedFields.data;
 
+  // Counted before the lookup and the bcrypt compare, so a blocked caller costs nothing further.
+  const limited = await consumeRateLimits(LIMITS.login(await requestIp(), email));
+  if (!limited.allowed) {
+    return { message: tooManyAttemptsMessage(limited), fields };
+  }
+
   const user = await getUserByEmail(email);
   if (!user) {
     return { message: "Invalid email or password.", fields };
@@ -90,13 +140,24 @@ export async function login(_state: AuthFormState, formData: FormData): Promise<
     return { message: "Invalid email or password.", fields };
   }
 
-  await createSession(user.id);
+  // Only failures should accumulate against the account; the IP counter keeps counting.
+  await clearRateLimit(loginEmailKey(email));
+  await createSession(user.id, user.sessionVersion);
   redirect(safeNextPath(formData.get("next")) ?? "/today");
 }
 
 export async function logout() {
   await deleteSession();
   redirect("/login");
+}
+
+/** Signs the account out of every device, including this one. Any cookie issued before now
+ * fails the session-version check on its next request. */
+export async function logoutEverywhere() {
+  const { userId } = await verifySession();
+  await bumpSessionVersion(userId);
+  await deleteSession();
+  redirect("/login?notice=signed_out_everywhere");
 }
 
 export type PasswordResetFormState =
@@ -145,7 +206,12 @@ export async function requestPasswordReset(
     };
   }
 
-  const user = await getUserByEmail(validatedFields.data.email);
+  // Over the limit → the same generic reply, just without sending. Counting by email as well as
+  // IP keeps a distributed flood from filling one person's inbox.
+  const limited = await consumeRateLimits(
+    LIMITS.resetRequest(await requestIp(), validatedFields.data.email),
+  );
+  const user = limited.allowed ? await getUserByEmail(validatedFields.data.email) : null;
   if (user) {
     try {
       const token = await createPasswordResetToken(user.id);
@@ -179,14 +245,25 @@ export async function resetPassword(
   }
 
   const { token, password } = validatedFields.data;
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const userId = await resetPasswordWithToken(token, passwordHash);
-  if (!userId) {
-    return {
-      message: "This reset link is invalid, expired, or already used. Please request a new one.",
-    };
+
+  const limited = await consumeRateLimits(LIMITS.resetSubmit(await requestIp()));
+  if (!limited.allowed) {
+    return { message: tooManyAttemptsMessage(limited) };
   }
 
-  await createSession(userId);
+  const invalid = {
+    message: "This reset link is invalid, expired, or already used. Please request a new one.",
+  };
+  // Cheap check first so a junk token never costs a bcrypt hash; the real, single-use claim
+  // below is still atomic.
+  if (!(await isResetTokenUsable(token))) return invalid;
+
+  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  const reset = await resetPasswordWithToken(token, passwordHash);
+  if (!reset) return invalid;
+
+  // The reset bumped the session version, signing out every other device; this one gets a
+  // cookie carrying the new version.
+  await createSession(reset.userId, reset.sessionVersion);
   redirect("/today");
 }

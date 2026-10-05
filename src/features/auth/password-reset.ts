@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { passwordResetTokens, users } from "@/db/schema";
 
@@ -52,14 +52,15 @@ export async function isResetTokenUsable(token: string): Promise<boolean> {
   return Boolean(row);
 }
 
-/** Spends the token and sets the new password in one transaction. The conditional UPDATE is
- * what makes a link single-use: two concurrent submissions can't both claim it. Every other
- * outstanding token for the user is spent too. Returns the userId, or null if the token is
- * unknown, used or expired. */
+/** Spends the token, sets the new password and bumps the account's session version in one
+ * transaction. The conditional UPDATE is what makes a link single-use: two concurrent
+ * submissions can't both claim it. Every other outstanding token for the user is spent too, and
+ * the version bump signs out every device that was logged in with the old password. Returns the
+ * userId and the new session version, or null if the token is unknown, used or expired. */
 export async function resetPasswordWithToken(
   token: string,
   newPasswordHash: string,
-): Promise<string | null> {
+): Promise<{ userId: string; sessionVersion: number } | null> {
   return db.transaction(async (tx) => {
     const now = new Date();
     const [claimed] = await tx
@@ -75,16 +76,21 @@ export async function resetPasswordWithToken(
       .returning({ userId: passwordResetTokens.userId });
     if (!claimed) return null;
 
-    await tx
+    const [account] = await tx
       .update(users)
-      .set({ passwordHash: newPasswordHash, updatedAt: now })
-      .where(eq(users.id, claimed.userId));
+      .set({
+        passwordHash: newPasswordHash,
+        sessionVersion: sql`${users.sessionVersion} + 1`,
+        updatedAt: now,
+      })
+      .where(eq(users.id, claimed.userId))
+      .returning({ sessionVersion: users.sessionVersion });
     await tx
       .update(passwordResetTokens)
       .set({ usedAt: now })
       .where(
         and(eq(passwordResetTokens.userId, claimed.userId), isNull(passwordResetTokens.usedAt)),
       );
-    return claimed.userId;
+    return { userId: claimed.userId, sessionVersion: account.sessionVersion };
   });
 }

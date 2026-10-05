@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { login } from "@/features/auth/actions";
 
 /** `next` is already validated by the page (safeNextPath) and re-validated by the action. */
-export function LoginForm({ next }: { next: string | null }) {
+export function LoginForm({ next, notice }: { next: string | null; notice?: string | null }) {
   const [state, action, pending] = useActionState(login, undefined);
 
   return (
@@ -50,6 +50,11 @@ export function LoginForm({ next }: { next: string | null }) {
           </Link>
         </div>
 
+        {notice && !state?.message && (
+          <p role="status" className="text-sm text-accent">
+            {notice}
+          </p>
+        )}
         {state?.message && <p className="text-sm text-danger">{state.message}</p>}
 
         <button

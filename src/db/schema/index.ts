@@ -19,3 +19,4 @@ export * from "./subscriptions";
 export * from "./password-reset";
 export * from "./progress-photos";
 export * from "./goals";
+export * from "./rate-limits";
