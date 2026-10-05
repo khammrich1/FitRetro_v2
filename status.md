@@ -15,6 +15,17 @@ _Last updated: 2026-09-24 (#28/#29 merged; sticker launch-readiness PR open; mea
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
 
+
+## Workout session guide — scoped, not started (2026-10-04)
+
+Owner requests a collapsible guide on Today, based on the viewed day's workout split:
+approximately 7 minutes cardio warm-up → dynamic mobility → lifting with warm-up sets →
+post-lifting cardio → static cooldown stretches. Back/biceps is the first owner example.
+Use reviewed static routines with instructions and durations; no AI call or migration expected.
+See [issue #43](https://github.com/khammrich1/FitRetro_v2/issues/43) and
+[workout-session-guide.md](docs/workout-session-guide.md) for acceptance and non-goals.
+Spaces, Resend, Stripe and deployment setup remain the immediate owner tasks.
+
 ## Safety rules (standing, from CLAUDE.md)
 
 - Never run a migration or destructive DB command without a `pg_dump` backup immediately before it, no exceptions, regardless of environment.
