@@ -1,5 +1,16 @@
 # FitRetro — Live Status
 
+## Current reconciliation — October 4, 2026
+
+Current gate: review and owner-test the open production-hardening stack [#37](https://github.com/khammrich1/FitRetro_v2/pull/37) → #38 → #39 → #40 → #41 → [#42](https://github.com/khammrich1/FitRetro_v2/pull/42) in order. They cover dependencies/CI, session revocation/rate limits, notes/dose history, atomic AI admission, checkout/webhook idempotency, member time zones/scoring/input/pantry/calendar correctness. All six remain open; PR descriptions report validation, not fresh owner acceptance or deployment.
+
+Workout guidance is scoped in [#43](https://github.com/khammrich1/FitRetro_v2/issues/43); documentation [PR #44](https://github.com/khammrich1/FitRetro_v2/pull/44) is open. Sequence: 7-minute cardio → dynamic mobility → lifting → post-lifting cardio → static cooldown, tailored to the workout's muscle groups. This focused guide does not authorize a broader coaching engine.
+
+GitHub metadata still confirms default branch `claude/quirky-maxwell-ovfba4`; intended trunk is `main`. Owner setup still includes private Spaces/email, phone acceptance, deliberate billing configuration, off-droplet backup/restore drill, monitoring and export/deletion. Exact DEV/PROD revisions and new migrations remain unverified. The old #31–35 gate below is historical, not the full current queue.
+
+The older status below is retained as history; this reconciliation supersedes conflicting current-state claims.
+
+
 _Last updated: 2026-09-24 (#28/#29 merged; sticker launch-readiness PR open; meal-prep per-ingredient estimate queued)_
 
 This file tracks in-progress work across sessions so context isn't lost between compactions/restarts. Update it whenever a task's state changes — don't let it go stale.
