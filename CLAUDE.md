@@ -158,6 +158,11 @@ npm run build && pm2 restart fitretro
 
 For a pure code change with no schema migration, drop the `pg_dump`/`db:migrate` steps.
 
+There is also a **dev** environment at **d.fitretro.app**, used for owner acceptance testing
+before anything is promoted to production. The owner deploys to it with their own
+`dev-fr-deploy` command — hand over that command name for dev/acceptance deploys, never the
+production `/opt/fitretro` sequence above. Don't label one as the other in PR bodies or status.
+
 The user edits files on the droplet (e.g. `.env`) with **vim**, not nano — use `vim` in any
 command handed to them that opens a file for editing.
 

@@ -2,23 +2,36 @@
 
 ## Current reconciliation — October 4, 2026
 
-Current gate: review and owner-test the open production-hardening stack [#37](https://github.com/khammrich1/FitRetro_v2/pull/37) → #38 → #39 → #40 → #41 → [#42](https://github.com/khammrich1/FitRetro_v2/pull/42) in order. They cover dependencies/CI, session revocation/rate limits, notes/dose history, atomic AI admission, checkout/webhook idempotency, member time zones/scoring/input/pantry/calendar correctness. PRs #37–#38 are merged; #39–#42 remain open; PR descriptions report validation, not fresh owner acceptance or deployment.
+Current gate: review and owner-test the open production-hardening stack [#37](https://github.com/khammrich1/FitRetro_v2/pull/37) → #38 → #39 → #40 → #41 → [#42](https://github.com/khammrich1/FitRetro_v2/pull/42) in order. They cover dependencies/CI, session revocation/rate limits, notes/dose history, atomic AI admission, checkout/webhook idempotency, member time zones/scoring/input/pantry/calendar correctness. PRs #37–#39 are merged; #40–#42 remain open; PR descriptions report validation, not fresh owner acceptance or deployment.
 
-Workout guidance is scoped in [#43](https://github.com/khammrich1/FitRetro_v2/issues/43); documentation [PR #44](https://github.com/khammrich1/FitRetro_v2/pull/44) is merged. Sequence: 7-minute cardio → dynamic mobility → lifting → post-lifting cardio → static cooldown, tailored to the workout's muscle groups. This focused guide does not authorize a broader coaching engine.
+Workout guidance ([#43](https://github.com/khammrich1/FitRetro_v2/issues/43), scope doc merged in #44) is implemented on branch `claude/workout-session-guide`, [PR #45](https://github.com/khammrich1/FitRetro_v2/pull/45) open for owner review — see the section below. Sequence: 7-minute cardio → dynamic mobility → lifting → post-lifting cardio → static cooldown, tailored to the workout's muscle groups. This focused guide does not authorize a broader coaching engine.
 
 GitHub metadata still confirms default branch `claude/quirky-maxwell-ovfba4`; intended trunk is `main`. Both private Spaces buckets exist in sfo3; DEV credentials are saved and upload testing is pending. Owner setup still includes PROD storage credentials/email, phone acceptance, deliberate billing configuration, off-droplet backup/restore drill, monitoring and export/deletion. Exact DEV/PROD revisions and new migrations remain unverified. The #31–35 deploy claims below require verification against the running server.
 
 This reconciliation supersedes conflicting current-state claims below.
 
-## Workout session guide — scoped, not started (2026-10-04)
+## Workout session guide — implemented, PR #45 open for owner review (2026-10-05)
 
-Owner requests a collapsible guide on Today, based on the viewed day's workout split:
-approximately 7 minutes cardio warm-up → dynamic mobility → lifting with warm-up sets →
-post-lifting cardio → static cooldown stretches. Back/biceps is the first owner example.
-Use reviewed static routines with instructions and durations; no AI call or migration expected.
-See [issue #43](https://github.com/khammrich1/FitRetro_v2/issues/43) and
-[workout-session-guide.md](docs/workout-session-guide.md) for acceptance and non-goals.
-Spaces, Resend, Stripe and deployment setup remain the immediate owner tasks.
+Issue [#43](https://github.com/khammrich1/FitRetro_v2/issues/43),
+[PR #45](https://github.com/khammrich1/FitRetro_v2/pull/45). Branch
+`claude/workout-session-guide` off `main`. A collapsed "🧘 Warm-up & cooldown for <split>" card
+on Today's Move tab, between the split target and the logging form. Expanding it shows the five
+steps in order (about 7 minutes cardio → dynamic mobility → lifting with warm-up sets →
+post-lifting cardio, no set length → static cooldown), then the day's dynamic movements and
+static stretches (name, how, reps/hold, targets), merged and deduplicated across the split's
+muscle groups. Days with no split target show a neutral rest-day set and say no workout is
+scheduled. Static content only (`src/features/workouts/session-guide.ts`); no AI, no migration.
+Content sources and the back/biceps mapping are in
+[docs/workout-session-guide.md](docs/workout-session-guide.md).
+
+Verified: unit tests (catalog, dedupe, rest day, card), browser run on a 375px and 320px phone
+viewport (rest day, Back & Bis guide, rotation advanced → tomorrow shows Chest & Tris guide,
+logging form reachable with the guide open, no horizontal overflow).
+
+Owner steps: review/merge the PR, then deploy to dev (d.fitretro.app) with `dev-fr-deploy` for
+phone acceptance — not the production `/opt/fitretro` command. The branch itself carries no
+migration. Spaces, Resend, Stripe and the hardening stack remain the
+immediate owner tasks.
 
 _Last updated: 2026-10-04 (production-readiness review received; all 6 hardening PRs open; owner checklist below is current)_
 

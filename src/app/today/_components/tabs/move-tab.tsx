@@ -1,6 +1,11 @@
 import Link from "next/link";
 import type { Exercise, MuscleGroup, Workout, WorkoutExercise, WorkoutSet } from "@/db/schema";
-import type { SplitCycleTarget, WorkoutTemplateWithExercises } from "@/features/workouts";
+import {
+  buildSessionGuide,
+  type SplitCycleTarget,
+  type WorkoutTemplateWithExercises,
+} from "@/features/workouts";
+import { SessionGuideCard } from "../workouts/session-guide-card";
 import { SplitTargetCard } from "../workouts/split-target-card";
 import { InProgressWorkoutCard } from "../workouts/in-progress-workout-card";
 import { WorkoutList } from "../workouts/workout-list";
@@ -32,6 +37,8 @@ export function MoveTab({
     workoutCount: inProgressWorkouts.length + completedWorkouts.length,
     templateCount: templates.length,
   });
+  // Keyed by the viewed day's split, so paging to another date changes the guide with it.
+  const guide = buildSessionGuide(splitTarget ? targetMuscleGroups : null);
 
   return (
     <section className="flex flex-col gap-4">
@@ -63,6 +70,7 @@ export function MoveTab({
           )}
         </>
       )}
+      <SessionGuideCard guide={guide} dayLabel={splitTarget?.label ?? ""} />
       <WorkoutLogging
         dayIso={dayIso}
         targetMuscleGroups={targetMuscleGroups}
