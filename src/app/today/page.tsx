@@ -167,16 +167,32 @@ export default async function TodayPage({
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6 sm:px-6 sm:py-8">
-      <h1 className="retro-heading text-2xl font-bold text-foreground">Today</h1>
+    <main
+      id="main-content"
+      className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8"
+    >
+      <header className="flex flex-col gap-1">
+        <p className="text-xs font-medium uppercase tracking-widest text-accent">
+          {day.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+          {dayIso === todayIso ? "Your day" : "Your daily log"}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {dayIso === todayIso
+            ? "A little progress, one entry at a time."
+            : "Revisit your meals, movement, and routines."}
+        </p>
+      </header>
 
       <DayNav dayIso={dayIso} todayIso={todayIso} />
 
-      <DailyScoreCard score={dailyScore} />
+      <DailyScoreCard score={dailyScore} isToday={dayIso === todayIso} />
 
       {photoReminder && <ProgressPhotoReminderCard reminder={photoReminder} />}
 
       <TodayTabs
+        dayIso={dayIso}
         nutrition={
           <NutritionTab
             dayIso={dayIso}
@@ -201,6 +217,7 @@ export default async function TodayPage({
         }
         routine={
           <RoutineTab
+            userId={userId}
             dayIso={dayIso}
             todayIso={todayIso}
             routines={routines}
@@ -217,6 +234,6 @@ export default async function TodayPage({
           />
         }
       />
-    </div>
+    </main>
   );
 }

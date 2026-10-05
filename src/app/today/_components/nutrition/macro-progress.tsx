@@ -1,4 +1,5 @@
 import { MACRO_LABELS, type MacroKey } from "@/lib/macro-order";
+import Link from "next/link";
 
 function ProgressBar({ label, consumed, goal }: { label: string; consumed: number; goal: number }) {
   const isOver = consumed > goal;
@@ -42,9 +43,21 @@ export function MacroProgress({
 }) {
   if (!goal) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Set your daily macro targets in Settings to track progress.
-      </p>
+      <div className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-5">
+        <h2 className="text-base font-semibold text-foreground">Make nutrition your own</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Set your daily targets to see how your meals add up. You can keep logging without them.
+        </p>
+        <Link
+          href="/settings/nutrition"
+          className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
+        >
+          Set nutrition targets{" "}
+          <span aria-hidden="true" className="ml-2">
+            →
+          </span>
+        </Link>
+      </div>
     );
   }
 

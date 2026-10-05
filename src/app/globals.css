@@ -72,6 +72,10 @@ body {
    shrink below, so a row of two or three fields overflows a phone screen. Let them (and the
    labels wrapping them) shrink; in the base layer, so width utilities like w-24 still win. */
 @layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
   input,
   select,
   textarea {

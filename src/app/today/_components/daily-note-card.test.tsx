@@ -24,7 +24,7 @@ const { DailyNoteCard } = await import("./daily-note-card");
 const DAY = "2026-10-04";
 
 function openEditor(initialNote = "") {
-  const view = render(<DailyNoteCard dayIso={DAY} note={initialNote} />);
+  const view = render(<DailyNoteCard userId="member-a" dayIso={DAY} note={initialNote} />);
   fireEvent.click(screen.getByRole("button", { name: /Daily note/ }));
   return view;
 }
@@ -41,6 +41,77 @@ afterEach(() => {
 });
 
 describe("DailyNoteCard saving", () => {
+  it("keeps the latest saved text when collapsed and reopened before new server props arrive", async () => {
+    openEditor("server copy");
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "new text" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(700);
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Daily note/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Daily note/ }));
+    expect(screen.getByRole("textbox")).toHaveValue("new text");
+  });
+  it("does not load or save another member's draft on a shared browser", async () => {
+    sessionStorage.setItem(`daily-note:draft:member-b:${DAY}`, "private note from B");
+    sessionStorage.setItem(`daily-note:draft:${DAY}`, "unattributed legacy note");
+    openEditor("A's server note");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(700);
+    });
+    expect(screen.getByRole("textbox")).toHaveValue("A's server note");
+    expect(mocks.setDailyNoteAction).not.toHaveBeenCalled();
+  });
+
+  it("cancels an unsent edit when it is undone to the saved text", async () => {
+    openEditor("original");
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "temporary" } });
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "original" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(700);
+    });
+    expect(mocks.setDailyNoteAction).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent("Saved");
+  });
+
+  it("queues an undo behind an already running save", async () => {
+    let release!: () => void;
+    mocks.setDailyNoteAction
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            release = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    openEditor("original");
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "temporary" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(700);
+    });
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "original" } });
+    await act(async () => {
+      release();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(mocks.setDailyNoteAction.mock.calls.map(([, text]) => text)).toEqual([
+      "temporary",
+      "original",
+    ]);
+  });
+
+  it("offers an explicit retry without requiring another edit", async () => {
+    mocks.setDailyNoteAction.mockRejectedValueOnce(new Error("offline"));
+    openEditor();
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "keep this" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(700);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Retry save" }));
+    });
+    expect(mocks.setDailyNoteAction).toHaveBeenLastCalledWith(DAY, "keep this");
+    expect(screen.getByRole("status")).toHaveTextContent("Saved");
+  });
   it("saves dictated text, not just typed text", async () => {
     openEditor("");
     await act(async () => {
@@ -111,11 +182,11 @@ describe("DailyNoteCard saving", () => {
     });
     expect(screen.getByRole("textbox")).toHaveValue("don't lose me");
     expect(screen.getByText(/Couldn't save your note/)).toBeInTheDocument();
-    expect(sessionStorage.getItem(`daily-note:draft:${DAY}`)).toBe("don't lose me");
+    expect(sessionStorage.getItem(`daily-note:draft:member-a:${DAY}`)).toBe("don't lose me");
   });
 
   it("restores and saves a draft left behind by a closed tab", async () => {
-    sessionStorage.setItem(`daily-note:draft:${DAY}`, "left behind");
+    sessionStorage.setItem(`daily-note:draft:member-a:${DAY}`, "left behind");
     openEditor("server copy");
     expect(screen.getByRole("textbox")).toHaveValue("left behind");
     await act(async () => {

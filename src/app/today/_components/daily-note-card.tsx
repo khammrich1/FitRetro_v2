@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { Activity, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { setDailyNoteAction, cleanUpNoteAction } from "@/app/daily-note/actions";
 import { useSpeechToText } from "@/lib/hooks/use-speech-to-text";
 
@@ -10,28 +10,36 @@ type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
 
 /** Unsaved text survives a collapse, a day change or a closed tab via sessionStorage: the editor
  * restores and saves it on its next mount. Per day, per tab, and cleared once saved. */
-function draftKey(dayIso: string) {
-  return `daily-note:draft:${dayIso}`;
+function draftKey(userId: string, dayIso: string) {
+  return `daily-note:draft:${userId}:${dayIso}`;
 }
-function readDraft(dayIso: string): string | null {
+function readDraft(userId: string, dayIso: string): string | null {
   try {
-    return sessionStorage.getItem(draftKey(dayIso));
+    return sessionStorage.getItem(draftKey(userId, dayIso));
   } catch {
     return null;
   }
 }
-function writeDraft(dayIso: string, text: string | null) {
+function writeDraft(userId: string, dayIso: string, text: string | null) {
   try {
-    if (text === null) sessionStorage.removeItem(draftKey(dayIso));
-    else sessionStorage.setItem(draftKey(dayIso), text);
+    if (text === null) sessionStorage.removeItem(draftKey(userId, dayIso));
+    else sessionStorage.setItem(draftKey(userId, dayIso), text);
   } catch {
     // Storage unavailable (private mode etc.) — saving still works, just without the safety net.
   }
 }
 
-function NoteEditor({ dayIso, initialNote }: { dayIso: string; initialNote: string }) {
+function NoteEditor({
+  userId,
+  dayIso,
+  initialNote,
+}: {
+  userId: string;
+  dayIso: string;
+  initialNote: string;
+}) {
   // Only ever mounted client-side (after the card is expanded), so reading the draft here is safe.
-  const [note, setNote] = useState(() => readDraft(dayIso) ?? initialNote);
+  const [note, setNote] = useState(() => readDraft(userId, dayIso) ?? initialNote);
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [cleaningUp, startCleanUp] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +67,7 @@ function NoteEditor({ dayIso, initialNote }: { dayIso: string; initialNote: stri
           await setDailyNoteAction(dayIso, value);
           savedRef.current = value;
           if (queuedRef.current === null && noteRef.current === value) {
-            writeDraft(dayIso, null);
+            writeDraft(userId, dayIso, null);
             setStatus("saved");
           }
         } catch {
@@ -72,7 +80,7 @@ function NoteEditor({ dayIso, initialNote }: { dayIso: string; initialNote: stri
     } finally {
       inFlightRef.current = false;
     }
-  }, [dayIso]);
+  }, [userId, dayIso]);
 
   function saveNow(value: string) {
     if (timerRef.current) {
@@ -88,8 +96,21 @@ function NoteEditor({ dayIso, initialNote }: { dayIso: string; initialNote: stri
     noteRef.current = value;
     setNote(value);
     setError(null);
-    writeDraft(dayIso, value);
+    writeDraft(userId, dayIso, value);
     if (value === savedRef.current) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      // A pending older write can still change the server even when the user undoes their
+      // edit back to the saved text. Queue that final text behind it rather than declaring saved.
+      if (inFlightRef.current) {
+        saveNow(value);
+        setStatus("saving");
+        return;
+      }
+      queuedRef.current = null;
+      writeDraft(userId, dayIso, null);
       setStatus("saved");
       return;
     }
@@ -171,6 +192,7 @@ function NoteEditor({ dayIso, initialNote }: { dayIso: string; initialNote: stri
   return (
     <div className="flex flex-col gap-2 rounded-lg border-2 border-accent bg-card p-4">
       <textarea
+        aria-label="Daily note"
         value={note}
         onChange={(event) => applyChange(event.target.value)}
         placeholder="How'd today go? Type it or dictate it, then clean it up if it's rough."
@@ -201,6 +223,18 @@ function NoteEditor({ dayIso, initialNote }: { dayIso: string; initialNote: stri
         >
           {cleaningUp ? "Cleaning up..." : "Clean up"}
         </button>
+        {status === "error" && (
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              saveNow(noteRef.current);
+            }}
+            className="min-h-11 rounded-full border border-danger px-4 text-sm text-danger hover:bg-danger/10"
+          >
+            Retry save
+          </button>
+        )}
         <span
           role="status"
           className={`text-xs ${status === "error" ? "text-danger" : "text-muted-foreground"}`}
@@ -208,14 +242,27 @@ function NoteEditor({ dayIso, initialNote }: { dayIso: string; initialNote: stri
           {statusText}
         </span>
       </div>
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
       {micError && <p className="text-sm text-danger">{micError}</p>}
     </div>
   );
 }
 
-export function DailyNoteCard({ dayIso, note }: { dayIso: string; note: string }) {
+export function DailyNoteCard({
+  userId,
+  dayIso,
+  note,
+}: {
+  userId: string;
+  dayIso: string;
+  note: string;
+}) {
   const [expanded, setExpanded] = useState(false);
+  const [opened, setOpened] = useState(false);
   const trimmed = note.trim();
   const preview = trimmed
     ? trimmed.length > 40
@@ -227,7 +274,10 @@ export function DailyNoteCard({ dayIso, note }: { dayIso: string; note: string }
     <section className="flex flex-col gap-2">
       <button
         type="button"
-        onClick={() => setExpanded((current) => !current)}
+        onClick={() => {
+          setOpened(true);
+          setExpanded((current) => !current);
+        }}
         aria-expanded={expanded}
         className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm hover:border-accent"
       >
@@ -239,7 +289,11 @@ export function DailyNoteCard({ dayIso, note }: { dayIso: string; note: string }
       </button>
       {/* Keying on dayIso remounts on day navigation, same fix as the mission card — otherwise
           local textarea state would keep showing a previously-viewed day's note. */}
-      {expanded && <NoteEditor key={dayIso} dayIso={dayIso} initialNote={note} />}
+      {opened && (
+        <Activity key={`${userId}-${dayIso}`} mode={expanded ? "visible" : "hidden"}>
+          <NoteEditor userId={userId} dayIso={dayIso} initialNote={note} />
+        </Activity>
+      )}
     </section>
   );
 }
