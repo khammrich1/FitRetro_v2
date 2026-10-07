@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { PeptideTemplate, PeptideFrequency } from "@/db/schema";
 import type { LevelEstimate, PeptideLogWithTemplate } from "@/features/peptides";
+import { peptideFrequencyLabel } from "@/features/peptides/frequency";
 import { describeLoggedDose } from "@/features/peptides/logs";
 import { computeDrawVolumeMl, mlToSyringeUnits } from "@/features/peptides/reconstitution";
 import { logPeptideDoseAction, deletePeptideLogAction } from "@/app/peptides/actions";
@@ -172,7 +173,11 @@ export function PeptideSection({
                     disabled={pending}
                     className="rounded-full border border-border px-3 py-1 text-xs hover:border-accent hover:text-accent disabled:opacity-50"
                   >
-                    {template.name} ({template.doseAmount}
+                    {template.name}{" "}
+                    <span className="text-xs text-muted-foreground">
+                      ({peptideFrequencyLabel(template.frequency)})
+                    </span>{" "}
+                    ({template.doseAmount}
                     {template.doseUnit}
                     {formattedTime ? `, ${formattedTime}` : ""}
                     {drawMl !== null
