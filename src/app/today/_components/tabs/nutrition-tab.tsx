@@ -19,7 +19,6 @@ export function NutritionTab({
   mealTemplates,
   pantryItems,
   entries,
-  recentMeals,
 }: {
   dayIso: string;
   consumed: ReturnType<typeof summarizeMacros>;
@@ -29,7 +28,6 @@ export function NutritionTab({
   mealTemplates: MealTemplateWithItems[];
   pantryItems: PantryItem[];
   entries: NutritionEntryWithItems[];
-  recentMeals: NutritionEntryWithItems[];
 }) {
   return (
     <section className="flex flex-col gap-4">
@@ -42,7 +40,6 @@ export function NutritionTab({
       />
       <MealLogging
         dayIso={dayIso}
-        recentMeals={recentMeals}
         templates={mealTemplates}
         pantryItems={pantryItems}
         macroOrder={macroOrder}

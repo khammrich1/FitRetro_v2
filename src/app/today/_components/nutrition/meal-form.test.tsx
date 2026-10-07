@@ -26,7 +26,7 @@ describe("meal draft accessibility and reuse", () => {
       }
     }
   });
-  it("appends a recent meal to an existing draft without replacing its description or submitting", async () => {
+  it("appends a template meal to an existing draft without replacing its description or submitting", async () => {
     const onConsumed = vi.fn();
     const view = render(<MealForm dayIso="2026-10-07" macroOrder={[...macros]} />);
     fireEvent.change(screen.getByLabelText("Description"), { target: { value: "My lunch" } });
