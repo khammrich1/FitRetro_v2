@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { toIsoDate } from "@/lib/date";
 import {
@@ -83,23 +83,6 @@ export async function getEntriesForDay(
       ),
     );
 
-  return attachNutritionItems(entries);
-}
-
-/** Bounded history, using the existing user/date index. Never reads another member’s meals. */
-export async function getRecentMeals(userId: string): Promise<NutritionEntryWithItems[]> {
-  const entries = await db
-    .select()
-    .from(nutritionEntries)
-    .where(and(eq(nutritionEntries.userId, userId), lt(nutritionEntries.loggedAt, new Date())))
-    .orderBy(desc(nutritionEntries.loggedAt), desc(nutritionEntries.id))
-    .limit(30);
-  return attachNutritionItems(entries);
-}
-
-async function attachNutritionItems(
-  entries: (typeof nutritionEntries.$inferSelect)[],
-): Promise<NutritionEntryWithItems[]> {
   if (entries.length === 0) return [];
 
   const items = await db
