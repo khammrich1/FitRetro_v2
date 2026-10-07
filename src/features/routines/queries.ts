@@ -28,23 +28,27 @@ export async function addRoutineItem(
   name: string,
   notes: string | null,
 ) {
-  const [routine] = await db
-    .select()
-    .from(routines)
-    .where(and(eq(routines.id, routineId), eq(routines.userId, userId)));
-  if (!routine) return null;
+  return db.transaction(async (tx) => {
+    const [routine] = await tx
+      .select()
+      .from(routines)
+      .where(and(eq(routines.id, routineId), eq(routines.userId, userId)))
+      .for("update");
+    if (!routine) return null;
 
-  const siblings = await db
-    .select({ sortOrder: routineItems.sortOrder })
-    .from(routineItems)
-    .where(eq(routineItems.routineId, routineId));
-  const nextSortOrder = siblings.length > 0 ? Math.max(...siblings.map((s) => s.sortOrder)) + 1 : 0;
+    const siblings = await tx
+      .select({ sortOrder: routineItems.sortOrder })
+      .from(routineItems)
+      .where(eq(routineItems.routineId, routineId));
+    const nextSortOrder =
+      siblings.length > 0 ? Math.max(...siblings.map((s) => s.sortOrder)) + 1 : 0;
 
-  const [item] = await db
-    .insert(routineItems)
-    .values({ routineId, name, notes, sortOrder: nextSortOrder })
-    .returning();
-  return item;
+    const [item] = await tx
+      .insert(routineItems)
+      .values({ routineId, name, notes, sortOrder: nextSortOrder })
+      .returning();
+    return item;
+  });
 }
 
 export async function updateRoutineItem(
@@ -83,23 +87,16 @@ export async function moveRoutineItem(
     .select()
     .from(routineItems)
     .where(eq(routineItems.routineId, item.routineId))
-    .orderBy(asc(routineItems.sortOrder));
+    .orderBy(asc(routineItems.sortOrder), asc(routineItems.id));
 
   const index = siblings.findIndex((sibling) => sibling.id === itemId);
   const swapIndex = direction === "up" ? index - 1 : index + 1;
   if (swapIndex < 0 || swapIndex >= siblings.length) return;
 
-  const swapWith = siblings[swapIndex];
-  await db.transaction(async (tx) => {
-    await tx
-      .update(routineItems)
-      .set({ sortOrder: swapWith.sortOrder })
-      .where(eq(routineItems.id, item.id));
-    await tx
-      .update(routineItems)
-      .set({ sortOrder: item.sortOrder })
-      .where(eq(routineItems.id, swapWith.id));
-  });
+  const expected = siblings.map((sibling) => sibling.id);
+  const ordered = [...expected];
+  [ordered[index], ordered[swapIndex]] = [ordered[swapIndex], ordered[index]];
+  await reorderRoutineItems(item.routineId, userId, expected, ordered);
 }
 
 /** Toggles today's (or `day`'s) completion for a routine item. Returns the new completed state. */
@@ -193,7 +190,7 @@ export async function getRoutinesForUser(userId: string, day: Date): Promise<Rou
     .select()
     .from(routineItems)
     .where(inArray(routineItems.routineId, routineIds))
-    .orderBy(asc(routineItems.sortOrder));
+    .orderBy(asc(routineItems.sortOrder), asc(routineItems.id));
 
   const itemIds = items.map((item) => item.id);
   const completedOn = toDateOnly(day);
@@ -263,4 +260,43 @@ export async function getRoutineCompletionStatsInRange(
     stats.set(row.completedOn, day);
   }
   return stats;
+}
+
+/** Exact snapshot validation prevents stale reorders and foreign/missing IDs. Only sortOrder changes. */
+export async function reorderRoutineItems(
+  routineId: string,
+  userId: string,
+  expected: string[],
+  ordered: string[],
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [owner] = await tx
+      .select({ id: routines.id })
+      .from(routines)
+      .where(and(eq(routines.id, routineId), eq(routines.userId, userId)))
+      .for("update");
+    if (!owner) return false;
+    const current = await tx
+      .select({ id: routineItems.id })
+      .from(routineItems)
+      .where(eq(routineItems.routineId, routineId))
+      .orderBy(asc(routineItems.sortOrder), asc(routineItems.id))
+      .for("update");
+    const ids = current.map((item) => item.id);
+    if (
+      ids.length !== expected.length ||
+      ids.some((id, i) => id !== expected[i]) ||
+      ordered.length !== ids.length ||
+      new Set(ordered).size !== ids.length ||
+      ordered.some((id) => !ids.includes(id))
+    )
+      return false;
+    for (const [sortOrder, id] of ordered.entries()) {
+      await tx
+        .update(routineItems)
+        .set({ sortOrder })
+        .where(and(eq(routineItems.id, id), eq(routineItems.routineId, routineId)));
+    }
+    return true;
+  });
 }
