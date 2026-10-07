@@ -5,24 +5,23 @@ import { MealForm, type MealPrefill } from "./meal-form";
 import { SuggestionsPanel } from "./suggestions-panel";
 import { MealTemplatesPanel } from "./meal-templates-panel";
 import { PreppedMealsPanel } from "./prepped-meals-panel";
-import type { MealTemplateWithItems } from "@/features/nutrition";
+import { RecentMealsPanel } from "./recent-meals-panel";
+import type { NutritionEntryWithItems, MealTemplateWithItems } from "@/features/nutrition";
 import type { PantryItem } from "@/db/schema";
 import type { MacroKey } from "@/lib/macro-order";
 
-/** Wraps everything in the Nutrition section that shares "prefill" state — a suggestion or
- * template's items staged into the log form for editing before submit. Suggestions render near
- * the macro tracker at the top; templates and the custom form render further down, but all three
- * need to feed the same form instance, so this one client component spans both positions with the
- * logged-meals list passed through as `children` in between. */
+/** Shares editable prefill state between meal shortcuts, suggestions, and the log form. */
 export function MealLogging({
   dayIso,
   templates,
+  recentMeals,
   pantryItems,
   macroOrder,
   children,
 }: {
   dayIso: string;
   templates: MealTemplateWithItems[];
+  recentMeals: NutritionEntryWithItems[];
   pantryItems: PantryItem[];
   macroOrder: MacroKey[];
   children?: ReactNode;
@@ -31,8 +30,7 @@ export function MealLogging({
 
   return (
     <>
-      <SuggestionsPanel dayIso={dayIso} onAdjustAndLog={setPrefill} macroOrder={macroOrder} />
-      {children}
+      <RecentMealsPanel entries={recentMeals} onChoose={setPrefill} />
       <MealTemplatesPanel
         dayIso={dayIso}
         templates={templates}
@@ -45,6 +43,8 @@ export function MealLogging({
         onPrefillConsumed={() => setPrefill(null)}
         macroOrder={macroOrder}
       />
+      {children}
+      <SuggestionsPanel dayIso={dayIso} onAdjustAndLog={setPrefill} macroOrder={macroOrder} />
       <PreppedMealsPanel
         dayIso={dayIso}
         items={pantryItems}

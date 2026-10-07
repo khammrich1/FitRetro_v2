@@ -395,6 +395,7 @@ export function MealForm({
           >
             <div className="flex gap-2">
               <input
+                aria-label={`Item ${index + 1} name`}
                 value={item.name}
                 onChange={(event) => updateItem(index, "name", event.target.value)}
                 placeholder="Item name"
@@ -414,6 +415,7 @@ export function MealForm({
               <input
                 type="number"
                 min={0}
+                aria-label={`Item ${index + 1} calories (kcal)`}
                 value={item.calories}
                 onChange={(event) => updateItem(index, "calories", event.target.value)}
                 placeholder="kcal"
@@ -425,6 +427,7 @@ export function MealForm({
                   type="number"
                   min={0}
                   step="any"
+                  aria-label={`Item ${index + 1} ${MACRO_LABELS[key]} (g)`}
                   value={item[GRAM_FIELD[key]]}
                   onChange={(event) => updateItem(index, GRAM_FIELD[key], event.target.value)}
                   placeholder={key}

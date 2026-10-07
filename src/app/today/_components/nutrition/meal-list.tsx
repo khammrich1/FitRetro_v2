@@ -99,6 +99,7 @@ function MealListItem({
       <li className="flex flex-col gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm">
         <div className="flex gap-2">
           <select
+            aria-label="Meal type"
             value={mealType}
             onChange={(event) => setMealType(event.target.value as typeof mealType)}
             className="rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -110,6 +111,7 @@ function MealListItem({
             ))}
           </select>
           <input
+            aria-label="Meal description"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             className="flex-1 rounded-md border border-border bg-background px-2 py-1 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -130,6 +132,7 @@ function MealListItem({
               >
                 <div className="flex gap-2">
                   <input
+                    aria-label={`Item ${index + 1} name`}
                     value={item.name}
                     onChange={(event) => updateItem(index, "name", event.target.value)}
                     placeholder="Item name"
@@ -149,6 +152,7 @@ function MealListItem({
                   <input
                     type="number"
                     min={0}
+                    aria-label={`Item ${index + 1} calories (kcal)`}
                     value={item.calories}
                     onChange={(event) => updateItem(index, "calories", event.target.value)}
                     className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -159,6 +163,7 @@ function MealListItem({
                       type="number"
                       min={0}
                       step="any"
+                      aria-label={`Item ${index + 1} ${MACRO_LABELS[key]} (g)`}
                       value={item[GRAM_FIELD[key]]}
                       onChange={(event) => updateItem(index, GRAM_FIELD[key], event.target.value)}
                       className="rounded-md border border-border bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -187,6 +192,7 @@ function MealListItem({
         ) : (
           <div className="grid grid-cols-4 gap-2">
             <input
+              aria-label="Meal calories (kcal)"
               value={calories}
               onChange={(event) => setCalories(event.target.value)}
               type="number"
@@ -199,6 +205,7 @@ function MealListItem({
               return (
                 <input
                   key={key}
+                  aria-label={`Meal ${MACRO_LABELS[key]} (g)`}
                   value={value}
                   onChange={(event) => setValue(event.target.value)}
                   type="number"
