@@ -43,7 +43,7 @@ export async function generateDailyReading(topic: ReadingTopicKey): Promise<Gene
 
   const client = new Anthropic();
 
-  const response = await client.messages.parse({
+  const response = await client.messages.create({
     model: READING_MODEL,
     max_tokens: 3000,
     output_config: { format: zodOutputFormat(readingSchema) },
@@ -58,10 +58,34 @@ plain paragraphs, no headers or bullet lists. Give it a short, compelling title.
     ],
   });
 
-  if (!response.parsed_output) {
-    throw new Error("Failed to generate today's reading.");
+  // Capture completion metadata before parsing: the SDK parse helper can throw on truncated
+  // JSON before callers can inspect stop_reason. Never log article text or provider errors.
+  const text = response.content.find((block) => block.type === "text");
+  console.info("daily_reading_generation", {
+    topic,
+    messageId: response.id,
+    model: response.model,
+    stopReason: response.stop_reason,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+    maxTokens: 3000,
+    responseCharacters: text?.type === "text" ? text.text.length : 0,
+  });
+  let article: z.infer<typeof readingSchema>;
+  try {
+    article = readingSchema.parse(JSON.parse(text?.type === "text" ? text.text : ""));
+  } catch {
+    throw new Error(
+      "Daily reading structured output could not be parsed; see generation metadata.",
+    );
   }
-
-  const { title, body } = response.parsed_output;
+  const { title, body } = article;
+  console.info("daily_reading_content_shape", {
+    topic,
+    messageId: response.id,
+    bodyCharacters: body.length,
+    words: body.trim().split(/\s+/).filter(Boolean).length,
+    endsWithSentencePunctuation: /[.!?][\s\u201d\u2019"')\]]*$/.test(body),
+  });
   return { title, body, readMinutes: estimateReadMinutes(body) };
 }
