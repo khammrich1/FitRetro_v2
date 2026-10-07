@@ -12,6 +12,7 @@ import { PeptideSection } from "../peptides/peptide-section";
 import { SupplementSection } from "../supplements/supplement-section";
 
 export function RoutineTab({
+  userId,
   dayIso,
   todayIso,
   routines,
@@ -26,6 +27,7 @@ export function RoutineTab({
   supplementLogs,
   mostRecentSupplementLogDates,
 }: {
+  userId: string;
   dayIso: string;
   todayIso: string;
   routines: RoutineWithItems[];
@@ -57,7 +59,7 @@ export function RoutineTab({
       )}
 
       <DailyMissionCard mission={mission} dayIso={dayIso} />
-      <DailyNoteCard dayIso={dayIso} note={note} />
+      <DailyNoteCard userId={userId} dayIso={dayIso} note={note} />
       <DailyReadingCard reading={reading} />
 
       {hasDoses && (

@@ -117,8 +117,21 @@ export function shiftMonth(current: MonthParam, delta: 1 | -1): MonthParam {
 /** Display label for a stored "YYYY-MM-DD" day, e.g. "Sep 21, 2026" or, with weekday,
  * "Sun, Sep 21, 2026". Formatted in UTC so the label is the stored calendar date no matter the
  * server's or browser's time zone. */
-export function formatIsoDay(iso: string, options: { weekday?: boolean } = {}): string {
-  return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", {
+export function formatIsoDay(
+  iso: string,
+  options: { weekday?: boolean; long?: boolean } = {},
+): string {
+  const date = new Date(`${iso}T12:00:00Z`);
+  if (options.long) {
+    // Page headings: "Tuesday, October 7" — the year is implied by the day navigation beside it.
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+  }
+  return date.toLocaleDateString("en-US", {
     ...(options.weekday ? { weekday: "short" as const } : {}),
     month: "short",
     day: "numeric",

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   dayFromIso,
+  formatIsoDay,
   isValidIsoDay,
   isValidTimeZone,
   parseDayParam,
@@ -8,6 +9,14 @@ import {
   todayIsoIn,
   zonedTimeToUtc,
 } from "./date";
+
+describe("formatIsoDay", () => {
+  it("formats from the ISO string, so the label never drifts with the server's zone", () => {
+    expect(formatIsoDay("2026-10-07")).toBe("Oct 7, 2026");
+    expect(formatIsoDay("2026-10-07", { weekday: true })).toBe("Wed, Oct 7, 2026");
+    expect(formatIsoDay("2026-10-07", { long: true })).toBe("Wednesday, October 7");
+  });
+});
 
 describe("isValidIsoDay / parseDayParam", () => {
   it("accepts real days and rejects impossible or malformed ones", () => {

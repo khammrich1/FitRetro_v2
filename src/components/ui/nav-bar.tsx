@@ -1,75 +1,44 @@
 import Link from "next/link";
 import { getCurrentUser, isOwner, logout } from "@/features/auth";
 import { TimeZoneSync } from "./timezone-sync";
+import { MemberNavigation } from "./member-navigation";
 
 export async function NavBar() {
   const user = await getCurrentUser();
 
   return (
-    <nav className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border px-4 py-3 sm:px-6 sm:py-4">
-      <Link href="/" className="retro-heading text-sm font-bold text-primary">
-        FitRetro
-      </Link>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+    <nav
+      aria-label="Main navigation"
+      className="border-b border-border bg-background/80 px-4 py-3 sm:px-6"
+    >
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2">
+        <Link
+          href={user ? "/today" : "/"}
+          className="retro-heading py-2 text-sm font-bold text-primary"
+        >
+          FitRetro
+        </Link>
         {user ? (
           <>
-            <Link href="/today" className="font-medium text-accent">
-              Today
-            </Link>
-            <Link href="/calendar" className="font-medium text-accent">
-              Calendar
-            </Link>
-            <Link href="/pantry" className="font-medium text-accent">
-              Pantry
-            </Link>
-            <Link href="/meal-prep" className="font-medium text-accent">
-              Meal Prep
-            </Link>
-            <Link href="/progress" className="font-medium text-accent">
-              Progress
-            </Link>
-            <Link href="/settings" className="font-medium text-accent">
-              Settings
-            </Link>
-            <Link href="/help" className="font-medium text-accent">
-              Help
-            </Link>
-            <Link href="/feedback" className="font-medium text-accent">
-              Feedback
-            </Link>
-            {isOwner(user.email) && (
-              <>
-                <Link href="/feedback/review" className="font-medium text-accent">
-                  Review Feedback
-                </Link>
-                <Link href="/wake-up" className="font-medium text-accent">
-                  Wake Up
-                </Link>
-              </>
-            )}
+            <MemberNavigation
+              displayName={user.displayName}
+              owner={isOwner(user.email)}
+              logoutAction={logout}
+            />
             <TimeZoneSync current={user.timezone} />
-            <span className="text-muted-foreground">{user.displayName}</span>
-            <form action={logout}>
-              <button
-                type="submit"
-                className="font-medium text-foreground underline hover:text-primary"
-              >
-                Log out
-              </button>
-            </form>
           </>
         ) : (
-          <>
+          <div className="flex items-center gap-4 text-sm">
             <Link href="/login" className="font-medium text-foreground hover:text-primary">
               Log in
             </Link>
             <Link
               href="/signup"
-              className="font-medium text-primary underline hover:text-primary-hover"
+              className="rounded-xl bg-primary px-4 py-2.5 font-semibold text-primary-foreground hover:bg-primary-hover"
             >
               Sign up
             </Link>
-          </>
+          </div>
         )}
       </div>
     </nav>
