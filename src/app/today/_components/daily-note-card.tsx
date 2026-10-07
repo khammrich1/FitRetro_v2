@@ -49,19 +49,27 @@ function NoteEditor({
   const noteRef = useRef(note);
   const savedRef = useRef(initialNote);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inFlightRef = useRef(false);
+  /** The text the request currently on the wire carries; null when nothing is in flight. */
+  const inFlightRef = useRef<string | null>(null);
   const queuedRef = useRef<string | null>(null);
+
+  const clearPendingSave = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
 
   // One request in flight at a time, the newest text waiting behind it. That keeps saves in order
   // (an older save can never land after a newer one) and never drops the latest text; a failure
   // keeps the text queued and tells the user instead of silently losing it.
   const runSaves = useCallback(async () => {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
+    if (inFlightRef.current !== null) return;
     try {
       while (queuedRef.current !== null) {
         const value = queuedRef.current;
         queuedRef.current = null;
+        inFlightRef.current = value;
         setStatus("saving");
         try {
           await setDailyNoteAction(dayIso, value);
@@ -78,15 +86,12 @@ function NoteEditor({
         }
       }
     } finally {
-      inFlightRef.current = false;
+      inFlightRef.current = null;
     }
   }, [userId, dayIso]);
 
   function saveNow(value: string) {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
+    clearPendingSave();
     queuedRef.current = value;
     void runSaves();
   }
@@ -98,13 +103,10 @@ function NoteEditor({
     setError(null);
     writeDraft(userId, dayIso, value);
     if (value === savedRef.current) {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
+      clearPendingSave();
       // A pending older write can still change the server even when the user undoes their
       // edit back to the saved text. Queue that final text behind it rather than declaring saved.
-      if (inFlightRef.current) {
+      if (inFlightRef.current !== null) {
         saveNow(value);
         setStatus("saving");
         return;
@@ -119,7 +121,7 @@ function NoteEditor({
       saveNow(value);
       return;
     }
-    if (timerRef.current) clearTimeout(timerRef.current);
+    clearPendingSave();
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
       queuedRef.current = value;
@@ -137,26 +139,46 @@ function NoteEditor({
     applyChange(current ? `${current} ${transcript}` : transcript);
   });
 
-  // A restored draft is unsaved by definition; send it as soon as the editor opens.
+  // A restored draft is unsaved by definition; send it as soon as the editor opens. This also
+  // runs each time the collapsed editor is shown again, so it must not re-send text that the
+  // collapse already put on the wire.
   useEffect(() => {
-    if (noteRef.current !== savedRef.current) {
-      queuedRef.current = noteRef.current;
-      void runSaves();
-    }
-    // Flush on unmount (collapse, day navigation, leaving the page): anything still waiting on
-    // the debounce is sent immediately rather than lost. The draft stays in storage until the
-    // save confirms.
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      if (noteRef.current !== savedRef.current) {
-        queuedRef.current = noteRef.current;
+    const flush = () => {
+      const text = noteRef.current;
+      if (text !== savedRef.current && text !== inFlightRef.current) {
+        queuedRef.current = text;
         void runSaves();
       }
     };
-  }, [runSaves]);
+    flush();
+    // Flush on hide/unmount (collapse, day navigation, leaving the page): anything still waiting
+    // on the debounce is sent immediately rather than lost. The draft stays in storage until the
+    // save confirms.
+    return () => {
+      clearPendingSave();
+      flush();
+    };
+  }, [runSaves, clearPendingSave]);
+
+  // The server copy can change while the editor sits collapsed (a save from another device,
+  // then a revalidation here). Follow it unless there are unsaved edits — those are the
+  // member's, and they save over it as usual.
+  const lastInitialRef = useRef(initialNote);
+  useEffect(() => {
+    if (initialNote === lastInitialRef.current) return;
+    lastInitialRef.current = initialNote;
+    if (initialNote === savedRef.current) return; // our own save coming back round
+    const clean =
+      noteRef.current === savedRef.current &&
+      queuedRef.current === null &&
+      inFlightRef.current === null;
+    savedRef.current = initialNote;
+    if (clean) {
+      noteRef.current = initialNote;
+      setNote(initialNote);
+      setStatus("idle");
+    }
+  }, [initialNote]);
 
   function handleCleanUp() {
     setError(null);

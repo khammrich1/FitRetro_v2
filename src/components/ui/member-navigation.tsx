@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 const PRIMARY = [
   { href: "/today", label: "Today" },
@@ -44,9 +44,21 @@ export function MemberNavigation({
     if (disclosure.current) disclosure.current.open = false;
   }
 
+  // Close on a press outside the menu. Blur alone isn't enough: Safari and Firefox don't focus a
+  // button on mousedown, so a click inside the menu would blur the trigger with no relatedTarget
+  // and close the menu before the click lands.
+  useEffect(() => {
+    function onPointerDown(event: PointerEvent) {
+      const details = disclosure.current;
+      if (details?.open && !details.contains(event.target as Node)) details.open = false;
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
+
   return (
     <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
-      <div className="flex min-w-0 flex-1 items-center gap-1" aria-label="Main sections">
+      <div className="flex min-w-0 flex-1 items-center gap-1">
         {PRIMARY.map(({ href, label }) => (
           <Link
             key={href}
@@ -68,7 +80,9 @@ export function MemberNavigation({
           }
         }}
         onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) close();
+          // Keyboard users tabbing out: only close when focus has demonstrably moved elsewhere.
+          const next = event.relatedTarget as Node | null;
+          if (next && !event.currentTarget.contains(next)) close();
         }}
       >
         <summary

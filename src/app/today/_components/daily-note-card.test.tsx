@@ -51,6 +51,54 @@ describe("DailyNoteCard saving", () => {
     fireEvent.click(screen.getByRole("button", { name: /Daily note/ }));
     expect(screen.getByRole("textbox")).toHaveValue("new text");
   });
+  it("follows a note that changed on the server while the editor was collapsed", async () => {
+    const view = openEditor("A");
+    fireEvent.click(screen.getByRole("button", { name: /Daily note/ })); // collapse
+    await act(async () => {
+      view.rerender(<DailyNoteCard userId="member-a" dayIso={DAY} note="B" />);
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Daily note/ })); // expand
+    expect(screen.getByRole("textbox")).toHaveValue("B");
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "B and more" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(700);
+    });
+    expect(mocks.setDailyNoteAction.mock.calls.map(([, text]) => text)).toEqual(["B and more"]);
+  });
+
+  it("keeps unsaved local edits over a server change, and still saves them", async () => {
+    const view = openEditor("A");
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "A typed" } });
+    await act(async () => {
+      view.rerender(<DailyNoteCard userId="member-a" dayIso={DAY} note="B" />);
+    });
+    expect(screen.getByRole("textbox")).toHaveValue("A typed");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(700);
+    });
+    expect(mocks.setDailyNoteAction).toHaveBeenLastCalledWith(DAY, "A typed");
+  });
+
+  it("doesn't send the same text twice when collapsed and reopened mid-save", async () => {
+    let release!: () => void;
+    mocks.setDailyNoteAction
+      .mockImplementationOnce(() => new Promise<void>((resolve) => (release = resolve)))
+      .mockResolvedValue(undefined);
+    openEditor("");
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "hello" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(700);
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Daily note/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Daily note/ }));
+    await act(async () => {
+      release();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(mocks.setDailyNoteAction.mock.calls.map(([, text]) => text)).toEqual(["hello"]);
+    expect(screen.getByRole("status")).toHaveTextContent("Saved");
+  });
+
   it("does not load or save another member's draft on a shared browser", async () => {
     sessionStorage.setItem(`daily-note:draft:member-b:${DAY}`, "private note from B");
     sessionStorage.setItem(`daily-note:draft:${DAY}`, "unattributed legacy note");

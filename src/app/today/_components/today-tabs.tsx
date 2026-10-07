@@ -4,6 +4,7 @@ import {
   Activity,
   useId,
   useRef,
+  useState,
   useSyncExternalStore,
   type KeyboardEvent,
   type ReactNode,
@@ -61,7 +62,9 @@ function setActiveTab(tab: TabId) {
 }
 
 /** Panels are rendered server-side once (in page.tsx) and handed in as already-built React
- * nodes — switching tabs only toggles which one is shown, it never re-fetches. */
+ * nodes — switching tabs only toggles which one is shown, it never re-fetches. A panel mounts
+ * the first time it's shown and then stays mounted (hidden) so half-filled forms survive a
+ * switch; the panels never visited cost nothing. */
 export function TodayTabs({
   dayIso,
   nutrition,
@@ -77,6 +80,16 @@ export function TodayTabs({
   const id = useId();
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const panels: Record<TabId, ReactNode> = { nutrition, move, routine };
+  const [visited, setVisited] = useState<TabId[]>([]);
+
+  /** Switch tabs, remembering both the one being left and the one being opened. The one being
+   * left may have been restored from storage on hydration without passing through here. */
+  function select(tab: TabId) {
+    setVisited((seen) =>
+      [active, tab].reduce<TabId[]>((acc, id) => (acc.includes(id) ? acc : [...acc, id]), seen),
+    );
+    setActiveTab(tab);
+  }
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let next: number;
@@ -86,7 +99,7 @@ export function TodayTabs({
     else if (event.key === "End") next = TABS.length - 1;
     else return;
     event.preventDefault();
-    setActiveTab(TABS[next].id);
+    select(TABS[next].id);
     buttons.current[next]?.focus();
   }
 
@@ -109,7 +122,7 @@ export function TodayTabs({
             aria-selected={active === tab.id}
             aria-controls={`${id}-panel-${tab.id}`}
             tabIndex={active === tab.id ? 0 : -1}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => select(tab.id)}
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={`min-w-0 flex-1 rounded-xl px-2 py-3 text-sm font-semibold transition-colors motion-reduce:transition-none ${
               active === tab.id
@@ -124,7 +137,7 @@ export function TodayTabs({
           </button>
         ))}
       </div>
-      {TABS.map((tab) => (
+      {TABS.filter((tab) => tab.id === active || visited.includes(tab.id)).map((tab) => (
         <Activity key={`${dayIso}-${tab.id}`} mode={active === tab.id ? "visible" : "hidden"}>
           <div
             role="tabpanel"

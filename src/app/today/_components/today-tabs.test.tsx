@@ -44,6 +44,18 @@ describe("daily tracking tabs", () => {
     expect(screen.getByRole("textbox")).toHaveValue("");
   });
 
+  it("mounts a panel the first time it's opened and keeps it after switching away", () => {
+    render(view());
+    expect(screen.queryByText("Ritual panel")).not.toBeInTheDocument();
+    expect(screen.queryByText("Training panel")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: /Routine/ }));
+    expect(screen.getByText("Ritual panel")).toBeVisible();
+    fireEvent.click(screen.getByRole("tab", { name: /Nutrition/ }));
+    // Still mounted (hidden) so its state survives; Move was never opened, so it never mounted.
+    expect(screen.getByText("Ritual panel")).not.toBeVisible();
+    expect(screen.queryByText("Training panel")).not.toBeInTheDocument();
+  });
+
   it("supports roving focus, wrapping arrows, Home and End", () => {
     render(view());
     const nutrition = screen.getByRole("tab", { name: /Nutrition/ });

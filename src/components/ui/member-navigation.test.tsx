@@ -19,6 +19,34 @@ it("highlights nested destinations and keeps one current-page link", () => {
   expect(screen.getByRole("link", { name: /^Feedback$/ })).not.toHaveAttribute("aria-current");
 });
 
+it("stays open when the trigger blurs with nowhere in particular, and closes on an outside press", () => {
+  render(<MemberNavigation displayName="Member" owner={false} logoutAction={async () => {}} />);
+  const more = screen.getByText("More");
+  fireEvent.click(more);
+  const details = more.closest("details")!;
+  // Safari/Firefox blur the summary on mousedown inside the menu with relatedTarget null.
+  fireEvent.blur(more, { relatedTarget: null });
+  expect(details).toHaveAttribute("open");
+  expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
+  fireEvent.pointerDown(screen.getByRole("button", { name: "Log out" }));
+  expect(details).toHaveAttribute("open");
+  fireEvent.pointerDown(document.body);
+  expect(details).not.toHaveAttribute("open");
+});
+
+it("closes More when focus moves to something outside it", () => {
+  render(
+    <>
+      <MemberNavigation displayName="Member" owner={false} logoutAction={async () => {}} />
+      <button type="button">Elsewhere</button>
+    </>,
+  );
+  const more = screen.getByText("More");
+  fireEvent.click(more);
+  fireEvent.blur(more, { relatedTarget: screen.getByRole("button", { name: "Elsewhere" }) });
+  expect(more.closest("details")).not.toHaveAttribute("open");
+});
+
 it("closes More with Escape and returns focus to its trigger", () => {
   render(<MemberNavigation displayName="Member" owner={false} logoutAction={async () => {}} />);
   const more = screen.getByText("More");

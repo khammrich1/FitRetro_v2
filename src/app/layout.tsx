@@ -43,8 +43,18 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:text-sm focus:text-foreground"
+        >
+          Skip to content
+        </a>
         <NavBar />
-        {children}
+        {/* Same flex-column context the pages had as direct children of body, so nothing that
+            relied on it (flex-1 fills, mt-auto) changes; one main landmark on every page. */}
+        <main id="main-content" className="flex flex-1 flex-col">
+          {children}
+        </main>
         <footer className="mt-auto py-2 text-center text-[10px] text-muted-foreground/50">
           {process.env.NEXT_PUBLIC_GIT_SHA}
         </footer>
