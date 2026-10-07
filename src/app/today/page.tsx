@@ -8,6 +8,7 @@ import { parseReadingTopics, pickTodaysTopic } from "@/lib/reading-topics";
 import { getReadingForDayAndTopic, generateAndCacheReading } from "@/features/daily-reading";
 import { DayNav } from "@/components/ui/day-nav";
 import {
+  getRecentMeals,
   getGoals,
   getEntriesForDay,
   summarizeMacros,
@@ -64,6 +65,7 @@ export default async function TodayPage({
     goal,
     entries,
     mealTemplates,
+    recentMeals,
     routines,
     mission,
     splitTarget,
@@ -84,6 +86,7 @@ export default async function TodayPage({
     getGoals(userId),
     getEntriesForDay(userId, day),
     getMealTemplatesForUser(userId),
+    getRecentMeals(userId),
     getRoutinesForUser(userId, day),
     getMissionForDay(userId, day),
     getSplitCycleTargetForDate(userId, day),
@@ -197,6 +200,7 @@ export default async function TodayPage({
             goal={goal}
             macroOrder={macroOrder}
             waterOunces={waterOunces}
+            recentMeals={recentMeals}
             mealTemplates={mealTemplates}
             pantryItems={pantryItems}
             entries={entries}
