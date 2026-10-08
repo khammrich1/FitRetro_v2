@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { peptideDoseUnitEnum, peptideFrequencyEnum, type PeptideTemplate } from "@/db/schema";
 import { updatePeptideTemplateAction, archivePeptideTemplateAction } from "@/app/peptides/actions";
+import { peptideFrequencyLabel } from "@/features/peptides/frequency";
 import { computeDrawVolumeMl, mlToSyringeUnits } from "@/features/peptides/reconstitution";
 
 /** Formats a 24-hour "HH:MM" string (from a native time input) as e.g. "8:00 AM". */
@@ -95,6 +96,7 @@ export function PeptideTemplateCard({ template }: { template: PeptideTemplate })
             ))}
           </select>
           <select
+            aria-label="Frequency"
             value={frequency}
             onChange={(event) =>
               setFrequency(event.target.value as (typeof peptideFrequencyEnum.enumValues)[number])
@@ -103,7 +105,7 @@ export function PeptideTemplateCard({ template }: { template: PeptideTemplate })
           >
             {peptideFrequencyEnum.enumValues.map((freq) => (
               <option key={freq} value={freq}>
-                {freq.replaceAll("_", " ")}
+                {peptideFrequencyLabel(freq)}
               </option>
             ))}
           </select>
@@ -213,7 +215,7 @@ export function PeptideTemplateCard({ template }: { template: PeptideTemplate })
         <span className="font-medium">{template.name}</span>{" "}
         <span className="text-muted-foreground">
           — {template.doseAmount}
-          {template.doseUnit}, {template.frequency.replaceAll("_", " ")}
+          {template.doseUnit}, {peptideFrequencyLabel(template.frequency)}
           {formattedTime ? `, ${formattedTime}` : ""}
           {drawMl !== null
             ? ` · draw ${drawMl.toFixed(2)}mL (${mlToSyringeUnits(drawMl).toFixed(0)}u)`

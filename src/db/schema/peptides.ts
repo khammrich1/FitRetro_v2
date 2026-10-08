@@ -11,6 +11,7 @@ export const peptideFrequencyEnum = pgEnum("peptide_frequency", [
   "three_times_weekly",
   "weekly",
   "as_needed",
+  "mon_fri",
 ]);
 export type PeptideFrequency = (typeof peptideFrequencyEnum.enumValues)[number];
 
