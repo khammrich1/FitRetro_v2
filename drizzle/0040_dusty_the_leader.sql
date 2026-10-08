@@ -1,0 +1,1 @@
+ALTER TYPE "public"."peptide_frequency" ADD VALUE 'mon_fri';

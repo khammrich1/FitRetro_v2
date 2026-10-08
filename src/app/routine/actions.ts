@@ -10,6 +10,7 @@ import {
   updateRoutineItem,
   deleteRoutineItem,
   moveRoutineItem,
+  reorderRoutineItems,
   toggleRoutineItemCompletion,
   updateRoutineCompletionNotes,
 } from "@/features/routines";
@@ -135,4 +136,29 @@ export async function updateRoutineCompletionNotesAction(
     notes.trim() || null,
   );
   revalidateRoutinePaths();
+}
+
+export async function reorderRoutineItemsAction(
+  routineId: string,
+  expected: string[],
+  ordered: string[],
+): Promise<{ error?: string }> {
+  const { userId } = await verifySession();
+  const schema = z.object({
+    routineId: z.uuid(),
+    expected: z.array(z.uuid()).max(500),
+    ordered: z.array(z.uuid()).max(500),
+  });
+  const parsed = schema.safeParse({ routineId, expected, ordered });
+  if (!parsed.success) return { error: "Invalid step order. Reload and try again." };
+  try {
+    if (!(await reorderRoutineItems(routineId, userId, expected, ordered))) {
+      revalidateRoutinePaths();
+      return { error: "These steps changed. Reloaded the saved order; please try again." };
+    }
+    revalidateRoutinePaths();
+    return {};
+  } catch {
+    return { error: "Could not save the order. Restoring the saved steps; please try again." };
+  }
 }

@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { peptideDoseUnitEnum, peptideFrequencyEnum, type PeptideDoseUnit } from "@/db/schema";
 import { createPeptideTemplateAction } from "@/app/peptides/actions";
+import { peptideFrequencyLabel } from "@/features/peptides/frequency";
 import { computeDrawVolumeMl, mlToSyringeUnits } from "@/features/peptides/reconstitution";
 
 export function NewPeptideForm() {
@@ -56,13 +57,14 @@ export function NewPeptideForm() {
           ))}
         </select>
         <select
+          aria-label="Frequency"
           name="frequency"
           defaultValue={peptideFrequencyEnum.enumValues[0]}
           className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
         >
           {peptideFrequencyEnum.enumValues.map((freq) => (
             <option key={freq} value={freq}>
-              {freq.replaceAll("_", " ")}
+              {peptideFrequencyLabel(freq)}
             </option>
           ))}
         </select>
