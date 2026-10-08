@@ -2,11 +2,16 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import { isCompleteArticle } from "./validation.mjs";
 import type { ReadingTopicKey } from "@/lib/reading-topics";
 
-// Generated once per (day, topic) and shared across every subscribed user — at most 4 calls a
-// day total regardless of how many users subscribe — so a stronger model for writing quality is
-// negligible in cost, unlike per-user/per-request generation elsewhere in the app.
+// Shared across subscribers, with one initial attempt and one incomplete-response retry.
+export class IncompleteReadingError extends Error {}
+
+// 1200 words × up to ~4 tokens/word plus JSON/escaping headroom. This is a ceiling,
+// not a target; actual billed output remains the generated length.
+export const READING_MAX_TOKENS = 6000;
+
 const READING_MODEL = "claude-sonnet-5";
 
 const TOPIC_PROMPTS: Record<ReadingTopicKey, string> = {
@@ -41,11 +46,11 @@ export async function generateDailyReading(topic: ReadingTopicKey): Promise<Gene
     );
   }
 
-  const client = new Anthropic();
+  const client = new Anthropic({ maxRetries: 0, timeout: 120_000 });
 
   const response = await client.messages.create({
     model: READING_MODEL,
-    max_tokens: 3000,
+    max_tokens: READING_MAX_TOKENS,
     output_config: { format: zodOutputFormat(readingSchema) },
     messages: [
       {
@@ -53,7 +58,7 @@ export async function generateDailyReading(topic: ReadingTopicKey): Promise<Gene
         content: `Write a short, practical daily reading on the topic of ${TOPIC_PROMPTS[topic]}.
 Aim for about 800-1200 words (a 5-10 minute read). Direct and actionable, not fluffy or generic —
 give concrete advice, a specific framework, or a real example the reader can apply today. Write in
-plain paragraphs, no headers or bullet lists. Give it a short, compelling title.`,
+plain paragraphs, no headers or bullet lists. Give it a short, compelling title. Finish the article with a complete concluding paragraph and sentence.`,
       },
     ],
   });
@@ -68,16 +73,17 @@ plain paragraphs, no headers or bullet lists. Give it a short, compelling title.
     stopReason: response.stop_reason,
     inputTokens: response.usage.input_tokens,
     outputTokens: response.usage.output_tokens,
-    maxTokens: 3000,
+    maxTokens: READING_MAX_TOKENS,
     responseCharacters: text?.type === "text" ? text.text.length : 0,
   });
+  if (response.stop_reason !== "end_turn") {
+    throw new IncompleteReadingError("Daily reading did not finish normally.");
+  }
   let article: z.infer<typeof readingSchema>;
   try {
     article = readingSchema.parse(JSON.parse(text?.type === "text" ? text.text : ""));
   } catch {
-    throw new Error(
-      "Daily reading structured output could not be parsed; see generation metadata.",
-    );
+    throw new IncompleteReadingError("Daily reading structured output could not be parsed.");
   }
   const { title, body } = article;
   console.info("daily_reading_content_shape", {
@@ -87,5 +93,8 @@ plain paragraphs, no headers or bullet lists. Give it a short, compelling title.
     words: body.trim().split(/\s+/).filter(Boolean).length,
     endsWithSentencePunctuation: /[.!?][\s\u201d\u2019"')\]]*$/.test(body),
   });
+  if (!isCompleteArticle(title, body)) {
+    throw new IncompleteReadingError("Daily reading has an incomplete or invalid article body.");
+  }
   return { title, body, readMinutes: estimateReadMinutes(body) };
 }

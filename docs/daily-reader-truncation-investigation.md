@@ -1,22 +1,32 @@
-# Daily Reader truncation investigation (#49)
+# Daily Reader completion fix and targeted repair (#49)
 
-## Confirmed so far
+## Prevention
 
-At main 385c384, generation requests 800–1200 words with max_tokens=3000.
-The cache stores title/body/readMinutes; it does not store the original API stop reason or usage.
-The installed SDK’s lib/parser.mjs parses JSON without checking stop_reason, and may throw before
-returning completion metadata. App generation accepts any successfully parsed title/body.
-There is no application-side body slicing between generation and persistence.
+Generation accepts only an API `end_turn` response, valid structured output, a nonempty title,
+and a 600–1800-word body with a finished sentence ending (not an ellipsis). The requested length
+remains 800–1200 words; the wider validation range allows reasonable model variation. These are
+structural guards, not a guarantee of semantic completeness.
 
-The owner reported an article ending “Vague feedback like”. The affected stored row and original
-API response have not been inspected from this workspace: there is no DATABASE_URL, API key, or
-server-log access. Token exhaustion is a hypothesis, not a confirmed incident cause.
+The output ceiling is 6000 tokens: 1200 words at a conservative four tokens per word plus JSON
+and escaping headroom. This removes the unnecessarily tight 3000-token ceiling without asserting
+that token exhaustion caused the reported incident. Safe completion metadata is logged before
+parsing, without article content, prompts, or credentials.
 
-## Read-only cache inspection (run on the affected environment)
+An incomplete generation retries once in the same single-flight lease. SDK automatic retries are
+disabled, so there are no hidden extra attempts. The existing atomic rate-limit store caps attempts
+for each day/topic at two per rolling 24 hours, including failures. Lease expiry and page reloads
+cannot bypass this budget. Provider credit/auth/network errors do not retry automatically. Existing
+cached articles are never overwritten by background generation. Subscribers see a clear unavailable
+state when the current day's article is absent; Check again refreshes the page and obeys the same
+lease and persistent budget. No new schema migration.
 
-Use the existing database connection without copying credentials into chat. Start a read-only
-transaction. This query only returns leadership articles matching the reported ending; widen the
-date range only if there is no match. Preserve the resulting ID/day for any later targeted repair.
+## Incident evidence still needed
+
+The affected saved row and original API response are unavailable in this workspace. The owner
+reported a leadership article ending “Vague feedback like”. Source confirms there was no completion
+check before caching. Token exhaustion remains a hypothesis, not the confirmed incident cause.
+
+Inspect the affected environment read-only (do not share DATABASE_URL):
 
 ```sql
 BEGIN READ ONLY;
@@ -29,33 +39,30 @@ WHERE topic = 'leadership'
 ROLLBACK;
 ```
 
-## Generation diagnostics
+## Backup-first targeted repair
 
-This PR records message ID, topic, model, stop reason, token counts, configured budget, and text
-length before structured-output parsing. After parsing, it records body length, word count, and
-whether the ending has sentence punctuation. It does not log article text, keys, prompts, or raw
-provider errors. Use these events to distinguish token exhaustion, malformed JSON, and a model
-response that completed but supplied an unfinished article. Message IDs and topic metadata should
-remain in restricted operational logs under the existing retention policy.
+The PR includes `scripts/repair-daily-reading.mjs`. It makes no AI requests. Prepare a reviewed
+replacement JSON file locally with `id`, `day`, `topic: "leadership"`, `title`, and a complete `body`.
+Use the exact ID/day returned by the inspection. Keep replacement files out of Git.
 
-No extra paid calls, retry changes, token budget changes, cache invalidation, or database writes
-are added by this diagnostic change. Existing generation/cache behavior is retained. This is not
-a fix for incomplete articles and does not close #49.
-
-## Fix and targeted repair after evidence
-
-Confirm the affected row and available generation metadata before selecting the completion guard,
-content validation, and token budget. Add persistence tests proving incomplete responses cannot be
-cached or replace a valid article, and preserve bounded single-flight retry/cost controls.
-
-Before any targeted overwrite, take a backup:
+With DATABASE_URL already set on **dev**, run:
 
 ```bash
-pg_dump "$DATABASE_URL" > backup-$(date +%Y%m%d%H%M%S).sql
+node scripts/repair-daily-reading.mjs /secure/path/replacement.json
+node scripts/repair-daily-reading.mjs /secure/path/replacement.json --apply
 ```
 
-Then prepare a transaction selecting the confirmed row by ID/day/topic and matching the expected
-old body, stage a validated replacement, and update only that exact row. Do not delete a whole
-day/topic cache or regenerate unrelated readings. No repair SQL is supplied until the affected
-row and replacement have been verified. Validate the repaired ending and a newly generated article
-on d.fitretro.app before production.
+The first command is a read-only dry run. The apply command validates the replacement using the same
+completion guard as generation, verifies the exact saved row still ends with the reported phrase,
+and automatically runs a full `pg_dump` custom-format backup **before any update**. Backup failure
+aborts the repair. Backups are retained under `backups/` (Git-ignored); protect them as sensitive data.
+
+The update runs transactionally and matches ID, day, topic, and the full old body. If another process
+changed the article after inspection, the update rolls back. It updates only title/body/read_minutes;
+it does not delete a cache, regenerate unrelated articles, or change IDs/dates. Applying twice fails
+the reported-ending check. No repair has been executed from this workspace.
+
+After repair, verify the finished ending and identical text after refresh on d.fitretro.app. Test a
+new generation and simulated failure there before production. Keep PR #55 in draft until checks and
+owner acceptance are complete. A production repair requires its own environment inspection and
+backup; do not treat dev verification as production verification.

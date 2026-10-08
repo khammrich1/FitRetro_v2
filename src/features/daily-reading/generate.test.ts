@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ create: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("@anthropic-ai/sdk", () => ({
@@ -6,7 +6,8 @@ vi.mock("@anthropic-ai/sdk", () => ({
     messages = { create: mocks.create };
   },
 }));
-import { generateDailyReading } from "./generate";
+import { generateDailyReading, READING_MAX_TOKENS } from "./generate";
+const body = "A complete practical sentence. ".repeat(200);
 function response(text: string, stop_reason = "end_turn") {
   return {
     id: "message-test",
@@ -19,36 +20,46 @@ function response(text: string, stop_reason = "end_turn") {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("ANTHROPIC_API_KEY", "test-only");
+  vi.spyOn(console, "info").mockImplementation(() => {});
 });
-describe("daily reader diagnostics", () => {
-  it("records completion metadata before malformed output parsing fails, without logging text", async () => {
-    const info = vi.spyOn(console, "info").mockImplementation(() => {});
-    mocks.create.mockResolvedValue(response("secret article fragment", "max_tokens"));
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
+describe("complete daily readings", () => {
+  it.each(["max_tokens", "stop_sequence", "refusal", null])(
+    "rejects non-complete stop reason %s even with valid JSON",
+    async (reason) => {
+      mocks.create.mockResolvedValue(
+        response(JSON.stringify({ title: "Title", body }), reason as string),
+      );
+      await expect(generateDailyReading("leadership")).rejects.toThrow("did not finish");
+    },
+  );
+  it.each([body + "Vague feedback like", body + "…", "Too short."])(
+    "rejects unfinished or implausibly short content",
+    async (incomplete) => {
+      mocks.create.mockResolvedValue(
+        response(JSON.stringify({ title: "Title", body: incomplete })),
+      );
+      await expect(generateDailyReading("leadership")).rejects.toThrow("article body");
+    },
+  );
+  it("redacts malformed output while retaining safe diagnostics", async () => {
+    mocks.create.mockResolvedValue(response("secret article fragment"));
     await expect(generateDailyReading("leadership")).rejects.toThrow("structured output");
-    expect(info).toHaveBeenCalledWith(
-      "daily_reading_generation",
-      expect.objectContaining({ stopReason: "max_tokens", outputTokens: 3000, maxTokens: 3000 }),
+    expect(JSON.stringify(vi.mocked(console.info).mock.calls)).not.toContain(
+      "secret article fragment",
     );
-    expect(JSON.stringify(info.mock.calls)).not.toContain("secret article fragment");
-    info.mockRestore();
   });
-  it("keeps valid output and existing token budget unchanged, logging only content shape", async () => {
-    const info = vi.spyOn(console, "info").mockImplementation(() => {});
-    mocks.create.mockResolvedValue(
-      response(JSON.stringify({ title: "Title", body: "A private article ending." })),
-    );
+  it("accepts a complete article with output headroom", async () => {
+    mocks.create.mockResolvedValue(response(JSON.stringify({ title: "Title", body })));
     expect(await generateDailyReading("leadership")).toEqual({
       title: "Title",
-      body: "A private article ending.",
-      readMinutes: 1,
+      body,
+      readMinutes: 4,
     });
-    expect(mocks.create).toHaveBeenCalledOnce();
-    expect(mocks.create.mock.calls[0][0].max_tokens).toBe(3000);
-    expect(info).toHaveBeenCalledWith(
-      "daily_reading_content_shape",
-      expect.objectContaining({ endsWithSentencePunctuation: true }),
-    );
-    expect(JSON.stringify(info.mock.calls)).not.toContain("private article");
-    info.mockRestore();
+    expect(mocks.create.mock.calls[0][0].max_tokens).toBe(READING_MAX_TOKENS);
+    expect(READING_MAX_TOKENS).toBe(6000);
   });
 });

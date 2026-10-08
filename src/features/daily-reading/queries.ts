@@ -3,7 +3,8 @@ import { db } from "@/db/client";
 import { dailyReadings, dailyReadingJobs, type DailyReading } from "@/db/schema";
 import type { ReadingTopicKey } from "@/lib/reading-topics";
 import { getAiUsageTotalForDay, globalDailyAiLimit } from "@/features/ai-usage";
-import { generateDailyReading } from "./generate";
+import { consumeRateLimit } from "@/features/auth/rate-limit";
+import { IncompleteReadingError, generateDailyReading } from "./generate";
 
 /** How long a claim on a (day, topic) generation is honoured before another request may take it
  * over. Long enough for a slow generation to finish; short enough that a crashed attempt
@@ -70,7 +71,25 @@ export async function generateAndCacheReading(
       return;
     }
 
-    const { title, body, readMinutes } = await generateDailyReading(topic);
+    // Shared persistent budget prevents page reloads / lease expiry from starting fresh retry
+    // loops. At most two provider requests for this day/topic in a rolling 24-hour window.
+    let reading;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const budget = await consumeRateLimit({
+        key: `daily-reading:${dayIso}:${topic}`,
+        limit: 2,
+        windowSeconds: 86400,
+      });
+      if (!budget.allowed) return;
+      try {
+        reading = await generateDailyReading(topic);
+        break;
+      } catch (error) {
+        if (!(error instanceof IncompleteReadingError) || attempt === 1) throw error;
+      }
+    }
+    if (!reading) return;
+    const { title, body, readMinutes } = reading;
     // The lease makes a duplicate insert all but impossible; onConflictDoNothing is the last
     // line of defence if a lease ever expires mid-generation and a second attempt finishes
     // first — whichever loses just doesn't insert.
@@ -78,7 +97,7 @@ export async function generateAndCacheReading(
       .insert(dailyReadings)
       .values({ day: dayIso, topic, title, body, readMinutes })
       .onConflictDoNothing({ target: [dailyReadings.day, dailyReadings.topic] });
-  } catch (error) {
-    console.error(`Failed to generate daily reading for topic "${topic}" on ${dayIso}:`, error);
+  } catch {
+    console.error(`Daily reading unavailable for topic "${topic}" on ${dayIso}.`);
   }
 }
