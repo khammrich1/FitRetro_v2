@@ -220,6 +220,7 @@ export default async function TodayPage({
             routines={routines}
             mission={mission}
             note={dailyNote}
+            readingExpected={dayIso === todayIso && Boolean(todaysTopic)}
             reading={reading}
             peptideTemplates={peptideTemplates}
             peptideLogs={peptideLogs}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { DailyReading } from "@/db/schema";
 import { READING_TOPIC_LABELS } from "@/lib/reading-topics";
 
@@ -82,7 +83,14 @@ function ToggleGroup<T extends string>({
   );
 }
 
-export function DailyReadingCard({ reading }: { reading: DailyReading | null }) {
+export function DailyReadingCard({
+  reading,
+  expected = false,
+}: {
+  reading: DailyReading | null;
+  expected?: boolean;
+}) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [background, setBackground] = useState<Background>(() =>
     readStoredOption(BACKGROUND_STORAGE_KEY, BACKGROUNDS, "gray"),
@@ -91,7 +99,23 @@ export function DailyReadingCard({ reading }: { reading: DailyReading | null }) 
     readStoredOption(TEXT_SIZE_STORAGE_KEY, TEXT_SIZES, "medium"),
   );
 
-  if (!reading) return null;
+  if (!reading)
+    return expected ? (
+      <section className="rounded-lg border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Daily Reader</h2>
+        <p role="status" className="mt-2 text-sm text-muted-foreground">
+          Your reading is unavailable right now. It may still be preparing. If preparation fails,
+          we’ll leave it unavailable rather than show an unfinished article.
+        </p>
+        <button
+          type="button"
+          onClick={() => router.refresh()}
+          className="mt-3 min-h-11 rounded-full border border-border px-4 text-sm hover:border-accent"
+        >
+          Check again
+        </button>
+      </section>
+    ) : null;
 
   const paragraphs = reading.body.split(/\n+/).filter((paragraph) => paragraph.trim() !== "");
 
