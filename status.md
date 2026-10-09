@@ -1,5 +1,15 @@
 # FitRetro — Live Status
 
+## Current reconciliation — October 9, 2026 (Pacific)
+
+PR #61 is merged to main (merge commit `11e5bbe`; candidate `06a7385`). The owner AI integer-overflow cause and inline-error fix are documented in #56/#61. Kyle subsequently reported “its working”; preserve that as owner-reported recovery. The report does not identify the deployed environment/revision or separately prove all three suggestions/text/photo checks. #56 remains open. Record those details before closing it; do not keep claiming recovery was never reported.
+
+No open implementation PRs were returned in this audit. #53/#54/#55 are merged; phone acceptance for Mon–Fri persistence, touch routine reorder and complete Daily Reader responses remains separately scoped. #48 is still open. Movement checkboxes (+1 per movement, #57) and Bronze 100/Silver 200/Gold 300 medals/streaks (#58) are scoped, not shipped. Optional public achievements/leaderboard #59 stays V2.
+
+Next: confirm exact DEV/PROD revisions and suggestions/text/photo results, then verify $8/month checkout, free-month /promo1, webhook/entitlement behavior and cancellation/duplicate handling. Stripe readiness is unresolved; key authentication or an AI recovery report alone cannot establish billing readiness. FitRetro uses PostgreSQL/Drizzle and its existing auth; do not infer a Supabase database/auth migration from an earlier storage experiment. App Platform migration is an owner discussion, not a completed move.
+
+## Historical coordination — superseded where conflicting
+
 ## Nutrition AI crash fix — issue #56 (2026-10-09)
 
 Production root cause (confirmed by the owner's live reproduction, SQLSTATE 22003): the owner's
