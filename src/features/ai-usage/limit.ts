@@ -1,5 +1,6 @@
 import { getUserById, isOwner } from "@/features/auth";
 import { dayFromIso, todayIsoIn } from "@/lib/date";
+import { AI_UNAVAILABLE_MESSAGE, errorCode } from "./failure";
 import { getAiUsageTotalForDay, reserveAiUsage } from "./queries";
 
 /** Longest text any AI action accepts. Real descriptions are a few hundred characters; this
@@ -46,17 +47,30 @@ export async function checkAiUsageAllowed(
   const user = await getUserById(userId);
   const today = dayFromIso(todayIsoIn(user?.timezone));
 
-  const total = await getAiUsageTotalForDay(today);
-  if (total >= globalDailyAiLimit()) {
-    // The only alert channel today is the process log; this line is what to grep for.
-    console.error(`AI site-wide daily limit reached (${total} actions)`);
-    return { allowed: false, error: SITE_LIMIT_MESSAGE };
+  // The owner has no per-user cap (null — not a huge number: ai_usage.count is a Postgres
+  // integer, and a sentinel that doesn't fit it fails the whole statement). They are still
+  // counted, so the site-wide ceiling applies to them too.
+  const perUserLimit = user && isOwner(user.email) ? null : DAILY_AI_ACTION_LIMIT;
+
+  // If the counter itself can't be read or reserved, no paid call is made: an action that
+  // can't be counted isn't admitted. The caller shows a retryable message instead of crashing.
+  let reserved: number | null;
+  try {
+    const total = await getAiUsageTotalForDay(today);
+    if (total >= globalDailyAiLimit()) {
+      // The only alert channel today is the process log; this line is what to grep for.
+      console.error(`AI site-wide daily limit reached (${total} actions)`);
+      return { allowed: false, error: SITE_LIMIT_MESSAGE };
+    }
+    reserved = await reserveAiUsage(userId, today, perUserLimit);
+  } catch (error) {
+    console.error(
+      "AI admission failed",
+      error instanceof Error ? error.name : typeof error,
+      errorCode(error),
+    );
+    return { allowed: false, error: AI_UNAVAILABLE_MESSAGE };
   }
-
-  const perUserLimit =
-    user && isOwner(user.email) ? Number.MAX_SAFE_INTEGER : DAILY_AI_ACTION_LIMIT;
-
-  const reserved = await reserveAiUsage(userId, today, perUserLimit);
   if (reserved === null) {
     return {
       allowed: false,

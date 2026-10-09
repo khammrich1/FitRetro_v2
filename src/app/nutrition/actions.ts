@@ -8,7 +8,7 @@ import {
   setUserBodyStats,
   parseMemberDay,
 } from "@/features/auth";
-import { checkAiUsageAllowed } from "@/features/ai-usage";
+import { checkAiUsageAllowed, describeAiFailure } from "@/features/ai-usage";
 import { recordMeasurement } from "@/features/measurements";
 import { MACRO_KEYS, macroOrderToString, type MacroKey } from "@/lib/macro-order";
 import { lbsToKg, feetInchesToCm } from "@/lib/units";
@@ -187,19 +187,22 @@ export async function getSuggestionsAction(
   dayIso?: string,
   preference?: string,
 ): Promise<SuggestionsState> {
+  // verifySession stays outside the try: its redirect must not be swallowed as an "error".
   const { userId } = await verifySession();
 
-  const remaining = await getRemainingMacrosForDay(userId, await parseMemberDay(dayIso));
-  if (!remaining) {
-    return { error: "Set your daily macro goals first to get suggestions." };
-  }
-
-  const usageCheck = await checkAiUsageAllowed(userId, { input: preference });
-  if (!usageCheck.allowed) {
-    return { error: usageCheck.error };
-  }
-
+  // Admission (the usage counter) and the provider call are both inside the try, so neither a
+  // database failure nor a provider failure can escape as a full-page error.
   try {
+    const remaining = await getRemainingMacrosForDay(userId, await parseMemberDay(dayIso));
+    if (!remaining) {
+      return { error: "Set your daily macro goals first to get suggestions." };
+    }
+
+    const usageCheck = await checkAiUsageAllowed(userId, { input: preference });
+    if (!usageCheck.allowed) {
+      return { error: usageCheck.error };
+    }
+
     const [pantryItems, goal] = await Promise.all([listPantryItems(userId), getGoals(userId)]);
     const pantryItemNames = pantryItems.map((item) =>
       item.quantity ? `${item.name} (${item.quantity})` : item.name,
@@ -212,7 +215,7 @@ export async function getSuggestionsAction(
     );
     return { suggestions };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Failed to get suggestions." };
+    return { error: describeAiFailure(error) };
   }
 }
 
@@ -232,16 +235,15 @@ export async function estimateMacrosAction(
     return { error: "Describe what you ate first." };
   }
 
-  const usageCheck = await checkAiUsageAllowed(userId, { input: description });
-  if (!usageCheck.allowed) {
-    return { error: usageCheck.error };
-  }
-
   try {
+    const usageCheck = await checkAiUsageAllowed(userId, { input: description });
+    if (!usageCheck.allowed) {
+      return { error: usageCheck.error };
+    }
     const estimate = await estimateMacrosFromDescription(description, parsePurpose(purpose));
     return { estimate };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Failed to estimate macros." };
+    return { error: describeAiFailure(error) };
   }
 }
 
@@ -271,12 +273,11 @@ export async function estimateMacrosFromImageAction(
 
   const note = formData.get("note")?.toString().trim() || undefined;
 
-  const usageCheck = await checkAiUsageAllowed(userId, { input: note });
-  if (!usageCheck.allowed) {
-    return { error: usageCheck.error };
-  }
-
   try {
+    const usageCheck = await checkAiUsageAllowed(userId, { input: note });
+    if (!usageCheck.allowed) {
+      return { error: usageCheck.error };
+    }
     const buffer = Buffer.from(await image.arrayBuffer());
     const estimate = await estimateMacrosFromImage(
       buffer.toString("base64"),
@@ -286,9 +287,7 @@ export async function estimateMacrosFromImageAction(
     );
     return { estimate };
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Failed to estimate macros from photo.",
-    };
+    return { error: describeAiFailure(error) };
   }
 }
 
@@ -343,16 +342,15 @@ export async function getRecipeAction(
 ): Promise<RecipeState> {
   const { userId } = await verifySession();
 
-  const usageCheck = await checkAiUsageAllowed(userId, { input: `${name} ${description}` });
-  if (!usageCheck.allowed) {
-    return { error: usageCheck.error };
-  }
-
   try {
+    const usageCheck = await checkAiUsageAllowed(userId, { input: `${name} ${description}` });
+    if (!usageCheck.allowed) {
+      return { error: usageCheck.error };
+    }
     const recipe = await generateRecipe(name, description, macros);
     return { recipe };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Failed to generate a recipe." };
+    return { error: describeAiFailure(error) };
   }
 }
 

@@ -54,6 +54,34 @@ describe.skipIf(!url)("reserveAiUsage (real Postgres)", () => {
   it("stays full afterwards", async () => {
     expect(await usage!.reserveAiUsage(USER_ID, DAY, 20)).toBeNull();
   });
+
+  // Issue #56. Postgres infers the parameter's type from the column it is compared with, so a
+  // JavaScript number beyond int4 fails the statement outright — this is the production crash.
+  it("proves the old owner sentinel fails against the integer column (SQLSTATE 22003)", async () => {
+    await expect(
+      db!.execute(
+        sql`UPDATE ai_usage SET count = count WHERE user_id = ${USER_ID} AND count < ${Number.MAX_SAFE_INTEGER}`,
+      ),
+    ).rejects.toMatchObject({ cause: { code: "22003" } }); // Drizzle wraps the PostgresError
+  });
+
+  it("admits the uncapped owner past the member limit and keeps counting", async () => {
+    // The row is already full at 20 for a member; with no cap the same row keeps incrementing.
+    expect(await usage!.reserveAiUsage(USER_ID, DAY, null)).toBe(21);
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () => usage!.reserveAiUsage(USER_ID, DAY, null)),
+    );
+    expect(results.every((r) => r !== null)).toBe(true);
+    expect(await usage!.getAiUsageCountForDay(USER_ID, DAY)).toBe(31);
+    expect(await usage!.getAiUsageTotalForDay(DAY)).toBeGreaterThanOrEqual(31);
+  });
+
+  it("refuses an out-of-range limit before it reaches the database", async () => {
+    await expect(usage!.reserveAiUsage(USER_ID, DAY, Number.MAX_SAFE_INTEGER)).rejects.toThrow(
+      RangeError,
+    );
+    expect(await usage!.getAiUsageCountForDay(USER_ID, DAY)).toBe(31);
+  });
 });
 
 describe.skipIf(!url)("Daily Reader single-flight (real Postgres)", () => {
