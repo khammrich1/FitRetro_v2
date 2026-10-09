@@ -19,6 +19,7 @@ vi.mock("./queries", () => ({
 
 const { checkAiUsageAllowed, DAILY_AI_ACTION_LIMIT, SITE_LIMIT_MESSAGE, globalDailyAiLimit } =
   await import("./limit");
+const { AI_UNAVAILABLE_MESSAGE } = await import("./failure");
 
 beforeEach(() => {
   mocks.getUserById.mockReset().mockResolvedValue({ id: "u1", email: "member@example.com" });
@@ -52,11 +53,28 @@ describe("checkAiUsageAllowed", () => {
   it("exempts the owner from the per-user cap but still counts them", async () => {
     mocks.getUserById.mockResolvedValue({ id: "o", email: "owner@example.com" });
     expect(await checkAiUsageAllowed("o")).toEqual({ allowed: true });
-    expect(mocks.reserveAiUsage).toHaveBeenCalledWith(
-      "o",
-      expect.any(Date),
-      Number.MAX_SAFE_INTEGER,
-    );
+    // Explicit "no cap", not a sentinel: ai_usage.count is a Postgres integer, and
+    // MAX_SAFE_INTEGER bound against it fails the statement (issue #56).
+    expect(mocks.reserveAiUsage).toHaveBeenCalledWith("o", expect.any(Date), null);
+  });
+
+  it("refuses, without crashing, when the counter can't be reserved", async () => {
+    const dbError = Object.assign(new Error('value "9007199254740991" is out of range'), {
+      code: "22003",
+    });
+    mocks.reserveAiUsage.mockRejectedValue(dbError);
+    const result = await checkAiUsageAllowed("u1");
+    expect(result).toEqual({ allowed: false, error: AI_UNAVAILABLE_MESSAGE });
+    expect(console.error).toHaveBeenCalledWith("AI admission failed", "Error", "22003");
+  });
+
+  it("refuses, without crashing, when the site-wide total can't be read", async () => {
+    mocks.getAiUsageTotalForDay.mockRejectedValue(new Error("connection refused"));
+    expect(await checkAiUsageAllowed("u1")).toEqual({
+      allowed: false,
+      error: AI_UNAVAILABLE_MESSAGE,
+    });
+    expect(mocks.reserveAiUsage).not.toHaveBeenCalled();
   });
 
   it("stops everyone, owner included, at the site-wide ceiling", async () => {

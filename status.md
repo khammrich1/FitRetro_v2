@@ -1,5 +1,35 @@
 # FitRetro — Live Status
 
+## Nutrition AI crash fix — issue #56 (2026-10-09)
+
+Production root cause (confirmed by the owner's live reproduction, SQLSTATE 22003): the owner's
+per-user AI exemption from PR #40 passed `Number.MAX_SAFE_INTEGER` as the limit, and Postgres
+bound it against the `integer` column `ai_usage.count`. Every AI action for the owner failed in
+admission, before any provider call — food suggestions, text and photo macro estimates, recipes,
+note cleanup, workout estimates, pantry identify. For members it worked; credits were never the
+cause of this path.
+
+Fix on branch `claude/fix-nutrition-ai-admission` (off `main`), PR linked to #56:
+
+- `reserveAiUsage(userId, day, limit: number | null)` — `null` means no per-user cap and omits
+  the limit predicate entirely (the row still increments, so the site-wide ceiling stays honest).
+  A limit outside the Postgres integer range is refused before any statement is sent.
+- `checkAiUsageAllowed` passes `null` for the owner, and contains a failing counter read or
+  reservation as `{ allowed: false }` with a retryable message — no paid call for an action that
+  can't be counted. This protects every caller, not only nutrition.
+- The four nutrition actions (suggestions, text estimate, photo estimate, recipe) run admission
+  and the provider call inside their try/catch; `verifySession` stays outside so its redirect
+  still works. Errors go through `describeAiFailure`: honest lines for provider 401/400-credit/
+  429/5xx, the app's own messages pass through, anything else (database text, internals) is
+  replaced by a generic retryable message and logged by name and code only.
+- Tests: query guard (unit), limit admission failures (unit), nutrition action containment for
+  all four actions plus the redirect boundary (unit), and on real Postgres: the 22003 proof and
+  the uncapped owner path (integration — runs locally with `INTEGRATION_DATABASE_URL` and in CI).
+
+No migration, no counter reset, no model/key/credit change. Owner steps: review/merge the PR,
+`dev-fr-deploy`, then on the phone: request suggestions, estimate a text meal, estimate a photo
+meal. Production deploy is a pure code change (no backup/migrate step needed).
+
 ## Current reconciliation — October 4, 2026
 
 Current gate: review and owner-test the open production-hardening stack [#37](https://github.com/khammrich1/FitRetro_v2/pull/37) → #38 → #39 → #40 → #41 → [#42](https://github.com/khammrich1/FitRetro_v2/pull/42) in order. They cover dependencies/CI, session revocation/rate limits, notes/dose history, atomic AI admission, checkout/webhook idempotency, member time zones/scoring/input/pantry/calendar correctness. PRs #37–#39 are merged; #40–#42 remain open; PR descriptions report validation, not fresh owner acceptance or deployment.
